@@ -223,7 +223,10 @@
  ;; `(undo-tree-visualizer-register-face ((,class (:foreground ,highlight))))
 
  ;; Magit
+
+ `(magit-diff-added ((default :background ,"#ddffdd")))
  `(magit-diff-added-highlight ((default :background ,"#cceecc")))
+ `(magit-diff-removed ((default :background ,"#ffe9e9")))
  `(magit-diff-removed-highlight ((default :background ,"#ffdddd")))
  ;; `(magit-blame-heading ((,class (:background ,darker-bg :foreground ,warning))))
  ;; `(magit-blame-date ((,class (:foreground ,error))))
@@ -231,9 +234,9 @@
  ;; `(magit-dimmed ((,class (:foreground ,comment))))
  ;; `(magit-hash ((,class (:foreground ,comment))))
  ;; `(magit-tag ((,class (:foreground ,highlight))))
- ;; `(magit-branch-local ((,class (:foreground ,warning))))
- ;; `(magit-branch-remote ((,class (:foreground ,string))))
- ;; `(magit-branch-current ((,class (:foreground ,keyword))))
+ `(magit-branch-local ((default :foreground ,k-dk-blue :inherit bold)))
+ `(magit-branch-remote ((default :foreground ,k-dk-purple :inherit bold)))
+ `(magit-branch-current ((default :box t :inherit magit-branch-local)))
  ;; `(magit-refname ((,class (:inherit comment))))
  ;; `(magit-signature-good ((,class (:inherit success))))
  ;; `(magit-signature-bad ((,class (:inherit error))))
@@ -249,7 +252,7 @@
  ;; `(magit-process-ng ((,class (:inherit error))))
  `(magit-section-heading ((default :inherit (outline-2 success))))
  ;; `(magit-section-heading-selection ((,class (:foreground ,warning :weight bold))))
- ;; `(magit-section-highlight ((,class (:inherit highlight))))
+ `(magit-section-highlight ((default :inherit match)))
 
  ;; Compilation (most faces politely inherit from 'success, 'error, 'warning etc.)))
  ;; `(compilation-column-number ((,class (:foreground ,highlight))))
