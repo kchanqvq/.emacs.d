@@ -78,8 +78,8 @@
 (defvar k-packages
   '(embark org-contrib exwm company-posframe orderless
   pyim-cangjiedict pyim projectile stripes vertico consult
-  haskell-mode mini-frame selectrum-prescient marginalia
-  selectrum slime-company slime crdt impatient-mode
+  embark-consult haskell-mode mini-frame selectrum-prescient
+  marginalia selectrum slime-company slime crdt impatient-mode
   comment-dwim-2 sudo-edit csv-mode zygospore yasnippet ws-butler
   volatile-highlights vlf use-package undo-tree telega
   system-packages smtpmail-multi slack showtip sauron
@@ -793,6 +793,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 (require 'consult)
 (require 'embark)
+(require 'embark-consult)
 (global-set-key (kbd "C-M-h") 'backward-kill-sexp)
 ;; (define-key isearch-mode-map (kbd "s-s") 'helm-swoop-from-isearch)
 (global-set-key (kbd "s-m") 'magit-status)
@@ -836,6 +837,16 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 ;; (global-set-key (kbd "s-a") #'helm-projectile-switch-to-buffer)
 ;; (global-set-key (kbd "s-V") #'helm-projectile-switch-project)
 (global-set-key (kbd "s-SPC") 'fixup-whitespace)
+
+(defun k-grep-in (filename)
+  "Grep in FILENAME."
+  (interactive (list (cdr (embark--vertico-selected))))
+  (if (file-directory-p filename)
+      (consult-grep filename)
+      (let ((buffer (find-file-noselect filename)))
+        (with-current-buffer buffer
+          (consult-line)))))
+(define-key vertico-map (kbd "C-s") 'k-grep-in)
 
 (define-key indent-rigidly-map (kbd "C-b") 'indent-rigidly-left)
 (define-key indent-rigidly-map (kbd "C-f") 'indent-rigidly-right)
@@ -1149,7 +1160,9 @@ Otherwise call ORIG-FUN with ARGS."
                 (k-pad-mode-line-format
                  '("%e" mode-line-mule-info mode-line-client mode-line-modified mode-line-remote
                    mode-line-frame-identification
-                   (14 ("%c,%l/" (:eval (number-to-string (line-number-at-pos (point-max)))))) " "
+                   (14 (#("%c %l/" 0 2 (face mode-line-emphasis) 3 5 (face mode-line-highlight))
+                        (:propertize (:eval (number-to-string (line-number-at-pos (point-max))))
+                         face bold))) " "
                    (:propertize "%b" face mode-line-buffer-id)
                    ((which-func-mode which-func-format)) " \t"
                    (mode-line-process ("(" mode-name ":" mode-line-process  ")")
@@ -1293,9 +1306,13 @@ Otherwise call ORIG-FUN with ARGS."
                                             k-eww-history)
                                     str pred))))))
      (or (get-text-property 0 'url input) input)))
-(defun eww-new-buffer (url)
-  (interactive (list (k-eww-read-url)))
-  (with-temp-buffer (eww url)))
+(defun eww-new-buffer (url &optional scholar)
+  (interactive (list (k-eww-read-url) "P"))
+  (with-temp-buffer
+      (if scholar
+          (let ((eww-search-prefix "https://scholar.google.com/scholar?q="))
+            (eww url))
+          (eww url))))
 (global-set-key (kbd "s-g") 'eww-new-buffer)
 
 ;;; PDF Tools

@@ -151,8 +151,8 @@
  `(mode-line ((default :background ,k-bg-blue)))
  `(mode-line-buffer-id ((default :inherit (mode-line bold))))
  `(mode-line-inactive ((default :inherit mode-line)))
- `(mode-line-emphasis ((default :inherit (mode-line k-keyword))))
- `(mode-line-highlight ((default :inherit (mode-line k-keyword))))
+ `(mode-line-emphasis ((default :foreground ,k-dk-purple :inherit (mode-line bold))))
+ `(mode-line-highlight ((default :foreground ,k-dk-blue :inherit (mode-line bold))))
  `(minibuffer-prompt ((default :background ,k-bg :weight normal)))
  `(region ((default :background ,k-bg-1)))
  `(secondary-selection ((default :background ,k-bg-1)))
@@ -228,6 +228,7 @@
  `(magit-diff-added-highlight ((default :background ,"#cceecc")))
  `(magit-diff-removed ((default :background ,"#ffe9e9")))
  `(magit-diff-removed-highlight ((default :background ,"#ffdddd")))
+ `(magit-diff-file-heading ((default :inherit bold)))
  ;; `(magit-blame-heading ((,class (:background ,darker-bg :foreground ,warning))))
  ;; `(magit-blame-date ((,class (:foreground ,error))))
  ;; `(magit-header-line ((,class (:inherit nil :weight bold))))
@@ -274,6 +275,8 @@
 
  ;; Completion
  `(vertico-current ((default :inherit match)))
+ `(vertico-group-title ((default :background ,k-bg-purple :inherit bold)))
+ `(vertico-group-separator ((default :background ,k-bg-purple :strike-through t :inherit shadow)))
  `(completions-common-part ((default :inherit k-common)))
  `(completions-annotations ((default :inherit k-comment)))
  `(orderless-match-face-0 ((default :inherit k-common)))
