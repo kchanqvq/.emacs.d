@@ -77,22 +77,21 @@
 ;; Bootstrap required packages
 (defvar k-packages
   '(embark org-contrib exwm company-posframe orderless
-    pyim-cangjiedict pyim projectile stripes vertico consult
-    haskell-mode mini-frame selectrum-prescient marginalia
-    selectrum slime-company slime crdt impatient-mode
-    comment-dwim-2 sudo-edit csv-mode zygospore yasnippet ws-butler
-    volatile-highlights vlf use-package undo-tree telega
-    system-packages smtpmail-multi slack showtip sauron
-    rainbow-mode racket-mode pyim-basedict proof-general posframe
-    pdf-tools paxedit ox-reveal org-static-blog org-present nswbuff
-    nasm-mode multi-vterm mmm-mode magit languagetool langtool
-    iedit highlight-parentheses highlight-indent-guides
-    goto-last-change gnu-apl-mode geiser flycheck emms-soundcloud
-    elnode dtrt-indent dashboard ctable company-c-headers
-    comment-or-uncomment-sexp cmake-ide clean-aindent-mode cdlatex
-    bug-hunter buffer-move auto-highlight-symbol auctex anzu
-    all-the-icons aggressive-indent adjust-parens ace-link
-    2048-game))
+  pyim-cangjiedict pyim projectile stripes vertico consult
+  haskell-mode mini-frame selectrum-prescient marginalia
+  selectrum slime-company slime crdt impatient-mode
+  comment-dwim-2 sudo-edit csv-mode zygospore yasnippet ws-butler
+  volatile-highlights vlf use-package undo-tree telega
+  system-packages smtpmail-multi slack showtip sauron
+  rainbow-mode racket-mode pyim-basedict proof-general posframe
+  pdf-tools paxedit ox-reveal org-static-blog org-present
+  nasm-mode multi-vterm mmm-mode magit languagetool langtool
+  iedit highlight-parentheses highlight-indent-guides
+  goto-last-change gnu-apl-mode geiser flycheck emms-soundcloud
+  elnode dtrt-indent ctable comment-or-uncomment-sexp
+  clean-aindent-mode cdlatex bug-hunter buffer-move
+  auto-highlight-symbol auctex anzu aggressive-indent
+  adjust-parens ace-link 2048-game))
 (let ((to-install (remove-if #'package-installed-p k-packages)))
   (when to-install
     (message "%s packages to be installed." (length to-install))
@@ -794,6 +793,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 ;; (define-key isearch-mode-map (kbd "s-s") 'helm-swoop-from-isearch)
 (global-set-key (kbd "s-m") 'magit-status)
 (global-set-key (kbd "s-i") 'find-file)
+(setq-default consult-preview-key (kbd "C-h"))
 (global-set-key (kbd "s-q") 'consult-buffer)
 (global-set-key (kbd "s-w") 'save-buffer)
 (global-set-key (kbd "s-u") 'revert-buffer)
