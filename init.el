@@ -338,6 +338,18 @@
 (company-posframe-mode)
 (global-company-mode)
 
+;; Don't let `company-elisp' quickhelp hijack `*Help*' buffer
+(defvar k-help-buffer-override nil)
+(defun k--company-help-buffer-advice (orig &rest args)
+  (let ((k-help-buffer-override "*company-documentation*"))
+    (apply orig args)))
+(advice-add 'company-capf :around 'k--company-help-buffer-advice)
+(defun k--help-buffer-advice (orig)
+  (or (when k-help-buffer-override
+        (get-buffer-create k-help-buffer-override))
+      (funcall orig)))
+(advice-add 'help-buffer :around 'k--help-buffer-advice)
+
 ;;; Projectile
 
 (projectile-global-mode)
@@ -838,6 +850,9 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 ;; (global-set-key (kbd "s-V") #'helm-projectile-switch-project)
 (global-set-key (kbd "s-SPC") 'fixup-whitespace)
 
+(global-set-key (kbd "s-g") 'eww-new-buffer)
+(global-set-key (kbd "s-a") 'emms)
+
 (defun k-grep-in (filename)
   "Grep in FILENAME."
   (interactive (list (cdr (embark--vertico-selected))))
@@ -1131,13 +1146,11 @@ Otherwise call ORIG-FUN with ARGS."
 (require 'emms-player-mpv)
 (setq emms-player-list '(emms-player-mpv))
 (setq emms-source-file-default-directory "~/Music/EMMS/")
-(define-emms-simple-player mplayer '(file url)
-  (regexp-opt '(".ogg" ".mp3" ".wav" ".mpg" ".mpeg" ".wmv" ".wma"
-                ".mov" ".avi" ".divx" ".ogm" ".asf" ".mkv" "http://" "mms://"
-                ".rm" ".rmvb" ".mp4" ".flac" ".vob" ".m4a" ".flv" ".ogv" ".pls"))
-  "mplayer" "-slave" "-quiet" "-really-quiet" "-fullscreen")
 (require 'emms-info-tinytag)
-(setq emms-info-tinytag-python-name "/usr/bin/python3")
+(executable-find "python2.7")
+(cond ((executable-find "python"))
+      ((executable-find "python3") (setq emms-info-tinytag-python-name "python3"))
+      (t (warn "Unable to guess python3 path for emms-info-tinytag.")))
 (setq emms-mode-line-mode-line-function nil)
 (setq emms-mode-line-titlebar-function #'emms-mode-line-playlist-current)
 (setq emms-info-functions '(emms-info-tinytag emms-info-native))
@@ -1279,41 +1292,52 @@ Otherwise call ORIG-FUN with ARGS."
 (require 'eww)
 (setq browse-url-browser-function 'eww-browse-url)
 (add-hook 'eww-after-render-hook 'k-pad-header-line-after-advice)
-(defvar k-eww-history nil "Global history for eww.")
+(defvar k-eww-history (make-hash-table :test 'equal)
+  "Global history for eww. A EQUAL hash that maps title strings to URL.")
 (defun k-eww-after-render-hook ()
   "Update EWW buffer title and save `k-eww-history'."
   (let ((title (plist-get eww-data :title))
         (url (plist-get eww-data :url)))
     (rename-buffer (format "*eww: %s*" title) t)
     (unless (> (length title) 0) (setq title "<no title>"))
-    (add-to-list 'k-eww-history (list :url url :title title))))
+    (puthash (concat (truncate-string-to-width title 40 nil nil (truncate-string-ellipsis))
+                     #(" " 0 1 (display (space :align-to center)))
+                     (propertize url 'face 'completions-annotations))
+             url k-eww-history)))
 (add-hook 'eww-after-render-hook 'k-eww-after-render-hook)
 (defun k-eww-read-url ()
-  (let* ((input
-            (completing-read "Enter URL or keywords: "
-                             (lambda (str pred action)
-                               (if (eq action 'metadata)
-                                   `(metadata
-                                     (annotation-function
-                                      . ,(lambda (cand)
-                                           (concat (propertize " " 'display '(space :align-to center))
-                                                   (get-text-property 0 'url cand)))))
-                                   (complete-with-action
-                                    action
-                                    (mapcar (lambda (entry)
-                                              (propertize (plist-get entry :title)
-                                                          'url (plist-get entry :url)))
-                                            k-eww-history)
-                                    str pred))))))
-     (or (get-text-property 0 'url input) input)))
-(defun eww-new-buffer (url &optional scholar)
-  (interactive (list (k-eww-read-url) "P"))
+  (let* ((cand
+            (completing-read "Enter URL or keywords: " k-eww-history)))
+    (or (gethash cand k-eww-history) cand)))
+(defun eww-new-buffer (url)
+  (interactive (list (k-eww-read-url)))
   (with-temp-buffer
-      (if scholar
+      (if current-prefix-arg
           (let ((eww-search-prefix "https://scholar.google.com/scholar?q="))
             (eww url))
           (eww url))))
-(global-set-key (kbd "s-g") 'eww-new-buffer)
+(define-key eww-mode-map (kbd "G") 'eww-new-buffer)
+
+(require 'ytel)
+(setq-default ytel-invidious-api-url "https://vid.puffyan.us"
+              ytel-title-video-reserved-space 40
+              ytel-author-name-reserved-space 20)
+(add-to-list 'emms-player-mpv-parameters "--no-video")
+(defun ytel-play (&optional no-video)
+  "Play video at point with EMMS."
+  (interactive "P")
+  (emms-player-mpv-cmd `(set vid (if no-video 'no 'yes)))
+  (let* ((video (ytel-get-current-video))
+     	 (id    (ytel-video-id video))
+         (url (concat "https://www.youtube.com/watch?v=" id))
+         (track (emms-track 'url url)))
+    (emms-track-set track 'info-title (ytel-video-title video))
+    (with-current-emms-playlist
+        (emms-playlist-insert-track track)
+      (emms-playlist-previous)
+      (emms-playlist-mode-play-current-track))))
+(define-key ytel-mode-map (kbd "RET") 'ytel-play)
+(define-key ytel-mode-map (kbd "p") (kbd "C-u RET"))
 
 ;;; PDF Tools
 

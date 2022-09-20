@@ -22,6 +22,9 @@
   (defconst k-bg-pink "#FFD4E9")
   (defconst k-fg-pink "#FF8AC2")
   (defconst k-dk-pink "#FF4FA4")
+  (defconst k-bg-grey-1 "grey95")
+  (defconst k-bg-grey-2 "grey90")
+  (defconst k-bg-grey-3 "grey80")
 
   (defconst k-bg "#ffffff")
   (defconst k-bg-1 k-bg-blue)
@@ -224,11 +227,20 @@
 
  ;; Magit
 
- `(magit-diff-added ((default :background ,"#ddffdd")))
- `(magit-diff-added-highlight ((default :background ,"#cceecc")))
- `(magit-diff-removed ((default :background ,"#ffe9e9")))
- `(magit-diff-removed-highlight ((default :background ,"#ffdddd")))
+ ;; `(magit-diff-added ((default :background ,"#ddffdd")))
+ ;; `(magit-diff-added-highlight ((default :background ,"#cceecc")))
+ ;; `(magit-diff-removed ((default :background ,"#ffe9e9")))
+ ;; `(magit-diff-removed-highlight ((default :background ,"#ffdddd")))
+ `(magit-diff-added ((default :background ,k-bg-blue :foreground ,k-fg-1)))
+ `(magit-diff-added-highlight ((default :background ,k-bg-blue)))
+ `(magit-diff-removed ((default :background ,k-bg-pink :foreground ,k-fg-1)))
+ `(magit-diff-removed-highlight ((default :background ,k-bg-pink)))
+ `(magit-diff-context ((default :background ,k-bg :foreground ,k-fg-1)))
+ `(magit-diff-context-highlight ((default :background ,k-bg-grey-1 :foreground ,k-fg)))
+ `(magit-diff-hunk-heading ((default :background ,k-bg-grey-2)))
+ `(magit-diff-hunk-heading-highlight ((default :background ,k-bg-grey-3)))
  `(magit-diff-file-heading ((default :inherit bold)))
+ `(magit-diff-file-heading-highlight ((default :inherit (bold magit-diff-context-highlight))))
  ;; `(magit-blame-heading ((,class (:background ,darker-bg :foreground ,warning))))
  ;; `(magit-blame-date ((,class (:foreground ,error))))
  ;; `(magit-header-line ((,class (:inherit nil :weight bold))))
@@ -253,7 +265,7 @@
  ;; `(magit-process-ng ((,class (:inherit error))))
  `(magit-section-heading ((default :inherit (outline-2 success))))
  ;; `(magit-section-heading-selection ((,class (:foreground ,warning :weight bold))))
- `(magit-section-highlight ((default :inherit match)))
+ `(magit-section-highlight ((default :background ,k-bg-grey-1)))
 
  ;; Compilation (most faces politely inherit from 'success, 'error, 'warning etc.)))
  ;; `(compilation-column-number ((,class (:foreground ,highlight))))
@@ -369,9 +381,13 @@
  ;; `(emms-browser-album-face ((,class (:inherit outline-3))))
  ;; `(emms-browser-track-face ((,class (:inherit outline-4))))
  ;; `(emms-browser-year/genre-face ((,class (:inherit outline-1))))
- ;; `(emms-playlist-selected-face ((,class (:inverse-video t))))
- ;; `(emms-playlist-track-face ((,class (:inherit outline-4))))
+ `(emms-playlist-selected-face ((default :background ,k-bg-pink :extend t )))
+ `(emms-playlist-track-face ((default :foreground ,k-fg)))
 
+ ;; ytel
+ `(ytel-video-published-face ((default :inherit org-date)))
+ `(ytel-channel-name-face ((default :inherit k-proper-name)))
+ `(ytel-video-view-face ((default :inherit shadow)))
  ;; erc
  ;; `(erc-direct-msg-face ((,class (:foreground ,warning))))
  ;; `(erc-error-face ((,class (:foreground ,error))))
