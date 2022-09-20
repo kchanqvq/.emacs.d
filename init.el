@@ -1266,6 +1266,10 @@ Otherwise call ORIG-FUN with ARGS."
 
 (require 'vterm)
 (require 'multi-vterm)
+
+;; Ad-hoc workaround: interaction with wide fringe/padding
+(defun vterm--get-margin-width () 1)
+
 (global-set-key (kbd "s-x") 'multi-vterm-next)
 (global-set-key (kbd "s-X") 'multi-vterm)
 (define-key vterm-mode-map (kbd "C-c C-t") nil)
