@@ -385,12 +385,6 @@
 ;;; Theme
 
 (add-to-list 'custom-theme-load-path "~/.emacs.d/themes")
-(require 'shr)
-(let ((fringe-width (/ (* (shr-string-pixel-width "o") 4) 3)))
-  (setq default-frame-alist (append
-                             `((left-fringe . ,fringe-width)
-                               (right-fringe . ,fringe-width))
-                             default-frame-alist)))
 
 (aset ansi-color-map 31 '((:inherit match)))
 (setenv "GREP_COLOR" "31")
@@ -415,6 +409,13 @@
       (with-current-buffer buffer
         (highlight-indent-guides-mode)))
     (highlight-tail-mode)))
+
+(require 'shr)
+(let ((fringe-width (/ (* (shr-string-pixel-width "o") 4) 3)))
+  (setq default-frame-alist (append
+                             `((left-fringe . ,fringe-width)
+                               (right-fringe . ,fringe-width))
+                             default-frame-alist)))
 
 ;;; Misc packages
 
