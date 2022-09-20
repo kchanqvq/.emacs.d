@@ -57,11 +57,6 @@
             (setq default-directory
                   (replace-regexp-in-string "^/sudo:root@localhost:" "" default-directory))))
 
-(setq default-frame-alist (append
-                           '((left-fringe . 16)
-                             (right-fringe . 16))
-                           default-frame-alist))
-
 (when (eq window-system 'ns)
   (setq default-frame-alist (append
                              '((ns-transparent-titlebar . t)
@@ -390,6 +385,13 @@
 ;;; Theme
 
 (add-to-list 'custom-theme-load-path "~/.emacs.d/themes")
+(require 'shr)
+(let ((fringe-width (/ (* (shr-string-pixel-width "o") 4) 3)))
+  (setq default-frame-alist (append
+                             `((left-fringe . ,fringe-width)
+                               (right-fringe . ,fringe-width))
+                             default-frame-alist)))
+
 (aset ansi-color-map 31 '((:inherit match)))
 (setenv "GREP_COLOR" "31")
 (setq-default k-color-style 'bright)
