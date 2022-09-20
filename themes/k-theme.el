@@ -14,13 +14,13 @@
  k-color-style
  ('bright
   (defconst k-bg-blue "#bde0fe")
-  (defconst k-bg-pink "#FFD4E9")
-  (defconst k-bg-purple "#C7B5E8")
   (defconst k-fg-blue "#75BFFF")
-  (defconst k-fg-pink "#FF8AC2")
-  (defconst k-fg-purple "#B48CFF")
   (defconst k-dk-blue "#0088FF")
+  (defconst k-bg-purple "#C7B5E8")
+  (defconst k-fg-purple "#B48CFF")
   (defconst k-dk-purple "#8B4DFF")
+  (defconst k-bg-pink "#FFD4E9")
+  (defconst k-fg-pink "#FF8AC2")
   (defconst k-dk-pink "#FF4FA4")
 
   (defconst k-bg "#ffffff")
@@ -41,13 +41,13 @@
 
  ('dark
   (defconst k-bg-blue "#1e2d57")
+  (defconst k-fg-blue "#0088FF")
+  (defconst k-dk-blue "#75BFFF")
   (defconst k-bg-purple "#C7B5E8")
-  (defconst k-bg-pink "#fd79a8")
-  (defconst k-fg-blue "#75BFFF")
-  (defconst k-fg-pink "#FF8AC2")
   (defconst k-fg-purple "#55efc4")
-  (defconst k-dk-blue "#0088FF")
   (defconst k-dk-purple "#55efc4")
+  (defconst k-bg-pink "#fd79a8")
+  (defconst k-fg-pink "#FF8AC2")
   (defconst k-dk-pink "#FF8AC2")
 
   (defconst k-bg "#273763")
@@ -217,9 +217,9 @@
  ;; `(macrostep-expansion-highlight-face ((,class (:background ,brighter-bg :foreground nil))))
 
  ;; undo-tree
- ;; `(undo-tree-visualizer-default-face ((,class (:foreground ,foreground))))
- ;; `(undo-tree-visualizer-current-face ((,class (:foreground ,string :weight bold))))
- ;; `(undo-tree-visualizer-active-branch-face ((,class (:foreground ,error))))
+ `(undo-tree-visualizer-default-face ((default :inherit shadow)))
+ `(undo-tree-visualizer-current-face ((default :foreground ,k-dk-pink :inherit bold)))
+ `(undo-tree-visualizer-active-branch-face ((default :foreground ,k-dk-blue :inherit bold)))
  ;; `(undo-tree-visualizer-register-face ((,class (:foreground ,highlight))))
 
  ;; Magit
