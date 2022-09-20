@@ -91,7 +91,7 @@
   elnode dtrt-indent ctable comment-or-uncomment-sexp
   clean-aindent-mode cdlatex bug-hunter buffer-move
   auto-highlight-symbol auctex anzu aggressive-indent
-  adjust-parens ace-link 2048-game))
+  adjust-parens ace-link 2048-game ytel))
 (let ((to-install (remove-if #'package-installed-p k-packages)))
   (when to-install
     (message "%s packages to be installed." (length to-install))
