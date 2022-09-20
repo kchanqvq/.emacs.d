@@ -787,6 +787,10 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 ;;; Key bindings
 
+(define-key key-translation-map (kbd "C-h") (kbd "DEL"))
+(define-key key-translation-map (kbd "DEL") (kbd "C-h"))
+(define-key key-translation-map (kbd "M-h") (kbd "M-DEL"))
+
 (require 'consult)
 (require 'embark)
 (global-set-key (kbd "C-M-h") 'backward-kill-sexp)
@@ -1373,13 +1377,13 @@ Otherwise call ORIG-FUN with ARGS."
 
 ;;; BGEX patch: image background
 
-(when (k-exwm-enabled-p)
-  (require 'bgex)
-  (bgex-set-image-default "~/Resources/wallpaper-blurred.jpg")
-  (mapc (lambda (buf-name)
-          (bgex-set-color buf-name 'bgex-identifier-type-buffer-name "#2e1e57"))
-        '(" *Minibuf-0*" " *Minibuf-1*" " *Echo Area 0*" " *Echo Area 1*"))
-  (add-to-list 'default-frame-alist '(alpha . 70)))
+;; (when (k-exwm-enabled-p)
+;;   (require 'bgex)
+;;   (bgex-set-image-default "~/Resources/wallpaper-blurred.jpg")
+;;   (mapc (lambda (buf-name)
+;;           (bgex-set-color buf-name 'bgex-identifier-type-buffer-name "#2e1e57"))
+;;         '(" *Minibuf-0*" " *Minibuf-1*" " *Echo Area 0*" " *Echo Area 1*"))
+;;   (add-to-list 'default-frame-alist '(alpha . 70)))
 
 ;;; Notifications
 
