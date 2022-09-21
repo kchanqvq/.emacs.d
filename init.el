@@ -651,27 +651,26 @@ Position the cursor at it's beginning, according to the current mode."
 ;; popup frame layout
 (require 'mini-frame)
 (require 'vertico)
-(setq-default mini-frame-resize 'not-set)
+(setq-default mini-frame-resize 'not-set
+              mini-frame-standalone t)
 (defun k--resize-mini-frame (frame)
-  (let* ((parent (frame-parameter frame 'parent-frame))
+  (let* ((parent mini-frame-selected-frame)
          (window (frame-selected-window parent))
          (this-window (frame-root-window frame))
          (edges (frame-edges parent))
          (inner-edges (frame-edges parent 'inner-edges))
          (pos (window-absolute-pixel-position (window-point window) window)))
     (fit-frame-to-buffer-1 frame nil nil (- (frame-width parent) 4) 80)
+    (message "%s" pos)
     (modify-frame-parameters
      frame
      `((left . ,(min
-                 (- (car pos) (car edges))
-                 (- (caddr inner-edges) (car inner-edges)
+                 (car pos)
+                 (- (caddr inner-edges)
                     (frame-outer-width frame))))
        (top . ,(if (< (frame-outer-height frame) (- (cadddr edges) (cdr pos)))
-                   (- (+ (cdr pos)  (line-pixel-height))
-                      (cadr edges))
-                   (- (cdr pos)
-                      (frame-outer-height frame)
-                      (cadr edges))))))))
+                   (+ (cdr pos)  (line-pixel-height))
+                   (cadr edges)))))))
 (defvar k--minibuffer-display-table (make-display-table))
 (set-display-table-slot k--minibuffer-display-table 0 (aref (cdr vertico-multiline) 0))
 (defun k--minibuffer-setup-hook ()
@@ -688,7 +687,8 @@ Position the cursor at it's beginning, according to the current mode."
                   (right-fringe . 8)
                   (background-color . ,(face-background 'default))
                   (internal-border-width . 1)
-                  (child-frame-border-width . 1))))
+                  (child-frame-border-width . 1)
+                  (z-group . above))))
 
 (require 'marginalia)
 (setq-default marginalia-field-width 80)
@@ -815,8 +815,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (setq-default consult-preview-key (kbd "C-h"))
 (global-set-key (kbd "s-w") 'save-buffer)
 (global-set-key (kbd "s-u") 'revert-buffer)
-(global-set-key (kbd "s-i") 'find-file)
-(global-set-key (kbd "s-q") 'consult-buffer)
 (global-set-key (kbd "s-h") 'consult-imenu)
 (global-set-key (kbd "s-;") 'consult-goto-line)
 (global-set-key (kbd "C-c C-SPC") 'consult-mark)
@@ -834,9 +832,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                          :left-fringe 8 :right-fringe 8)))
 (add-to-list 'display-buffer-alist '("*Embark Actions*" (k-display-buffer-posframe)))
 
-(global-set-key (kbd "s-k") 'switch-to-prev-buffer)
-(when (k-exwm-enabled-p)
-  (exwm-input-set-key (kbd "s-k") 'kill-this-buffer))
 (cl-flet ((global-set-key (a b)
                           (when (k-exwm-enabled-p)
                             (exwm-input-set-key a b))
@@ -849,7 +844,10 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
          (global-set-key (kbd "s-p") 'windmove-up)
          (global-set-key (kbd "s-n") 'windmove-down)
          (global-set-key (kbd "s-r") 'windmove-right)
-         (global-set-key (kbd "s-l") 'windmove-left))
+         (global-set-key (kbd "s-l") 'windmove-left)
+         (global-set-key (kbd "s-k") 'switch-to-prev-buffer)
+         (global-set-key (kbd "s-i") 'find-file)
+         (global-set-key (kbd "s-q") 'consult-buffer))
 ;; (define-key helm-find-files-map (kbd "s-d") 'helm-ff-run-delete-file)
 ;; (define-key helm-find-files-map (kbd "s-w") 'helm-ff-run-copy-file)
 ;; (define-key helm-find-files-map (kbd "s-l") 'helm-ff-run-symlink-file)
@@ -1183,12 +1181,22 @@ Otherwise call ORIG-FUN with ARGS."
 (defun k-emms-toggle-video (&rest args)
   "Tell MPV player to switch to video/no-video mode."
   (interactive)
-  (let ((no-video (if args (car args)
-                      (member "--no-video" emms-player-mpv-parameters))))
-    (emms-player-mpv-cmd `(set vid (if no-video 'no 'yes)))
-    (if no-video
-        (add-to-list emms-player-mpv-parameters "--no-video")
-        (setq emms-player-mpv-parameters (delete "--no-video" emms-player-mpv-parameters)))))
+  (let* ((no-video-now (member "--no-video" emms-player-mpv-parameters))
+         (no-video-wanted (if args (car cargs) (not no-video-now))))
+    (if no-video-wanted
+        (add-to-list 'emms-player-mpv-parameters "--no-video")
+        (setq emms-player-mpv-parameters (delete "--no-video" emms-player-mpv-parameters)))
+    (when (process-live-p emms-player-mpv-proc)
+      (if no-video-now
+          (unless no-video-wanted
+            (emms-stop)
+            (emms-player-mpv-proc-stop)
+            (while
+             (process-live-p emms-player-mpv-proc)
+             (sleep-for 0.1))
+            (sleep-for 0.1)
+            (emms-start))
+          (emms-player-mpv-cmd '(set vid no))))))
 
 ;;; Mode line
 
