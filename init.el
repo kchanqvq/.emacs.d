@@ -1182,7 +1182,7 @@ Otherwise call ORIG-FUN with ARGS."
   "Tell MPV player to switch to video/no-video mode."
   (interactive)
   (let* ((no-video-now (member "--no-video" emms-player-mpv-parameters))
-         (no-video-wanted (if args (car cargs) (not no-video-now))))
+         (no-video-wanted (if args (car args) (not no-video-now))))
     (if no-video-wanted
         (add-to-list 'emms-player-mpv-parameters "--no-video")
         (setq emms-player-mpv-parameters (delete "--no-video" emms-player-mpv-parameters)))
