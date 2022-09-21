@@ -4,9 +4,9 @@
 
 ;; Tweek fonts to  match `window-text-pixel-size'...
 
-(defconst k-light-monospace ;; "Recursive Sans Linear Light Roman Monospace-20"
-  "Source Code Pro-20:weight=light")
-(defconst k-serif-monospace "Libertinus Mono-19")
+(defvar k-light-monospace "Source Code Pro-20:weight=light")
+(defvar k-serif-monospace "Libertinus Mono-19")
+(defvar k-courier-height 200)
 (set-frame-font k-light-monospace nil t)
 
 (defvar k-color-style 'bright)
@@ -52,6 +52,9 @@
   (defconst k-bg-pink "#fd79a8")
   (defconst k-fg-pink "#FF8AC2")
   (defconst k-dk-pink "#FF8AC2")
+  (defconst k-bg-grey-1 "grey20")
+  (defconst k-bg-grey-2 "grey30")
+  (defconst k-bg-grey-3 "grey40")
 
   (defconst k-bg "#273763")
   (defconst k-bg-1 "#4a587d")
@@ -76,7 +79,7 @@
 
 (custom-theme-set-faces
  'k
- `(k-quote ((default :family "Courier" :height 200)))
+ `(k-quote ((default :family "Courier" :height ,k-courier-height)))
  `(k-keyword ((default :foreground ,k-fg-1 :inherit bold)))
  `(k-proper-name ((default :inherit (k-quote bold) :foreground ,k-fg)))
  `(k-string ((default :foreground ,k-dk-pink)))
