@@ -661,7 +661,6 @@ Position the cursor at it's beginning, according to the current mode."
          (inner-edges (frame-edges parent 'inner-edges))
          (pos (window-absolute-pixel-position (window-point window) window)))
     (fit-frame-to-buffer-1 frame nil nil (- (frame-width parent) 4) 80)
-    (message "%s" pos)
     (modify-frame-parameters
      frame
      `((left . ,(min
