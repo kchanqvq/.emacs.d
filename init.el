@@ -867,7 +867,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (when (k-exwm-enabled-p)
   (setq exwm-input-global-keys
         `((,(kbd "s-<escape>") . exwm-reset)))
-  (exwm-input-set-key (kbd "C-x k") 'kill-this-buffer)
   (setq exwm-input-simulation-keys
         '(([?\C-b] . [left])
           ([?\C-f] . [right])
