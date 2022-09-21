@@ -380,7 +380,7 @@
        (,%global-mode-symbol))))
 
 (defun k-exwm-enabled-p ()
-  (member #'exwm-init window-setup-hook))
+  (member #'exwm--server-stop kill-emacs-hook))
 
 ;;; Theme
 
@@ -812,12 +812,11 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (global-set-key (kbd "C-M-h") 'backward-kill-sexp)
 ;; (define-key isearch-mode-map (kbd "s-s") 'helm-swoop-from-isearch)
 (global-set-key (kbd "s-m") 'magit-status)
-(global-set-key (kbd "s-i") 'find-file)
 (setq-default consult-preview-key (kbd "C-h"))
-(global-set-key (kbd "s-q") 'consult-buffer)
 (global-set-key (kbd "s-w") 'save-buffer)
 (global-set-key (kbd "s-u") 'revert-buffer)
-(global-set-key (kbd "s-k") 'switch-to-prev-buffer)
+(global-set-key (kbd "s-i") 'find-file)
+(global-set-key (kbd "s-q") 'consult-buffer)
 (global-set-key (kbd "s-h") 'consult-imenu)
 (global-set-key (kbd "s-;") 'consult-goto-line)
 (global-set-key (kbd "C-c C-SPC") 'consult-mark)
@@ -835,6 +834,9 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                          :left-fringe 8 :right-fringe 8)))
 (add-to-list 'display-buffer-alist '("*Embark Actions*" (k-display-buffer-posframe)))
 
+(global-set-key (kbd "s-k") 'switch-to-prev-buffer)
+(when (k-exwm-enabled-p)
+  (exwm-input-set-key (kbd "s-k") 'kill-this-buffer))
 (cl-flet ((global-set-key (a b)
                           (when (k-exwm-enabled-p)
                             (exwm-input-set-key a b))
@@ -861,6 +863,22 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 (global-set-key (kbd "s-g") 'eww-new-buffer)
 (global-set-key (kbd "s-a") 'emms)
+
+(when (k-exwm-enabled-p)
+  (setq exwm-input-global-keys
+        `((,(kbd "s-<escape>") . exwm-reset)))
+  (exwm-input-set-key (kbd "C-x k") 'kill-this-buffer)
+  (setq exwm-input-simulation-keys
+        '(([?\C-b] . [left])
+          ([?\C-f] . [right])
+          ([?\C-p] . [up])
+          ([?\C-n] . [down])
+          ([?\C-a] . [home])
+          ([?\C-e] . [end])
+          ([?\M-v] . [prior])
+          ([?\C-v] . [next])
+          ([?\C-d] . [delete])
+          ([?\C-k] . [S-end delete]))))
 
 (defun k-grep-in (filename)
   "Grep in FILENAME."
@@ -1330,6 +1348,19 @@ Otherwise call ORIG-FUN with ARGS."
             (eww url))
           (eww url))))
 (define-key eww-mode-map (kbd "G") 'eww-new-buffer)
+
+(when (k-exwm-enabled-p)
+  (defun k-browse-url-chromium (url &rest args)
+    (start-process "chromium" " *chromium*" "chromium"
+                   (concat "--app=" url)))
+  (setq-default browse-url-secondary-browser-function 'k-browse-url-chromium)
+  (add-hook 'exwm-update-title-hook
+            (lambda ()
+              (exwm-workspace-rename-buffer exwm-title)))
+  (defun k-eww-reload-in-chromium ()
+    (interactive)
+    (k-browse-url-chromium (plist-get eww-data :url)))
+  (define-key eww-mode-map (kbd "f") 'k-eww-reload-in-chromium))
 
 (require 'ytel)
 (setq-default ytel-invidious-api-url "https://vid.puffyan.us"
