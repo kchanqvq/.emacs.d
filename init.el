@@ -1180,6 +1180,15 @@ Otherwise call ORIG-FUN with ARGS."
 (setq emms-mode-line-mode-line-function nil)
 (setq emms-mode-line-titlebar-function #'emms-mode-line-playlist-current)
 (setq emms-info-functions '(emms-info-tinytag emms-info-native))
+(defun k-emms-toggle-video (&rest args)
+  "Tell MPV player to switch to video/no-video mode."
+  (interactive)
+  (let ((no-video (if args (car args)
+                      (member "--no-video" emms-player-mpv-parameters))))
+    (emms-player-mpv-cmd `(set vid (if no-video 'no 'yes)))
+    (if no-video
+        (add-to-list emms-player-mpv-parameters "--no-video")
+        (setq emms-player-mpv-parameters (delete "--no-video" emms-player-mpv-parameters)))))
 
 ;;; Mode line
 
@@ -1189,7 +1198,7 @@ Otherwise call ORIG-FUN with ARGS."
   `(#(" " 0 1 (face default display (space :width left-fringe)))
      ,(truncate-string-to-width
        mode-line-format
-       (window-total-width (get-buffer-window (current-buffer)))
+       (window-text-width (get-buffer-window (current-buffer)))
        nil nil (truncate-string-ellipsis))
      #(" " 0 1 (display (space :align-to right)))
      #(" " 0 1 (face default display (space :width right-fringe)))))
@@ -1365,11 +1374,10 @@ Otherwise call ORIG-FUN with ARGS."
 (setq-default ytel-invidious-api-url "https://vid.puffyan.us"
               ytel-title-video-reserved-space 40
               ytel-author-name-reserved-space 20)
-(add-to-list 'emms-player-mpv-parameters "--no-video")
 (defun ytel-play (&optional no-video)
   "Play video at point with EMMS."
   (interactive "P")
-  (emms-player-mpv-cmd `(set vid (if no-video 'no 'yes)))
+  (k-emms-toggle-video no-video)
   (let* ((video (ytel-get-current-video))
      	 (id    (ytel-video-id video))
          (url (concat "https://www.youtube.com/watch?v=" id))
@@ -1496,9 +1504,10 @@ Otherwise call ORIG-FUN with ARGS."
 
 (advice-add 'erc-update-mode-line-buffer :after 'k-pad-header-line-after-advice)
 (require 'erc)
-(setq erc-prompt-for-password t)
-(setq erc-server "localhost")
-(setq erc-port 6670)
+(setq-default erc-track-enable-keybindings nil
+              erc-prompt-for-password t)
+(setq erc-server "localhost"
+      erc-port 6670)
 (setq erc-hide-list '("JOIN" "PART" "QUIT"))
 (advice-add #'erc-login :before
             (lambda ()
