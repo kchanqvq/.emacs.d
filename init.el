@@ -1317,6 +1317,7 @@ Otherwise call ORIG-FUN with ARGS."
 (global-set-key (kbd "s-X") 'multi-vterm)
 (define-key vterm-mode-map (kbd "C-c C-t") nil)
 (define-key vterm-mode-map (kbd "C-c C-j") 'vterm-copy-mode)
+(define-key vterm-mode-map (kbd "C-c C-o") 'vterm-clear)
 (define-key vterm-mode-map (kbd "C-d") (lambda () (interactive) (vterm-send-key "d" nil nil t)))
 (define-key vterm-copy-mode-map (kbd "C-c C-k") (lambda () (interactive) (vterm-copy-mode -1)))
 (defun multi-vterm-set-custom-keys ()
