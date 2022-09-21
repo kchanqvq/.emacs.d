@@ -824,9 +824,15 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (global-set-key (kbd "C-c C-c C-SPC") 'consult-global-mark)
 (global-set-key (kbd "s-s") 'consult-line)
 (global-set-key (kbd "C-z") 'embark-act)
+(defun k-root-frame (frame)
+  "Find non-child frame containing FRAME."
+  (if (frame-parent frame)
+      (k-root-frame (frame-parent frame))
+      frame))
 (defun k-display-buffer-posframe (buffer alist)
-  (posframe-show buffer :internal-border-color k-bg-1 :internal-border-width 1
-                        :left-fringe 8 :right-fringe 8))
+  (with-selected-frame (k-root-frame (selected-frame))
+      (posframe-show buffer :internal-border-color k-bg-1 :internal-border-width 1
+                         :left-fringe 8 :right-fringe 8)))
 (add-to-list 'display-buffer-alist '("*Embark Actions*" (k-display-buffer-posframe)))
 
 (cl-flet ((global-set-key (a b)
