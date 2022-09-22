@@ -669,7 +669,7 @@ Position the cursor at it's beginning, according to the current mode."
                     (frame-outer-width frame))))
        (top . ,(if (< (frame-outer-height frame) (- (cadddr edges) (cdr pos)))
                    (+ (cdr pos)  (line-pixel-height))
-                   (cadr edges)))))))
+                   (- (cadddr edges) (frame-outer-height))))))))
 (defvar k--minibuffer-display-table (make-display-table))
 (set-display-table-slot k--minibuffer-display-table 0 (aref (cdr vertico-multiline) 0))
 (defun k--minibuffer-setup-hook ()
@@ -1163,20 +1163,21 @@ Otherwise call ORIG-FUN with ARGS."
 (setq auto-mode-alist (cons '("\\.z" . z3-mode) auto-mode-alist))
 (setq auto-mode-alist (cons '("\\.ly" . lilypond-mode) auto-mode-alist))
 
-;; (setq exec-path (append exec-path '("/usr/local/bin")))
+;;; EMMS
+
 (require 'emms-setup)
 (emms-all)
 (require 'emms-player-mpv)
 (setq emms-player-list '(emms-player-mpv))
 (setq emms-source-file-default-directory "~/Music/EMMS/")
+(setq emms-mode-line-format "%s")
 (require 'emms-info-tinytag)
 (executable-find "python2.7")
 (cond ((executable-find "python"))
       ((executable-find "python3") (setq emms-info-tinytag-python-name "python3"))
       (t (warn "Unable to guess python3 path for emms-info-tinytag.")))
-(setq emms-mode-line-mode-line-function nil)
-(setq emms-mode-line-titlebar-function #'emms-mode-line-playlist-current)
-(setq emms-info-functions '(emms-info-tinytag emms-info-native))
+(setq global-mode-string (delete 'emms-mode-line-string (delete 'emms-playing-time-string global-mode-string)))
+
 (defun k-emms-toggle-video (&rest args)
   "Tell MPV player to switch to video/no-video mode."
   (interactive)
@@ -1209,20 +1210,40 @@ Otherwise call ORIG-FUN with ARGS."
        nil nil (truncate-string-ellipsis))
      #(" " 0 1 (display (space :align-to right)))
      #(" " 0 1 (face default display (space :width right-fringe)))))
-
+(defvar k-selected-window nil)
+(defun k-set-selected-window ()
+  (when (not (minibuffer-window-active-p (frame-selected-window)))
+    (setq k-selected-window (frame-selected-window))))
+(defun k-mode-line-selected-p ()
+  (eq (selected-window) k-selected-window))
+(add-hook 'window-state-change-hook 'k-set-selected-window)
 (setq-default mode-line-format
               '(:eval
                 (k-pad-mode-line-format
                  '("%e" mode-line-mule-info mode-line-client mode-line-modified mode-line-remote
                    mode-line-frame-identification
-                   (14 (#("%c %l/" 0 2 (face mode-line-emphasis) 3 5 (face mode-line-highlight))
-                        (:propertize (:eval (number-to-string (line-number-at-pos (point-max))))
-                         face bold))) " "
+                   (14 (:eval (if (k-mode-line-selected-p) #("%c" 0 2 (face mode-line-emphasis))
+                                  "%c"))
+                    (#(" %l/" 0 3 (face mode-line-highlight))
+                           (:propertize (:eval (number-to-string (line-number-at-pos (point-max))))
+                            face bold))) " "
                    (:propertize "%b" face mode-line-buffer-id)
                    ((which-func-mode which-func-format)) " \t"
                    (mode-line-process ("(" mode-name ":" mode-line-process  ")")
                     mode-name)
-                   mode-line-misc-info "  " (slime-mode (:eval (slime-mode-line)))))))
+                   mode-line-misc-info
+                   " " (:eval (if (k-mode-line-selected-p)
+                                  (concat (propertize (format-seconds "%.2h:%z%.2m:%.2s" emms-playing-time)
+                                                      'face 'mode-line-highlight) "/"
+                                          (propertize
+                                           (let ((total (emms-track-get
+                                                         (emms-playlist-current-selected-track)
+                                                         'info-playing-time)))
+                                             (if total (format-seconds "%.2h:%z%.2m:%.2s" total) "unknown"))
+                                           'face 'bold) " "
+                                          (propertize emms-mode-line-string 'face 'emms-mode-line-title))
+                                  ""))
+                   " " (slime-mode (:eval (slime-mode-line)))))))
 
 (defvar-local k-pad-last-header-line-format nil)
 (defun k-pad-header-line-after-advice (&optional object &rest args)
@@ -1391,6 +1412,7 @@ Otherwise call ORIG-FUN with ARGS."
          (url (concat "https://www.youtube.com/watch?v=" id))
          (track (emms-track 'url url)))
     (emms-track-set track 'info-title (ytel-video-title video))
+    (emms-track-set track 'info-playing-time (ytel-video-length video))
     (with-current-emms-playlist
         (emms-playlist-insert-track track)
       (emms-playlist-previous)
@@ -1404,7 +1426,7 @@ Otherwise call ORIG-FUN with ARGS."
 (pdf-tools-install)
 (add-to-list 'auto-mode-alist '("\\.pdf\\'" . pdf-view-mode))
 
-;; Print screen
+;; EXWM
 (when (eq window-system 'x)
   (global-set-key (kbd "<print>")
                   (lambda ()
@@ -1412,7 +1434,19 @@ Otherwise call ORIG-FUN with ARGS."
                     (let ((path (concat "~/Documents/Screenshot-" (format-time-string "%Y-%m-%d,%H:%M:%S") ".png")))
                       (start-process-shell-command
                        "import" nil (concat "import -window root " path))
-                      (message (concat "Screenshot saved to " path))))))
+                      (message (concat "Screenshot saved to " path)))))
+
+  (defun k-set-volume (volume)
+    "Change volume."
+    (interactive (list (read-from-minibuffer
+                        (format "Change volume (current %s): "
+                                (let ((output (shell-command-to-string "amixer get Master")))
+                                  (string-match "\\[\\([0-9]+%\\)\\]" output)
+                                  (match-string 1 output)))
+                        nil nil t)))
+    (cl-check-type volume number)
+    (unless (= 0 (call-process-shell-command (format "amixer set Master %s%%" volume)))
+      (error "Failed to set volume"))))
 
 ;;; Undo Tree
 

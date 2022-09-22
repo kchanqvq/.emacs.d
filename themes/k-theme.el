@@ -76,6 +76,7 @@
 (defface k-comment nil "Base face for comment.")
 (defface k-common nil "Base face for common match substring.")
 (defface k-prompt nil "Base face for prompts.")
+(defface emms-mode-line-title nil "Face for EMMS track title in mode line.")
 
 (custom-theme-set-faces
  'k
@@ -313,13 +314,12 @@
  `(company-tooltip-common-selection ((default :inherit k-common)))
  `(company-tooltip-search ((default :inherit k-common)))
  `(company-tooltip-search-selection ((default :inherit k-common)))
-
- ;; `(company-tooltip-common-selection ((,class (:inherit company-tooltip-selection :foreground ,success))))
- ;; `(company-tooltip-search ((default :inherit (region company-tooltip))))
- ;; `(company-tooltip-annotation ((,class (:inherit company-tooltip :foreground ,string))))
- ;; `(company-scrollbar-bg ((,class (:inherit 'company-tooltip :background ,fringe))))
- ;; `(company-scrollbar-fg ((,class (:background ,string))))
  ;; `(company-echo-common ((,class (:inherit company-echo :foreground ,function))))
+
+ ;; LaTeX
+ `(font-latex-math-face ((default :inherit shadow)))
+ `(font-latex-sedate-face ((default :inherit bold)))
+ `(font-latex-warning-face ((default :inherit warning)))
 
  ;; `(org-agenda-structure ((,class (:foreground ,success))))
  ;; `(org-agenda-date ((,class (:foreground ,keyword :underline nil))))
@@ -386,6 +386,7 @@
  ;; `(emms-browser-year/genre-face ((,class (:inherit outline-1))))
  `(emms-playlist-selected-face ((default :background ,k-bg-pink :extend t )))
  `(emms-playlist-track-face ((default :foreground ,k-fg)))
+ `(emms-mode-line-title ((default :inherit italic)))
 
  ;; ytel
  `(ytel-video-published-face ((default :inherit org-date)))
