@@ -623,6 +623,7 @@ Position the cursor at it's beginning, according to the current mode."
 
 ;;; LaTeX
 
+(require 'latex)
 ;; to use pdfview with auctex
 (setq TeX-view-program-selection '((output-pdf "PDF Tools"))
       TeX-view-program-list '(("PDF Tools" TeX-pdf-tools-sync-view))
@@ -633,18 +634,23 @@ Position the cursor at it's beginning, according to the current mode."
           #'TeX-revert-document-buffer)
 
 (add-hook 'LaTeX-mode-hook 'init-latex)
+(add-to-list 'TeX-command-list '("XeLaTeX" "%`xelatex%(mode)%' %t" TeX-run-TeX nil t))
+(add-to-list 'TeX-command-list '("PDFLaTeX" "%`pdflatex -shell-escape%(mode)%' %t" TeX-run-TeX nil t))
+(add-to-list 'TeX-command-list '("Preview" "" (lambda (&rest args) (preview-document)) nil t))
+(add-to-list 'TeX-command-list '("Unpreview" "" (lambda (&rest args) (preview-clearout-document)) nil t))
+(setq TeX-command-default "PDFLaTeX")
+(setq TeX-save-query  nil )
 (defun init-latex ()
-  (add-to-list 'TeX-command-list '("XeLaTeX" "%`xelatex%(mode)%' %t" TeX-run-TeX nil t))
-  (add-to-list 'TeX-command-list '("PDFLaTeX" "%`pdflatex -shell-escape%(mode)%' %t" TeX-run-TeX nil t))
-  (setq TeX-command-default "XeLaTeX")
-  (setq TeX-save-query  nil )
-  (setq TeX-show-compilation t)
   (LaTeX-add-environments
-   '("mathpar" LaTeX-env-label))
-  (turn-on-cdlatex))
+   '("mathpar" LaTeX-env-label)))
+
 (require 'texmathp)
 (add-to-list 'texmathp-tex-commands '("mathpar" env-on))
 (texmathp-compile)
+
+(require 'cdlatex)
+(setq cdlatex-math-symbol-alist '((42 ("\\times" "\\product")) (43 ("\\cup" "\\sum"))))
+(turn-on-cdlatex)
 
 ;;; Completion
 
@@ -1143,15 +1149,6 @@ Otherwise call ORIG-FUN with ARGS."
 
 (require 'goto-last-change)
 (global-set-key (kbd "s-e") #'goto-last-change)
-
-(add-hook 'cdlatex-mode-hook (lambda()
-                               (local-set-key [C-tab] (quote cdlatex-tab))
-                               (setq cdlatex-env-alist
-                                     '(("split" "\\begin{split}\nAUTOLABEL\n?\n\\end{split}\n" nil)
-                                       ))
-                               (setq cdlatex-command-alist
-                                     '(("spl" "Insert split env" "" cdlatex-environment ("split") t nil)
-                                       ))))
 
 (autoload 'scheme-mode "cmuscheme" "Major mode for Scheme." t)
 (autoload 'run-scheme "cmuscheme" "Switch to interactive Scheme buffer." t)

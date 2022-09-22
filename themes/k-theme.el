@@ -320,6 +320,7 @@
  `(font-latex-math-face ((default :inherit shadow)))
  `(font-latex-sedate-face ((default :inherit bold)))
  `(font-latex-warning-face ((default :inherit warning)))
+ `(preview-face ((default :background ,k-bg-grey-1 :extend t)))
 
  ;; `(org-agenda-structure ((,class (:foreground ,success))))
  ;; `(org-agenda-date ((,class (:foreground ,keyword :underline nil))))
