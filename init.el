@@ -931,6 +931,11 @@ vertico frame."
                                      ("(\\(psetq\\)" 1 font-lock-keyword-face)))
 (add-to-list 'lisp-imenu-generic-expression
              (list "Section" "^;;;\\([^#].*\\)$" 1) t)
+(setq auto-mode-alist (cons '("\\.ss" . scheme-mode) auto-mode-alist))
+(setq auto-mode-alist (cons '("\\.sls" . scheme-mode) auto-mode-alist))
+(setq auto-mode-alist (cons '("\\.scm" . scheme-mode) auto-mode-alist))
+(setq auto-mode-alist (delq (assoc "\\.rkt\\'" auto-mode-alist) auto-mode-alist))
+(setq auto-mode-alist (cons '("\\.lisp" . lisp-mode) auto-mode-alist))
 
 (slime-setup '(slime-company slime-fancy slime-quicklisp slime-asdf
                slime-banner slime-media slime-parse))
@@ -1037,7 +1042,7 @@ vertico frame."
 (setq auto-save-no-message t) ;; Slime auto-saves like crazy for some reason...
 (setq eldoc-idle-delay 0)
 
-;;; Paredit enhancements
+;; Paredit enhancements
 
 (define-key paredit-mode-map (kbd "M-c") #'paredit-convolute-sexp)
 (require 'paxedit)
@@ -1077,8 +1082,8 @@ Otherwise call ORIG-FUN with ARGS."
 (require 'magit)
 (defun cloc-magit-root ()
   (interactive)
-  (message (shell-command-to-string
-            (concat "cloc " (magit-toplevel)))))
+  (message "%s" (shell-command-to-string
+                 (concat "cloc " (magit-toplevel)))))
 (add-hook 'magit-post-commit-hook 'cloc-magit-root)
 
 ;;; window/buffer/frame/workspaces movement
@@ -1156,16 +1161,6 @@ Otherwise call ORIG-FUN with ARGS."
 (require 'goto-last-change)
 (global-set-key (kbd "s-e") #'goto-last-change)
 
-(autoload 'scheme-mode "cmuscheme" "Major mode for Scheme." t)
-(autoload 'run-scheme "cmuscheme" "Switch to interactive Scheme buffer." t)
-(setq auto-mode-alist (cons '("\\.ss" . scheme-mode) auto-mode-alist))
-(setq auto-mode-alist (cons '("\\.sls" . scheme-mode) auto-mode-alist))
-(setq auto-mode-alist (cons '("\\.scm" . scheme-mode) auto-mode-alist))
-(setq auto-mode-alist (delq (assoc "\\.rkt\\'" auto-mode-alist) auto-mode-alist))
-(setq auto-mode-alist (cons '("\\.lisp" . lisp-mode) auto-mode-alist))
-(setq auto-mode-alist (cons '("\\.z" . z3-mode) auto-mode-alist))
-(setq auto-mode-alist (cons '("\\.ly" . lilypond-mode) auto-mode-alist))
-
 ;;; EMMS
 
 (require 'emms-setup)
@@ -1212,6 +1207,8 @@ Otherwise call ORIG-FUN with ARGS."
        nil nil (truncate-string-ellipsis))
      #(" " 0 1 (display (space :align-to right)))
      #(" " 0 1 (face default display (space :width right-fringe)))))
+(byte-compile 'k-pad-mode-line-format)
+
 (defvar k-selected-window nil)
 (defun k-set-selected-window ()
   (when (not (minibuffer-window-active-p (frame-selected-window)))
@@ -1299,6 +1296,49 @@ Otherwise call ORIG-FUN with ARGS."
        (highlight-tail-get-colors-fade-table-with-key 'default))
       (setq blink-cursor-count (+ 1 blink-cursor-count))))
   (internal-show-cursor nil (not (internal-show-cursor-p))))
+
+;; Patch `highlight-tail' to handle non-default background correctly
+;; on GNU Emacs (it now works for inherited background)
+(defun highlight-tail-get-bgcolor-hex (point)
+  "Get the background color of point.
+
+Do not take highlight-tail's overlays into consideration.  This means
+that if there is ht's overlay at at the top then return 'default"
+  (let ((point-face (get-char-property point 'face))
+        point-face-from-cache
+        point-face-bgcolor
+        point-face-bgcolor-hex)
+    (if point-face
+        (progn
+          (when (listp point-face)
+            (setq point-face
+                  (or (find-if (lambda (x) (and x (symbolp x))) point-face)
+                      'default)))
+          (setq point-face-from-cache
+                (assoc point-face highlight-tail-nonhtfaces-bgcolors))
+          (if point-face-from-cache
+              (setq point-face-bgcolor-hex (cdr point-face-from-cache))
+              (setq point-face-bgcolor (face-background point-face nil t))
+              (when (or (eq point-face-bgcolor nil)
+                        (eq point-face-bgcolor 'unspecified))
+                (setq point-face-bgcolor 'default))))
+        (setq point-face-bgcolor 'default))
+    (when (not point-face-bgcolor-hex)  ; not read from cache
+      (if (eq point-face-bgcolor 'default)
+          (setq point-face-bgcolor-hex 'default)
+        ;; else
+        (setq point-face-bgcolor-hex
+              (highlight-tail-hex-from-colorname point-face-bgcolor))
+        (setq highlight-tail-nonhtfaces-bgcolors
+              (cons (cons point-face point-face-bgcolor-hex)
+                    highlight-tail-nonhtfaces-bgcolors))
+        (highlight-tail-add-colors-fade-table point-face-bgcolor-hex)
+        (highlight-tail-make-faces
+         (highlight-tail-get-colors-fade-table-with-key
+          point-face-bgcolor-hex))))
+    ;; return value
+    point-face-bgcolor-hex))
+(byte-compile 'highlight-tail-get-bgcolor-hex)
 
 (require 'highlight-indent-guides)
 (setq highlight-indent-guides-method 'bitmap)
