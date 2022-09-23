@@ -832,10 +832,16 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
       (k-root-frame (frame-parent frame))
       frame))
 (defun k-display-buffer-posframe (buffer alist)
-  (with-selected-frame (k-root-frame (selected-frame))
-      (posframe-show buffer :internal-border-color k-bg-1 :internal-border-width 1
-                         :left-fringe 8 :right-fringe 8)))
-(add-to-list 'display-buffer-alist '("*Embark Actions*" (k-display-buffer-posframe)))
+  (set-window-buffer (selected-window) buffer))
+(defun k-display-embark-buffer (buffer alist)
+  "Display BUFFER with ALIST, and hide mini-frame during display.
+Useful for *Embark Actions* so that it doesn't get occluded by
+vertico frame."
+  (make-frame-invisible mini-frame-frame)
+  (with-current-buffer buffer
+    (add-hook 'kill-buffer-hook (lambda () (message "HERE") (make-frame-visible mini-frame-frame)) nil t))
+  (display-buffer-reuse-window buffer alist))
+(setq embark-verbose-indicator-display-action  '(k-display-embark-buffer))
 
 (cl-flet ((global-set-key (a b)
                           (when (k-exwm-enabled-p)
@@ -1185,15 +1191,14 @@ Otherwise call ORIG-FUN with ARGS."
         (setq emms-player-mpv-parameters (delete "--no-video" emms-player-mpv-parameters)))
     (when (process-live-p emms-player-mpv-proc)
       (if no-video-now
-          (unless no-video-wanted
-            (emms-stop)
-            (emms-player-mpv-proc-stop)
-            (while
-             (process-live-p emms-player-mpv-proc)
-             (sleep-for 0.1))
-            (sleep-for 0.1)
-            (emms-start))
+          (emms-player-mpv-cmd '(set vid auto))
           (emms-player-mpv-cmd '(set vid no))))))
+
+(defun k-emms-player-mpv-event-function (json-data)
+  (pcase (alist-get 'event json-data)
+    ("video-reconfig"
+     (emms-player-mpv-event-playing-time-sync))))
+(add-to-list 'emms-player-mpv-event-functions 'k-emms-player-mpv-event-function)
 
 ;;; Mode line
 
@@ -1229,7 +1234,7 @@ Otherwise call ORIG-FUN with ARGS."
                    (mode-line-process ("(" mode-name ":" mode-line-process  ")")
                     mode-name)
                    mode-line-misc-info
-                   " " (:eval (if (k-mode-line-selected-p)
+                   " " (:eval (if (and emms-mode-line-string (k-mode-line-selected-p))
                                   (concat (propertize (format-seconds "%.2h:%z%.2m:%.2s" emms-playing-time)
                                                       'face 'mode-line-highlight) "/"
                                           (propertize
