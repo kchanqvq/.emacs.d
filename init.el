@@ -1197,12 +1197,12 @@ Otherwise call ORIG-FUN with ARGS."
 
 ;;; Mode line
 
-(defun k-pad-mode-line-format (mode-line-format)
-  (unless (stringp mode-line-format)
-    (setq mode-line-format (format-mode-line mode-line-format)))
+(defun k-pad-mode-line-format (format)
+  (unless (stringp format)
+    (setq format (format-mode-line format)))
   `(#(" " 0 1 (face default display (space :width left-fringe)))
      ,(truncate-string-to-width
-       mode-line-format
+       format
        (window-text-width (get-buffer-window (current-buffer)))
        nil nil (truncate-string-ellipsis))
      #(" " 0 1 (display (space :align-to right)))
@@ -1312,7 +1312,7 @@ that if there is ht's overlay at at the top then return 'default"
         (progn
           (when (listp point-face)
             (setq point-face
-                  (or (find-if (lambda (x) (and x (symbolp x))) point-face)
+                  (or (cl-find-if (lambda (x) (and x (symbolp x))) point-face)
                       'default)))
           (setq point-face-from-cache
                 (assoc point-face highlight-tail-nonhtfaces-bgcolors))
