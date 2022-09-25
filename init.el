@@ -66,9 +66,6 @@
   (setq ns-use-proxy-icon nil)
   (set-fontset-font t 'symbol "Apple Color Emoji" nil 'append))
 
-(setq custom-file "~/.emacs.d/custom/custom.el")
-(load custom-file)
-
 ;; Bootstrap required packages
 (defvar k-packages
   '(embark org-contrib exwm company-posframe orderless
@@ -93,6 +90,9 @@
     (dolist (package to-install)
       (ignore-errors (package-install package)))))
 
+(setq custom-file "~/.emacs.d/custom/custom.el")
+(load custom-file)
+
 ;;; company
 
 (require 'company)
@@ -102,6 +102,7 @@
               company-format-margin-function nil)
 
 ;; Zebra strips, to look consistent with vertico
+;; Patch `company--create-lines' and `company-fill-propertize'
 (defvar k--company-current-index)
 ;; (pkg-info-version-info 'company)
 ;; "0.9.13 (package: 20220825.1044)"
@@ -312,11 +313,13 @@
                               'company-tooltip-deprecated t line))
 
     ;; OUR CHANGE
-    (if (evenp k--company-current-index)
+    (if (cl-evenp k--company-current-index)
         (add-face-text-property 0 width 'company-tooltip t line)
-        (add-face-text-property 0 width `(:background ,k-bg-1) t line))
+        (add-face-text-property 0 width 'k-zebra t line))
     line))
 
+(byte-compile 'company--create-lines)
+(byte-compile 'company-fill-propertize)
 
 ;; Use posframe so that company works in minibuffer...
 (require 'company-posframe)
@@ -381,6 +384,9 @@
 
 (defun k-exwm-enabled-p ()
   (member #'exwm--server-stop kill-emacs-hook))
+
+(defun delete-from-list (list-var element)
+  (set list-var (delete element (symbol-value list-var))))
 
 ;;; Theme
 
@@ -659,10 +665,10 @@ Position the cursor at it's beginning, according to the current mode."
 (require 'vertico)
 (setq-default mini-frame-resize 'not-set
               mini-frame-standalone t)
+
 (defun k--resize-mini-frame (frame)
   (let* ((parent mini-frame-selected-frame)
          (window (frame-selected-window parent))
-         (this-window (frame-root-window frame))
          (edges (frame-edges parent))
          (inner-edges (frame-edges parent 'inner-edges))
          (pos (window-absolute-pixel-position (window-point window) window)))
@@ -676,6 +682,8 @@ Position the cursor at it's beginning, according to the current mode."
        (top . ,(if (< (frame-outer-height frame) (- (cadddr edges) (cdr pos)))
                    (+ (cdr pos)  (line-pixel-height))
                    (- (cadddr edges) (frame-outer-height))))))))
+(byte-compile 'k--resize-mini-frame)
+
 (defvar k--minibuffer-display-table (make-display-table))
 (set-display-table-slot k--minibuffer-display-table 0 (aref (cdr vertico-multiline) 0))
 (defun k--minibuffer-setup-hook ()
@@ -700,6 +708,7 @@ Position the cursor at it's beginning, according to the current mode."
 ;; (pkg-info-version-info 'marginalia)
 ;; "20220914.945"
 
+;; Patch `marginalia--affixate'
 (defun marginalia--affixate (metadata annotator cands)
   "Affixate CANDS given METADATA and Marginalia ANNOTATOR."
   ;; OUR CHANGE: Removed adjustment of marginalia-field-width according to (window-width)
@@ -719,6 +728,7 @@ Position the cursor at it's beginning, according to the current mode."
 ;; (emacs-version)
 ;; "GNU Emacs 28.2 (build 1, x86_64-apple-darwin21.5.0, NS appkit-2113.50 Version 12.4 (Build 21F79))
 ;;  of 2022-09-18"
+;; Patch `read-from-kill-ring' so that it doesn't collapse entries to single line
 (defun read-from-kill-ring (prompt)
   "Read a `kill-ring' entry using completion and minibuffer history.
 PROMPT is a string to prompt with."
@@ -728,7 +738,6 @@ PROMPT is a string to prompt with."
          (history-pos (when yank-from-kill-ring-rotate
                         (- (length kill-ring)
                            (length kill-ring-yank-pointer))))
-         (ellipsis (if (char-displayable-p ?…) "…" "..."))
          ;; Remove keymaps from text properties of copied string,
          ;; because typing RET in the minibuffer might call
          ;; an irrelevant command from the map of copied string.
@@ -764,7 +773,9 @@ PROMPT is a string to prompt with."
           (cons 'read-from-kill-ring-history
                 (if (zerop history-pos) history-pos (1+ history-pos)))
           'read-from-kill-ring-history)))))
+(byte-compile 'read-from-kill-ring)
 
+;; Patch `vertico--truncate-multiline'
 (defcustom k-vertico-multiline-max-lines 10
   "Maximum number of lines displayed for a multi-line candidate."
   :group 'vertico)
@@ -780,15 +791,19 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
         (setcar tail (concat (car tail) (truncate-string-ellipsis))))
       (setq cand (mapconcat #'identity lines "\n"))))
   cand)
+(byte-compile 'vertico--truncate-multiline)
+
 ;; Zebra strips, for better visualization of multiline candidates
+;; Patch `vertico--format-candidate'
 (defun vertico--format-candidate (cand prefix suffix index _start)
   "Format CAND given PREFIX, SUFFIX and INDEX."
   (setq cand (vertico--display-string (concat prefix cand suffix "\n")))
   (cond ((= index vertico--index)
          (add-face-text-property 0 (length cand) 'vertico-current 'append cand))
         ((evenp index)
-         (add-face-text-property 0 (length cand) `(:background ,k-bg-1 :extend t) 'append cand)))
+         (add-face-text-property 0 (length cand) 'k-zebra 'append cand)))
   cand)
+(byte-compile 'vertico--format-candidate)
 (setq-default vertico-count 20)
 
 ;; Actual completion system
@@ -1163,7 +1178,11 @@ Otherwise call ORIG-FUN with ARGS."
 (setq emms-source-file-default-directory "~/Music/EMMS/")
 (setq emms-mode-line-format "%s")
 (require 'emms-info-tinytag)
-(executable-find "python2.7")
+(defvar k-python3
+  (cond ((executable-find "python") "python")
+        ((executable-find "python3") "python3")
+        (t (warn "Unable to guess python3 path."))))
+(setq emms-info-tinytag-python-name k-python3)
 (cond ((executable-find "python"))
       ((executable-find "python3") (setq emms-info-tinytag-python-name "python3"))
       (t (warn "Unable to guess python3 path for emms-info-tinytag.")))
@@ -1187,6 +1206,30 @@ Otherwise call ORIG-FUN with ARGS."
     ("video-reconfig"
      (emms-player-mpv-event-playing-time-sync))))
 (add-to-list 'emms-player-mpv-event-functions 'k-emms-player-mpv-event-function)
+
+;; Patch `emms-playlist-mode-overlay-selected' so that overlay extend to full line
+(defun emms-playlist-mode-overlay-selected ()
+  "Place an overlay over the currently selected track."
+  (when emms-playlist-selected-marker
+    (save-excursion
+     (goto-char emms-playlist-selected-marker)
+     (let ((reg (emms-property-region (point) 'emms-track)))
+       (if emms-playlist-mode-selected-overlay
+           (move-overlay emms-playlist-mode-selected-overlay
+                         (car reg)
+                         (1+ (cdr reg)))
+           (setq emms-playlist-mode-selected-overlay
+                 (make-overlay (car reg)
+                               (1+ (cdr reg))
+                               nil t nil))
+           (overlay-put emms-playlist-mode-selected-overlay
+                        'face 'emms-playlist-selected-face)
+           (overlay-put emms-playlist-mode-selected-overlay
+                        'evaporate t))))))
+
+;; Playlist visual
+(add-hook 'emms-playlist-mode 'stripes-mode)
+(add-hook 'emms-playlist-mode 'hl-line-mode)
 
 ;;; Mode line
 
@@ -1341,6 +1384,21 @@ that if there is ht's overlay at at the top then return 'default"
 (setq highlight-indent-guides-auto-enabled nil)
 (setq highlight-indent-guides-delay 0)
 
+;;; Generic stripes
+;; I prefer using text-property to color stuff,
+;; but when I don't feel like trying I use `stripes' overlays.
+(require 'stripes)
+(require 'hl-line)
+(setq-default stripes-unit 1 stripes-overlay-priority 0
+              hl-line-overlay-priority 5)
+(add-hook 'emms-playlist-mode-hook 'stripes-mode)
+;; Patch `hl-line-make-overlay' so that front advance is T
+(defun hl-line-make-overlay ()
+  (let ((ol (make-overlay (point) (point) nil t nil)))
+    (overlay-put ol 'priority hl-line-overlay-priority) ;(bug#16192)
+    (overlay-put ol 'face hl-line-face)
+    ol))
+
 ;;; Scheme
 
 (require 'scheme)
@@ -1442,6 +1500,13 @@ that if there is ht's overlay at at the top then return 'default"
   "Play video at point with EMMS."
   (interactive "P")
   (k-emms-toggle-video no-video)
+  (ytel-add t)
+  (with-current-emms-playlist
+      (emms-playlist-previous)
+    (emms-playlist-mode-play-current-track)))
+(defun ytel-add (&optional here)
+  "Add video at point to EMMS playlist."
+  (interactive "P")
   (let* ((video (ytel-get-current-video))
      	 (id    (ytel-video-id video))
          (url (concat "https://www.youtube.com/watch?v=" id))
@@ -1449,11 +1514,19 @@ that if there is ht's overlay at at the top then return 'default"
     (emms-track-set track 'info-title (ytel-video-title video))
     (emms-track-set track 'info-playing-time (ytel-video-length video))
     (with-current-emms-playlist
-        (emms-playlist-insert-track track)
-      (emms-playlist-previous)
-      (emms-playlist-mode-play-current-track))))
+        (if here
+            (emms-playlist-insert-track track)
+            (save-excursion
+             (goto-char (point-max))
+             (emms-playlist-insert-track track))))))
 (define-key ytel-mode-map (kbd "RET") 'ytel-play)
 (define-key ytel-mode-map (kbd "p") (kbd "C-u RET"))
+(define-key ytel-mode-map (kbd "a") 'ytel-add)
+(add-hook 'ytel-mode-hook 'stripes-mode)
+(add-hook 'ytel-mode-hook
+          '(lambda ()
+            (setq-local hl-line-face '(:inherit match :extend t))
+            (hl-line-mode)))
 
 ;;; PDF Tools
 
@@ -1590,6 +1663,153 @@ that if there is ht's overlay at at the top then return 'default"
             (lambda ()
               (erc-server-send "CAP REQ :znc.in/self-message")
               (erc-server-send "CAP END")))
+
+;;; GNUS
+
+(require 'gnus)
+(setq-default gnus-large-newsgroup nil
+              gnus-use-cache t
+              gnus-cache-enter-articles '(ticked dormant unread read)
+              gnus-cache-remove-articles nil
+              gnus-article-sort-functions '((not gnus-article-sort-by-rsv))
+              gnus-thread-sort-functions '((not gnus-thread-sort-by-date))
+              gnus-permanently-visible-groups "")
+(add-hook 'gnus-group-mode-hook 'gnus-topic-mode)
+(setq-default gnus-select-method '(nnnil nil)
+              gnus-secondary-select-methods
+              '((nnimap "MIT"
+                 (nnimap-address "outlook.office365.com")
+                 (nnimap-server-port 993)
+                 (nnimap-stream ssl))))
+(add-to-list 'gnus-parameters '("" (display . all)))
+
+
+;; Correct IMAP Email count, adapted from
+;; https://www.emacswiki.org/emacs/GnusNiftyTricks
+(require 'imap)
+
+(defun gnus-nnimap-count-format (n)
+  (let ((method (or gnus-tmp-method gnus-select-method)))
+  (when (eq (car method) 'nnimap)
+    (let ((counts (nnimap-request-message-counts gnus-tmp-group method)))
+      (if counts (format "%d" (nth n counts)) "?")))))
+
+(defun gnus-user-format-function-t (dummy)
+  (or (gnus-nnimap-count-format 0)
+      gnus-tmp-number-total))
+
+(defun gnus-user-format-function-y (dummy)
+  (or (gnus-nnimap-count-format 1)
+      gnus-tmp-number-of-unread))
+
+(defvar nnimap-message-count-cache-alist nil)
+
+(defun nnimap-message-count-cache-clear ()
+  (setq nnimap-message-count-cache-alist nil))
+
+(defun nnimap-message-count-cache-get (group)
+  (cadr (assoc group nnimap-message-count-cache-alist)))
+
+(defun nnimap-message-count-cache-set (group count)
+  (push (list group count) nnimap-message-count-cache-alist))
+
+(defun nnimap-request-message-counts (group method)
+  (or (nnimap-message-count-cache-get group)
+      (let ((counts (nnimap-fetch-message-counts group method)))
+        (nnimap-message-count-cache-set group counts)
+        counts)))
+
+(defun nnimap-fetch-message-counts (group method)
+  (let ((imap-group (car (last (split-string group ":"))))
+        (server (cadr method)))
+    (when (nnimap-change-group imap-group server)
+      (message "Requesting message count for %s..." group)
+      (with-current-buffer (nnimap-buffer)
+        (let ((response
+               (assoc "MESSAGES"
+                      (assoc "STATUS"
+                             (nnimap-command "STATUS %S (MESSAGES UNSEEN)"
+                                      (utf7-encode imap-group t))))))
+          (message "Requesting message count for %s...done" group)
+          (and response
+               (mapcar #'string-to-number
+                       (list
+                        (nth 1 response) (nth 3 response)))))))))
+
+(add-hook 'gnus-after-getting-new-news-hook 'nnimap-message-count-cache-clear)
+
+;; FUCK THIS `gnus-spec' ABOMINATION!!!
+;; I'm doing it properly myself
+(require 'gnus-spec)
+(defun gnus-update-format-specifications (&optional force &rest types)
+  "Don't update format specifications.
+Just grab them from `gnus-format-specs'."
+  (let (new-format entry type val updated)
+    (while (setq type (pop types))
+           ;; Jump to the proper buffer to find out the value of the
+           ;; variable, if possible.  (It may be buffer-local.)
+           (save-current-buffer
+	    (let ((buffer (intern (format "gnus-%s-buffer" type))))
+	      (when (and (boundp buffer)
+		         (setq val (symbol-value buffer))
+                         (gnus-buffer-live-p val))
+	        (set-buffer val)))
+	    (setq new-format (symbol-value
+			      (intern (format "gnus-%s-line-format" type))))
+	    (setq entry (cdr (assq type gnus-format-specs)))
+	    (set (intern (format "gnus-%s-line-format-spec" type))
+	         (cadr entry))))
+    updated))
+(setq-default gnus-use-full-window nil
+              gnus-group-line-format nil
+              gnus-summary-line-format nil)
+(add-hook 'gnus-summary-mode-hook 'hl-line-mode)
+(add-hook 'gnus-group-mode-hook 'hl-line-mode)
+(setq gnus-user-date-format-alist
+      '(((gnus-seconds-today) . "Hodie %H:%M")
+        ((+ 86400 (gnus-seconds-today)) . "Heri %H:%M")
+        (604800 . "%a %H:%M")
+        ((gnus-seconds-year) . "%b %d")
+        (t . "%Y %b %d"))
+      gnus-format-specs
+      '((article-mode "Gnus: %g %S%m" (concat (format "Gnus: %s %s%s" (gnus-short-group-name gnus-tmp-group-name) gnus-tmp-subject (gnus-article-mime-part-status))))
+        (summary-dummy "   %(:                             :%) %S
+" (progn (insert "   ") (put-text-property (point) (progn (insert ":                             :") (point)) 'mouse-face gnus-mouse-face) (insert " " gnus-tmp-subject "
+")))
+        (summary-mode "Gnus: %g [%A] %Z" (concat (format "Gnus: %s [%d] %s" (gnus-short-group-name gnus-tmp-group-name) gnus-tmp-article-number gnus-tmp-unread-and-unselected)))
+        (summary nil
+         (add-face-text-property (point)
+          (let (gnus-position)
+            (insert (propertize (string gnus-tmp-unread gnus-tmp-replied gnus-tmp-score-char)
+                                'face '(nil default) 'gnus-face t)
+                    (propertize (truncate-string-to-width
+                                 (concat gnus-tmp-indentation
+                                         (gnus-summary-from-or-to-or-newsgroups gnus-tmp-header gnus-tmp-from))
+                                 28 0 ?  (truncate-string-ellipsis))
+                                'face '((:inherit (shadow k-proper-name)) default) 'gnus-face t)
+                    #("  " 0 2 (face (nil default) gnus-face t)))
+            (setq gnus-position (point))
+            (insert (propertize (truncate-string-to-width
+                gnus-tmp-subject-or-nil
+                70 0 nil (truncate-string-ellipsis))
+               'face '((:inherit (variable-pitch bold)) default) 'gnus-face t)
+   #(" " 0 1 (face (nil default) gnus-face t display (space :align-to (- text 13))))
+   (propertize (format "%12s " (gnus-user-date (mail-header-date gnus-tmp-header)))
+               'face `((:inherit (shadow k-quote)) default) 'gnus-face t)
+   "\n")
+            (put-text-property gnus-position (1+ gnus-position) 'gnus-position t)
+            (point))
+          (if (evenp (line-number-at-pos (point))) 'stripes nil) t))
+        (topic "%i[ %(%{%n%}%) -- %A ]%v
+" (progn (insert indentation "[ ") (put-text-property (point) (progn (add-text-properties (point) (progn (insert name) (point)) (cons 'face (cons (list 'bold 'default) '(gnus-face t)))) (point)) 'mouse-face gnus-mouse-face) (insert (format " -- %d ]%s
+" total-number-of-articles visible))))
+        (group-mode "Gnus: %%b {%M%:%S}" (concat (format "Gnus: %%b {%s%s%s}" gnus-tmp-news-method gnus-tmp-colon gnus-tmp-news-server)))
+        (group nil
+         (progn
+           (insert (format "%c%c%c%s%5s/%-5s %c" gnus-tmp-marked-mark gnus-tmp-subscribed gnus-tmp-process-marked gnus-group-indentation (gnus-user-format-function-y gnus-tmp-header) (gnus-user-format-function-t gnus-tmp-header) gnus-tmp-summary-live))
+           (put-text-property (point) (progn (insert gnus-tmp-qualified-group) (point)) 'mouse-face gnus-mouse-face)
+           (insert "\n")))
+        (version . "28.2") (gnus-version . 5.13)))
 
 ;;; Input Method
 

@@ -76,6 +76,8 @@
 (defface k-comment nil "Base face for comment.")
 (defface k-common nil "Base face for common match substring.")
 (defface k-prompt nil "Base face for prompts.")
+(defface k-zebra nil "Base face for zebra stripes.")
+(defface k-timestamp nil "Base face for timestamps.")
 (defface emms-mode-line-title nil "Face for EMMS track title in mode line.")
 
 (custom-theme-set-faces
@@ -88,6 +90,7 @@
  `(k-comment ((default  :inherit italic :foreground ,k-fg-1)))
  `(k-common ((default :inherit bold)))
  `(k-prompt ((default :inherit bold :foreground ,k-fg-pink)))
+ `(k-zebra ((default :background ,k-bg-blue :extend t)))
  `(default ((default :background ,k-bg :foreground ,k-fg :weight light)))
  '(bold ((default :weight normal)))
  '(bold-italic ((default :slant italic :weight normal)))
@@ -353,8 +356,8 @@
  ;; `(markdown-url-face ((,class (:inherit link))))
  ;; `(markdown-link-face ((,class (:foreground ,keyword :underline t))))
 
- ;; hl-line-mode
- `(hl-line ((default :background ,k-bg-1)))
+ `(hl-line ((default :inherit region)))
+ `(stripes ((default :background ,k-bg-grey-1)))
  `(highlight-indent-guides-character-face ((default :foreground ,k-bg-2)))
  `(highlight-indent-guides-top-character-face ((default :foreground ,k-bg-1)))
  `(highlight-indent-guides-odd-face ((default :inherit highlight-indent-guides-character-face)))
@@ -385,7 +388,7 @@
  ;; `(emms-browser-album-face ((,class (:inherit outline-3))))
  ;; `(emms-browser-track-face ((,class (:inherit outline-4))))
  ;; `(emms-browser-year/genre-face ((,class (:inherit outline-1))))
- `(emms-playlist-selected-face ((default :background ,k-bg-pink :extend t )))
+ `(emms-playlist-selected-face ((default :inherit match :extend t)))
  `(emms-playlist-track-face ((default :foreground ,k-fg)))
  `(emms-mode-line-title ((default :inherit italic)))
 
@@ -393,6 +396,7 @@
  `(ytel-video-published-face ((default :inherit org-date)))
  `(ytel-channel-name-face ((default :inherit k-proper-name)))
  `(ytel-video-view-face ((default :inherit shadow)))
+ `(ytel-video-length-face ((default :inherit shadow)))
  ;; erc
  ;; `(erc-direct-msg-face ((,class (:foreground ,warning))))
  ;; `(erc-error-face ((,class (:foreground ,error))))
@@ -406,9 +410,27 @@
  `(erc-action-face ((default :slant italic)))
  ;; `(erc-pal-face ((,class (:foreground ,warning))))
  `(erc-prompt-face ((default :inherit k-prompt)))
- `(erc-timestamp-face ((default :weight light :foreground ,k-dk-pink)))
+ `(erc-timestamp-face ((default :foreground ,k-dk-pink)))
  `(erc-keyword-face ((default :inherit k-keyword)))
  `(erc-button ((default :inherit button)))
+
+ ;; GNUS
+ `(gnus-group-mail-1 ((default :inherit bold)))
+ `(gnus-group-mail-1-empty ((default :foreground ,k-dk-purple)))
+ `(gnus-group-mail-2 ((default :inherit bold)))
+ `(gnus-group-mail-2-empty ((default :foreground ,k-dk-blue)))
+ `(gnus-group-mail-3 ((default :inherit bold)))
+ `(gnus-group-mail-3-empty ((default :foreground ,k-fg)))
+ `(gnus-summary-normal-ancient ((default :inherit gnus-summary-normal-read)))
+ `(gnus-summary-normal-read ((default :foreground ,k-fg)))
+ `(gnus-summary-normal-unread ((default :foreground ,k-fg)))
+ `(gnus-summary-normal-ticked ((default :inherit region)))
+ `(gnus-summary-selected ((default :inherit match :extend t)))
+ `(gnus-header-name ((default :inherit k-keyword)))
+ `(gnus-header-from ((default :inherit (shadow k-proper-name))))
+ `(gnus-header-content ((default :inherit default)))
+ `(gnus-header-subject ((default :inherit (variable-pitch bold))))
+ `(gnus-button ((default :inherit button)))
 
  ;; custom
  `(custom-variable-tag ((default :inherit k-proper-name)))
