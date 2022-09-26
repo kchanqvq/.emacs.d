@@ -1749,6 +1749,8 @@ that if there is ht's overlay at at the top then return 'default"
 ;; I'm doing it properly myself
 ;; 把 `gnus-spec' 霍霍了！
 (require 'gnus-spec)
+(defun gnus-set-format (type &optional insertable)
+  (gnus-update-format-specifications nil type))
 (defun gnus-update-format-specifications (&optional force &rest types)
   "DON'T update format specifications.
 Just grab them from `gnus-format-specs'."
@@ -1857,12 +1859,30 @@ Just grab them from `gnus-format-specs'."
                   (overlays-in (point-min) (point-max)))
       (gnus-summary-show-all-threads)
       (gnus-summary-hide-all-threads)))
-(define-key gnus-summary-mode-map (kbd "TAB") 'k-gnus-toggle-show-thread)
+(defun k-gnus-toggle-show-topic ()
+  (interactive)
+  (unless (gnus-topic-fold)
+    (error "Not at a topic")))
+(defun k-gnus-topic-up-topic ()
+  (interactive)
+  (if (gnus-group-topic-name)
+      (gnus-topic-goto-topic (gnus-topic-parent-topic (gnus-current-topic)))
+      (gnus-topic-goto-topic (gnus-current-topic))))
+
+(define-key gnus-topic-mode-map (kbd "<tab>") 'k-gnus-toggle-show-topic)
+(define-key gnus-topic-mode-map (kbd "C-M-u") 'k-gnus-topic-up-topic)
+(define-key gnus-summary-mode-map (kbd "<tab>") 'k-gnus-toggle-show-thread)
 (define-key gnus-summary-mode-map (kbd "<backtab>") 'k-gnus-toggle-show-all-threads)
 (define-key gnus-article-mode-map (kbd "q") 'delete-window)
-(define-key gnus-summary-mode-map (kbd "q") 'bury-buffer)
+(define-key gnus-summary-mode-map (kbd "q") '(lambda () (interactive) (switch-to-buffer gnus-group-buffer)))
 (define-key gnus-summary-mode-map (kbd "Q") 'gnus-summary-exit)
-
+(define-key gnus-article-mode-map (kbd "t") 'ace-link)
+(define-key gnus-summary-mode-map (kbd "t") 'gnus-summary-toggle-threads)
+(define-key gnus-summary-mode-map (kbd "M-n") 'gnus-summary-next-unread-article)
+(define-key gnus-summary-mode-map (kbd "M-p") 'gnus-summary-prev-unread-article)
+(define-key gnus-summary-mode-map (kbd "n") 'gnus-summary-next-article)
+(define-key gnus-summary-mode-map (kbd "p") 'gnus-summary-prev-article)
+(define-key gnus-summary-mode-map (kbd "g") 'gnus-summary-insert-new-articles)
 
 ;;; Input Method
 

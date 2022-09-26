@@ -426,6 +426,7 @@
  `(gnus-summary-normal-unread ((default :foreground ,k-fg)))
  `(gnus-summary-normal-ticked ((default :inherit region)))
  `(gnus-summary-selected ((default :inherit match :extend t)))
+ `(gnus-summary-cancelled ((default :inherit shadow)))
  `(gnus-header-name ((default :inherit k-keyword)))
  `(gnus-header-from ((default :inherit (shadow k-proper-name))))
  `(gnus-header-content ((default :inherit default)))
