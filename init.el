@@ -396,6 +396,7 @@
 (setq-default stripes-unit 1 stripes-overlay-priority 0
               hl-line-overlay-priority 5)
 (add-hook 'emms-playlist-mode-hook 'stripes-mode)
+(add-hook 'emms-playlist-mode-hook 'hl-line-mode)
 ;; Patch `hl-line-make-overlay' so that front advance is T
 (defun hl-line-make-overlay ()
   (let ((ol (make-overlay (point) (point) nil t nil)))
@@ -1214,7 +1215,7 @@ Otherwise call ORIG-FUN with ARGS."
         (add-to-list 'emms-player-mpv-parameters "--no-video")
         (setq emms-player-mpv-parameters (delete "--no-video" emms-player-mpv-parameters)))
     (when (process-live-p emms-player-mpv-proc)
-      (if no-video-now
+      (if no-video-wanted
           (emms-player-mpv-cmd '(set vid auto))
           (emms-player-mpv-cmd '(set vid no))))))
 
@@ -1669,6 +1670,7 @@ that if there is ht's overlay at at the top then return 'default"
 ;;; GNUS
 
 (require 'gnus)
+(require 'gnus-topic)
 (setq-default gnus-large-newsgroup nil
               gnus-use-cache t
               gnus-cache-enter-articles '(ticked dormant unread read)
@@ -1819,7 +1821,7 @@ Just grab them from `gnus-format-specs'."
                'face `((:inherit (shadow k-quote)) default) 'gnus-face t))
             (put-text-property gnus-position (1+ gnus-position) 'gnus-position t)
             (point))
-          (if (evenp (line-number-at-pos (point))) 'stripes nil) t))
+          (if (cl-evenp (line-number-at-pos (point))) 'stripes nil) t))
         (topic nil
          (progn
            (insert indentation "[ ")
