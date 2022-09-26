@@ -388,6 +388,21 @@
 (defun delete-from-list (list-var element)
   (set list-var (delete element (symbol-value list-var))))
 
+;;; Generic stripes
+;; I prefer using text-property to color stuff,
+;; but when I don't feel like trying I use `stripes' overlays.
+(require 'stripes)
+(require 'hl-line)
+(setq-default stripes-unit 1 stripes-overlay-priority 0
+              hl-line-overlay-priority 5)
+(add-hook 'emms-playlist-mode-hook 'stripes-mode)
+;; Patch `hl-line-make-overlay' so that front advance is T
+(defun hl-line-make-overlay ()
+  (let ((ol (make-overlay (point) (point) nil t nil)))
+    (overlay-put ol 'priority hl-line-overlay-priority) ;(bug#16192)
+    (overlay-put ol 'face hl-line-face)
+    ol))
+
 ;;; Theme
 
 (add-to-list 'custom-theme-load-path "~/.emacs.d/themes")
@@ -959,6 +974,7 @@ vertico frame."
   (unless slime-default-connection
     (save-excursion (slime))))
 (defun slime-repl-sync ()
+  "Switch to Slime REPL and synchronize package/directory."
   (interactive)
   (slime-sync-package-and-default-directory)
   (slime-repl))
@@ -971,6 +987,7 @@ vertico frame."
   (define-key map (kbd "C-h f") 'slime-describe-function))
 (define-key slime-mode-map (kbd "C-h h") 'slime-hyperspec-lookup)
 (defun slime-undefine ()
+  "Undefine toplevel definition at point."
   (interactive)
   (cl-macrolet
    ((run-with (symbol)
@@ -1227,7 +1244,7 @@ Otherwise call ORIG-FUN with ARGS."
            (overlay-put emms-playlist-mode-selected-overlay
                         'evaporate t))))))
 
-;; Playlist visual
+;; Eye candies
 (add-hook 'emms-playlist-mode 'stripes-mode)
 (add-hook 'emms-playlist-mode 'hl-line-mode)
 
@@ -1383,21 +1400,6 @@ that if there is ht's overlay at at the top then return 'default"
 (setq highlight-indent-guides-responsive 'top)
 (setq highlight-indent-guides-auto-enabled nil)
 (setq highlight-indent-guides-delay 0)
-
-;;; Generic stripes
-;; I prefer using text-property to color stuff,
-;; but when I don't feel like trying I use `stripes' overlays.
-(require 'stripes)
-(require 'hl-line)
-(setq-default stripes-unit 1 stripes-overlay-priority 0
-              hl-line-overlay-priority 5)
-(add-hook 'emms-playlist-mode-hook 'stripes-mode)
-;; Patch `hl-line-make-overlay' so that front advance is T
-(defun hl-line-make-overlay ()
-  (let ((ol (make-overlay (point) (point) nil t nil)))
-    (overlay-put ol 'priority hl-line-overlay-priority) ;(bug#16192)
-    (overlay-put ol 'face hl-line-face)
-    ol))
 
 ;;; Scheme
 
@@ -1671,7 +1673,7 @@ that if there is ht's overlay at at the top then return 'default"
               gnus-use-cache t
               gnus-cache-enter-articles '(ticked dormant unread read)
               gnus-cache-remove-articles nil
-              gnus-article-sort-functions '((not gnus-article-sort-by-rsv))
+              gnus-article-sort-functions '((not gnus-article-sort-by-date))
               gnus-thread-sort-functions '((not gnus-thread-sort-by-date))
               gnus-permanently-visible-groups "")
 (add-hook 'gnus-group-mode-hook 'gnus-topic-mode)
@@ -1738,11 +1740,17 @@ that if there is ht's overlay at at the top then return 'default"
 
 (add-hook 'gnus-after-getting-new-news-hook 'nnimap-message-count-cache-clear)
 
+;; Eye candies
+
+(add-hook 'gnus-summary-mode-hook 'hl-line-mode)
+(add-hook 'gnus-group-mode-hook 'hl-line-mode)
+
 ;; FUCK THIS `gnus-spec' ABOMINATION!!!
 ;; I'm doing it properly myself
+;; 把 `gnus-spec' 霍霍了！
 (require 'gnus-spec)
 (defun gnus-update-format-specifications (&optional force &rest types)
-  "Don't update format specifications.
+  "DON'T update format specifications.
 Just grab them from `gnus-format-specs'."
   (let (new-format entry type val updated)
     (while (setq type (pop types))
@@ -1762,9 +1770,13 @@ Just grab them from `gnus-format-specs'."
     updated))
 (setq-default gnus-use-full-window nil
               gnus-group-line-format nil
-              gnus-summary-line-format nil)
-(add-hook 'gnus-summary-mode-hook 'hl-line-mode)
-(add-hook 'gnus-group-mode-hook 'hl-line-mode)
+              gnus-summary-line-format nil
+              gnus-article-mode-line-format nil
+              gnus-summary-mode-line-format nil
+              gnus-summary-dummy-line-format nil
+              gnus-topic-line-format nil
+              gnus-group-mode-line-format nil
+              gnus-group-line-format nil)
 (setq gnus-user-date-format-alist
       '(((gnus-seconds-today) . "Hodie %H:%M")
         ((+ 86400 (gnus-seconds-today)) . "Heri %H:%M")
@@ -1772,11 +1784,18 @@ Just grab them from `gnus-format-specs'."
         ((gnus-seconds-year) . "%b %d")
         (t . "%Y %b %d"))
       gnus-format-specs
-      '((article-mode "Gnus: %g %S%m" (concat (format "Gnus: %s %s%s" (gnus-short-group-name gnus-tmp-group-name) gnus-tmp-subject (gnus-article-mime-part-status))))
-        (summary-dummy "   %(:                             :%) %S
-" (progn (insert "   ") (put-text-property (point) (progn (insert ":                             :") (point)) 'mouse-face gnus-mouse-face) (insert " " gnus-tmp-subject "
-")))
-        (summary-mode "Gnus: %g [%A] %Z" (concat (format "Gnus: %s [%d] %s" (gnus-short-group-name gnus-tmp-group-name) gnus-tmp-article-number gnus-tmp-unread-and-unselected)))
+      '((article-mode nil "")
+        (summary-dummy nil
+         (progn
+           (insert "   ")
+           (put-text-property
+            (point)
+            (progn
+              (insert ":                             :")
+              (point))
+            'mouse-face gnus-mouse-face)
+           (insert " " gnus-tmp-subject "\n")))
+        (summary-mode nil "")
         (summary nil
          (add-face-text-property (point)
           (let (gnus-position)
@@ -1793,23 +1812,57 @@ Just grab them from `gnus-format-specs'."
                 gnus-tmp-subject-or-nil
                 70 0 nil (truncate-string-ellipsis))
                'face '((:inherit (variable-pitch bold)) default) 'gnus-face t)
-   #(" " 0 1 (face (nil default) gnus-face t display (space :align-to (- text 13))))
-   (propertize (format "%12s " (gnus-user-date (mail-header-date gnus-tmp-header)))
-               'face `((:inherit (shadow k-quote)) default) 'gnus-face t)
-   "\n")
+   #(" " 0 1 (face (nil default) gnus-face t display (space :align-to (- text 14))))
+   (propertize (format "%12s \n" (gnus-user-date (mail-header-date gnus-tmp-header)))
+               'face `((:inherit (shadow k-quote)) default) 'gnus-face t))
             (put-text-property gnus-position (1+ gnus-position) 'gnus-position t)
             (point))
           (if (evenp (line-number-at-pos (point))) 'stripes nil) t))
-        (topic "%i[ %(%{%n%}%) -- %A ]%v
-" (progn (insert indentation "[ ") (put-text-property (point) (progn (add-text-properties (point) (progn (insert name) (point)) (cons 'face (cons (list 'bold 'default) '(gnus-face t)))) (point)) 'mouse-face gnus-mouse-face) (insert (format " -- %d ]%s
-" total-number-of-articles visible))))
-        (group-mode "Gnus: %%b {%M%:%S}" (concat (format "Gnus: %%b {%s%s%s}" gnus-tmp-news-method gnus-tmp-colon gnus-tmp-news-server)))
+        (topic nil
+         (progn
+           (insert indentation "[ ")
+           (put-text-property
+            (point)
+            (progn
+              (add-text-properties
+               (point)
+               (progn (insert name) (point))
+               (cons 'face (cons (list 'bold 'default) '(gnus-face t))))
+              (point))
+            'mouse-face gnus-mouse-face)
+           (insert (format " -- %d ]%s\n" total-number-of-articles visible))))
+        (group-mode nil "")
         (group nil
          (progn
-           (insert (format "%c%c%c%s%5s/%-5s %c" gnus-tmp-marked-mark gnus-tmp-subscribed gnus-tmp-process-marked gnus-group-indentation (gnus-user-format-function-y gnus-tmp-header) (gnus-user-format-function-t gnus-tmp-header) gnus-tmp-summary-live))
+           (insert (format "%c%c%c%s%5s/%-5s %c"
+                           gnus-tmp-marked-mark
+                           gnus-tmp-subscribed
+                           gnus-tmp-process-marked
+                           gnus-group-indentation
+                           (gnus-user-format-function-y gnus-tmp-header)
+                           (gnus-user-format-function-t gnus-tmp-header)
+                           gnus-tmp-summary-live))
            (put-text-property (point) (progn (insert gnus-tmp-qualified-group) (point)) 'mouse-face gnus-mouse-face)
            (insert "\n")))
         (version . "28.2") (gnus-version . 5.13)))
+
+;; Key bindings for trauma repression
+(defun k-gnus-toggle-show-thread ()
+  (interactive)
+  (or (gnus-summary-show-thread)
+      (gnus-summary-hide-thread)))
+(defun k-gnus-toggle-show-all-threads ()
+  (interactive)
+  (if (cl-find-if (lambda (ov) (eq (overlay-get ov 'invisible) 'gnus-sum))
+                  (overlays-in (point-min) (point-max)))
+      (gnus-summary-show-all-threads)
+      (gnus-summary-hide-all-threads)))
+(define-key gnus-summary-mode-map (kbd "TAB") 'k-gnus-toggle-show-thread)
+(define-key gnus-summary-mode-map (kbd "<backtab>") 'k-gnus-toggle-show-all-threads)
+(define-key gnus-article-mode-map (kbd "q") 'delete-window)
+(define-key gnus-summary-mode-map (kbd "q") 'bury-buffer)
+(define-key gnus-summary-mode-map (kbd "Q") 'gnus-summary-exit)
+
 
 ;;; Input Method
 
