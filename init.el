@@ -538,7 +538,6 @@ line instead."
           (progn (forward-char 1)
                  (just-one-space 0)
                  (backward-char 1)))))
-(setq lisp-indent-function 'common-lisp-indent-function)
 
 ;; taken from prelude-editor.el
 ;; automatically indenting yanked text if in programming-modes
@@ -934,7 +933,7 @@ vertico frame."
 (require 'slime-repl)
 (mapc (lambda (h)
         (add-hook h #'paredit-mode)
-        (add-hook h (lambda () (setq outline-regexp "(section-start")))
+        (add-hook h '(lambda () (setq outline-regexp "(section-start")))
         (add-hook h #'highlight-indent-guides-mode))
       '(emacs-lisp-mode-hook
         lisp-mode-hook
@@ -949,6 +948,9 @@ vertico frame."
 (add-hook 'lisp-mode-hook #'slime-mode)
 (add-hook 'lisp-mode-hook #'slime-editing-mode)
 (add-hook 'lisp-mode-hook 'ensure-slime)
+(mapc (lambda (h)
+        (add-hook h '(lambda () (setq-local lisp-indent-function 'common-lisp-indent-function))))
+      '(lisp-mode-hook slime-repl-mode-hook))
 (font-lock-add-keywords 'lisp-mode '(("(\\(setf\\)" 1 font-lock-keyword-face)
                                      ("(\\(setq\\)" 1 font-lock-keyword-face)
                                      ("(\\(psetf\\)" 1 font-lock-keyword-face)
