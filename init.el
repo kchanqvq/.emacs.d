@@ -477,7 +477,7 @@
 (require 'which-func)
 (setq mode-line-misc-info
       (assq-delete-all 'which-function-mode mode-line-misc-info))
-(which-func-mode)
+(which-function-mode)
 (setq-default which-func-format
               '(:eval (let ((x (gethash (selected-window) which-func-table)))
                         (if x (concat "/" (propertize x 'face 'k-proper-name))
@@ -816,7 +816,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (setq cand (vertico--display-string (concat prefix cand suffix "\n")))
   (cond ((= index vertico--index)
          (add-face-text-property 0 (length cand) 'vertico-current 'append cand))
-        ((evenp index)
+        ((cl-evenp index)
          (add-face-text-property 0 (length cand) 'k-zebra 'append cand)))
   cand)
 (byte-compile 'vertico--format-candidate)
@@ -1494,6 +1494,20 @@ that if there is ht's overlay at at the top then return 'default"
     (interactive)
     (k-browse-url-chromium (plist-get eww-data :url)))
   (define-key eww-mode-map (kbd "f") 'k-eww-reload-in-chromium))
+
+(when (featurep 'xwidget-internal)
+  (add-to-list 'load-path "~/.emacs.d/lisp/xwwp")
+  (require 'xwwp-full)
+  (define-key xwidget-webkit-mode-map (kbd "t") 'xwwp-ace-toggle)
+  (setq-default xwwp-ace-label-style
+                `(("z-index" . "2147483647")
+                  ("color" . ,k-dk-blue)
+                  ("font-family" . "monospace")
+                  ("background-color" . ,"rgba(255,255,255,0.5)")
+                  ("font-size" . "1.5em")
+                  ("padding" . "0.1em")
+                  ("border-width" . "0.1em")
+                  ("border-style" . "solid"))))
 
 (require 'ytel)
 (setq-default ytel-invidious-api-url "https://vid.puffyan.us"

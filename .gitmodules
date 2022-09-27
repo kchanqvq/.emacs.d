@@ -1,0 +1,3 @@
+[submodule "lisp/xwwp"]
+	path = lisp/xwwp
+	url = git@github.com:BlueFlo0d/xwwp
