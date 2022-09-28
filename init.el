@@ -463,6 +463,7 @@
 
 (require 'outline)
 (define-key outline-minor-mode-map (kbd "C-<tab>") 'outline-toggle-children)
+(setq-default outline-minor-mode-buttons '(("▶" "▼" outline--valid-char-p)))
 
 (require 'vlf-setup)
 (setq vlf-application 'dont-ask)
@@ -1509,7 +1510,10 @@ that if there is ht's overlay at at the top then return 'default"
                   ("font-size" . "1.5em")
                   ("padding" . "0.1em")
                   ("border-width" . "0.1em")
-                  ("border-style" . "solid"))))
+                  ("border-style" . "solid")))
+  (define-key xwidget-webkit-mode-map (kbd "l") 'xwidget-webkit-back)
+  (define-key xwidget-webkit-mode-map (kbd "r") 'xwidget-webkit-forward)
+  (define-key xwidget-webkit-mode-map (kbd "g") 'xwidget-webkit-reload))
 
 (require 'ytel)
 (setq-default ytel-invidious-api-url "https://vid.puffyan.us"
@@ -1927,7 +1931,7 @@ Just grab them from `gnus-format-specs'."
 
 (defun demolish-package (symbol)
   "Nuke everything under namespace SYMBOL."
-  (unload-feature symbol t)
+  (ignore-errors (unload-feature symbol t))
   (let* ((prefix (concat (symbol-name symbol) "-"))
          (accused-p (lambda (x) (or (eq x symbol) (s-prefix-p prefix (symbol-name x))))))
     (dolist (symbol features)
