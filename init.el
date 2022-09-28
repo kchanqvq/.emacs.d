@@ -719,6 +719,16 @@ Position the cursor at it's beginning, according to the current mode."
                   (child-frame-border-width . 1)
                   (z-group . above))))
 
+(require 'vertico-buffer)
+(setq vertico-buffer-display-action '(display-buffer-below-selected))
+(defun vertico--advice (&rest args)
+  "Advice for completion function, receiving ARGS."
+  (if (member major-mode '(exwm-mode xwidget-webkit-mode))
+      (progn (mini-frame-mode 0) (vertico-buffer-mode 1))
+    (progn (mini-frame-mode 1) (vertico-buffer-mode 0)))
+  (minibuffer-with-setup-hook #'vertico--setup (apply args)))
+(byte-compile 'vertico--advice)
+
 (require 'marginalia)
 (setq-default marginalia-field-width 80)
 ;; (pkg-info-version-info 'marginalia)
@@ -1502,6 +1512,7 @@ that if there is ht's overlay at at the top then return 'default"
   (add-to-list 'load-path "~/.emacs.d/lisp/xwwp")
   (require 'xwwp-full)
   (define-key xwidget-webkit-mode-map (kbd "t") 'xwwp-ace-toggle)
+  (define-key xwidget-webkit-mode-map (kbd "s-h") 'xwwp-section)
   (setq-default xwwp-ace-label-style
                 `(("z-index" . "2147483647")
                   ("color" . ,k-dk-blue)
@@ -1694,7 +1705,7 @@ that if there is ht's overlay at at the top then return 'default"
 (setq-default gnus-large-newsgroup nil
               gnus-use-cache t
               gnus-cache-enter-articles '(ticked dormant unread read)
-              gnus-cache-remove-articles nil
+               gnus-cache-remove-articles nil
               gnus-article-sort-functions '((not gnus-article-sort-by-date))
               gnus-thread-sort-functions '((not gnus-thread-sort-by-date))
               gnus-permanently-visible-groups "")
