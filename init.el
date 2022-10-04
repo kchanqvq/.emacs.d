@@ -1239,6 +1239,7 @@ Otherwise call ORIG-FUN with ARGS."
 (add-to-list 'emms-player-mpv-event-functions 'k-emms-player-mpv-event-function)
 
 ;; Patch `emms-playlist-mode-overlay-selected' so that overlay extend to full line
+;; Also set a `priority'
 (defun emms-playlist-mode-overlay-selected ()
   "Place an overlay over the currently selected track."
   (when emms-playlist-selected-marker
@@ -1256,7 +1257,9 @@ Otherwise call ORIG-FUN with ARGS."
            (overlay-put emms-playlist-mode-selected-overlay
                         'face 'emms-playlist-selected-face)
            (overlay-put emms-playlist-mode-selected-overlay
-                        'evaporate t))))))
+                        'evaporate t)
+           (overlay-put emms-playlist-mode-selected-overlay
+                        'priority 1))))))
 
 ;; Eye candies
 (add-hook 'emms-playlist-mode 'stripes-mode)
@@ -1298,6 +1301,7 @@ Otherwise call ORIG-FUN with ARGS."
                    (mode-line-process ("(" mode-name ":" mode-line-process  ")")
                     mode-name)
                    mode-line-misc-info
+                   " " (slime-mode (:eval (slime-mode-line)))
                    " " (:eval (if (and emms-mode-line-string (k-mode-line-selected-p))
                                   (concat (propertize (format-seconds "%.2h:%z%.2m:%.2s" emms-playing-time)
                                                       'face 'mode-line-highlight) "/"
@@ -1308,8 +1312,7 @@ Otherwise call ORIG-FUN with ARGS."
                                              (if total (format-seconds "%.2h:%z%.2m:%.2s" total) "unknown"))
                                            'face 'bold) " "
                                           (propertize emms-mode-line-string 'face 'emms-mode-line-title))
-                                  ""))
-                   " " (slime-mode (:eval (slime-mode-line)))))))
+                                  ""))))))
 
 (defvar-local k-pad-last-header-line-format nil)
 (defun k-pad-header-line-after-advice (&optional object &rest args)
@@ -1318,10 +1321,9 @@ Otherwise call ORIG-FUN with ARGS."
            (k-pad-header-line-after-advice (window-buffer window))))
         ((bufferp object) (with-current-buffer object (k-pad-header-line-after-advice)))
         (t (unless (equal header-line-format k-pad-last-header-line-format)
-             (setq-local header-line-format (k-pad-mode-line-format header-line-format))
+             (setq-local header-line-format `(:eval (k-pad-mode-line-format ',header-line-format)))
              (setq-local k-pad-last-header-line-format header-line-format)))))
-(add-hook 'window-buffer-change-functions 'k-pad-header-line-after-advice)
-
+;; (add-hook 'window-buffer-change-functions 'k-pad-header-line-after-advice)
 ;;; Cute and useless visuals!
 
 (require 'highlight-tail)

@@ -77,14 +77,13 @@
 (defface k-common nil "Base face for common match substring.")
 (defface k-prompt nil "Base face for prompts.")
 (defface k-zebra nil "Base face for zebra stripes.")
-(defface k-timestamp nil "Base face for timestamps.")
 (defface emms-mode-line-title nil "Face for EMMS track title in mode line.")
 
 (custom-theme-set-faces
  'k
- `(k-quote ((default :family "Courier" :height ,k-courier-height)))
+ `(k-quote ((default :family "Courier" :height ,k-courier-height :weight normal)))
  `(k-keyword ((default :foreground ,k-fg-1 :inherit bold)))
- `(k-proper-name ((default :inherit (k-quote bold) :foreground ,k-fg)))
+ `(k-proper-name ((default :inherit k-quote :foreground ,k-fg)))
  `(k-string ((default :foreground ,k-dk-pink)))
  `(k-doc ((default :font ,k-serif-monospace :inherit k-string :weight normal)))
  `(k-comment ((default  :inherit italic :foreground ,k-fg-1)))
