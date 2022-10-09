@@ -83,7 +83,7 @@
   elnode dtrt-indent ctable comment-or-uncomment-sexp
   clean-aindent-mode cdlatex bug-hunter buffer-move
   auto-highlight-symbol auctex anzu aggressive-indent
-  adjust-parens ace-link 2048-game ytel))
+  adjust-parens ace-link 2048-game ytel all-the-icons))
 (let ((to-install (remove-if #'package-installed-p k-packages)))
   (when to-install
     (message "%s packages to be installed." (length to-install))
@@ -441,6 +441,12 @@
 
 ;;; Misc packages
 
+(require 'all-the-icons)
+(setq-default all-the-icons-faicon-scale-factor 0.7
+              all-the-icons-default-faicon-adjust 0.35
+              all-the-icons-material-scale-factor 0.8
+              all-the-icons-default-material-adjust 0.1)
+
 (require 'volatile-highlights)
 (volatile-highlights-mode 0)
 
@@ -664,7 +670,8 @@ Position the cursor at it's beginning, according to the current mode."
 (setq TeX-save-query  nil )
 (defun init-latex ()
   (LaTeX-add-environments
-   '("mathpar" LaTeX-env-label)))
+   '("mathpar" LaTeX-env-label))
+  (cdlatex-mode))
 
 (require 'texmathp)
 (add-to-list 'texmathp-tex-commands '("mathpar" env-on))
@@ -679,8 +686,7 @@ Position the cursor at it's beginning, according to the current mode."
 ;; popup frame layout
 (require 'mini-frame)
 (require 'vertico)
-(setq-default mini-frame-resize 'not-set
-              mini-frame-standalone t)
+(setq-default mini-frame-resize 'not-set)
 
 (defun k--resize-mini-frame (frame)
   (let* ((parent mini-frame-selected-frame)
@@ -691,13 +697,15 @@ Position the cursor at it's beginning, according to the current mode."
     (fit-frame-to-buffer-1 frame nil nil (- (frame-width parent) 4) 80)
     (modify-frame-parameters
      frame
-     `((left . ,(min
-                 (car pos)
-                 (- (caddr inner-edges)
-                    (frame-outer-width frame))))
-       (top . ,(if (< (frame-outer-height frame) (- (cadddr edges) (cdr pos)))
-                   (+ (cdr pos)  (line-pixel-height))
-                   (- (cadddr edges) (frame-outer-height))))))))
+     `((left . ,(- (min
+                    (car pos)
+                    (- (caddr inner-edges)
+                       (frame-outer-width frame)))
+                   (car edges)))
+       (top . ,(- (if (< (frame-outer-height frame) (- (cadddr edges) (cdr pos)))
+                      (+ (cdr pos)  (line-pixel-height))
+                    (- (cadddr inner-edges) (frame-outer-height)))
+                  (cadr edges)))))))
 (byte-compile 'k--resize-mini-frame)
 
 (defvar k--minibuffer-display-table (make-display-table))
@@ -707,7 +715,8 @@ Position the cursor at it's beginning, according to the current mode."
   (setq-local fringe-indicator-alist '((truncation)))
   (setq-local buffer-display-table k--minibuffer-display-table))
 (add-hook 'minibuffer-setup-hook 'k--minibuffer-setup-hook)
-(setq-default resize-mini-frames 'k--resize-mini-frame)
+(setq-default resize-mini-frames 'k--resize-mini-frame
+              mini-frame-ignore-functions '(read-passwd))
 (mini-frame-mode)
 (setq-default mini-frame-show-parameters
               (lambda ()
@@ -1204,10 +1213,31 @@ Otherwise call ORIG-FUN with ARGS."
 
 (require 'emms-setup)
 (emms-all)
+(emms-mode-line-mode 0)
+(defun k-emms-mode-line ()
+  (concat
+   (propertize
+    (cond ((or emms-player-stopped-p emms-player-mpv-stopped)
+           (all-the-icons-material "stop"))
+          (emms-player-paused-p
+           (all-the-icons-material "pause"))
+          (emms-player-playing-p
+           (all-the-icons-material "play_arrow"))
+          (t (all-the-icons-material "sync"))))
+   (if emms-player-playing-p
+       (concat " " (propertize (format-seconds "%.2h:%z%.2m:%.2s" emms-playing-time)
+                           'face 'mode-line-highlight)
+               "/" (propertize
+                    (let ((total (emms-track-get
+                                  (emms-playlist-current-selected-track)
+                                  'info-playing-time)))
+                      (if total (format-seconds "%.2h:%z%.2m:%.2s" total) "unknown"))
+                    'face 'bold))
+     "")))
+
 (require 'emms-player-mpv)
 (setq emms-player-list '(emms-player-mpv))
 (setq emms-source-file-default-directory "~/Music/EMMS/")
-(setq emms-mode-line-format "%s")
 (require 'emms-info-tinytag)
 (defvar k-python3
   (cond ((executable-find "python") "python")
@@ -1217,7 +1247,6 @@ Otherwise call ORIG-FUN with ARGS."
 (cond ((executable-find "python"))
       ((executable-find "python3") (setq emms-info-tinytag-python-name "python3"))
       (t (warn "Unable to guess python3 path for emms-info-tinytag.")))
-(setq global-mode-string (delete 'emms-mode-line-string (delete 'emms-playing-time-string global-mode-string)))
 
 (defun k-emms-toggle-video (&rest args)
   "Tell MPV player to switch to video/no-video mode."
@@ -1229,8 +1258,8 @@ Otherwise call ORIG-FUN with ARGS."
         (setq emms-player-mpv-parameters (delete "--no-video" emms-player-mpv-parameters)))
     (when (process-live-p emms-player-mpv-proc)
       (if no-video-wanted
-          (emms-player-mpv-cmd '(set vid auto))
-          (emms-player-mpv-cmd '(set vid no))))))
+          (emms-player-mpv-cmd '(set vid no))
+          (emms-player-mpv-cmd '(set vid auto))))))
 
 (defun k-emms-player-mpv-event-function (json-data)
   (pcase (alist-get 'event json-data)
@@ -1286,33 +1315,23 @@ Otherwise call ORIG-FUN with ARGS."
 (defun k-mode-line-selected-p ()
   (eq (selected-window) k-selected-window))
 (add-hook 'window-state-change-hook 'k-set-selected-window)
-(setq-default mode-line-format
+(setq-default mode-line-misc-info
+              '((slime-mode (:eval (slime-mode-line)))
+                (:eval (if (eq major-mode 'emms-playlist-mode) (k-emms-mode-line) "")))
+              mode-line-format
               '(:eval
                 (k-pad-mode-line-format
-                 '("%e" mode-line-mule-info mode-line-client mode-line-modified mode-line-remote
-                   mode-line-frame-identification
+                 '("" mode-line-mule-info mode-line-client mode-line-modified mode-line-remote " "
                    (14 (:eval (if (k-mode-line-selected-p) #("%c" 0 2 (face mode-line-emphasis))
                                   "%c"))
                     (#(" %l/" 0 3 (face mode-line-highlight))
                            (:propertize (:eval (number-to-string (line-number-at-pos (point-max))))
-                            face bold))) " "
-                   (:propertize "%b" face mode-line-buffer-id)
+                                        face bold)))
+                   "  " (:propertize "%b" face mode-line-buffer-id)
                    ((which-func-mode which-func-format)) " \t"
                    (mode-line-process ("(" mode-name ":" mode-line-process  ")")
                     mode-name)
-                   mode-line-misc-info
-                   " " (slime-mode (:eval (slime-mode-line)))
-                   " " (:eval (if (and emms-mode-line-string (k-mode-line-selected-p))
-                                  (concat (propertize (format-seconds "%.2h:%z%.2m:%.2s" emms-playing-time)
-                                                      'face 'mode-line-highlight) "/"
-                                          (propertize
-                                           (let ((total (emms-track-get
-                                                         (emms-playlist-current-selected-track)
-                                                         'info-playing-time)))
-                                             (if total (format-seconds "%.2h:%z%.2m:%.2s" total) "unknown"))
-                                           'face 'bold) " "
-                                          (propertize emms-mode-line-string 'face 'emms-mode-line-title))
-                                  ""))))))
+                   "  " mode-line-misc-info))))
 
 (defvar-local k-pad-last-header-line-format nil)
 (defun k-pad-header-line-after-advice (&optional object &rest args)
@@ -1707,17 +1726,17 @@ that if there is ht's overlay at at the top then return 'default"
 (setq-default gnus-large-newsgroup nil
               gnus-use-cache t
               gnus-cache-enter-articles '(ticked dormant unread read)
-               gnus-cache-remove-articles nil
+              gnus-cache-remove-articles nil
               gnus-article-sort-functions '((not gnus-article-sort-by-date))
               gnus-thread-sort-functions '((not gnus-thread-sort-by-date))
               gnus-permanently-visible-groups "")
 (add-hook 'gnus-group-mode-hook 'gnus-topic-mode)
 (setq-default gnus-select-method '(nnnil nil)
               gnus-secondary-select-methods
-              '((nnimap "MIT"
-                 (nnimap-address "outlook.office365.com")
-                 (nnimap-server-port 993)
-                 (nnimap-stream ssl))))
+              '((nnimap "Stanford"
+                 (nnimap-address "localhost")
+                 (nnimap-server-port 1143)
+                 (nnimap-stream plain))))
 (add-to-list 'gnus-parameters '("" (display . all)))
 
 
@@ -1907,7 +1926,7 @@ Just grab them from `gnus-format-specs'."
 (define-key gnus-topic-mode-map (kbd "<tab>") 'k-gnus-toggle-show-topic)
 (define-key gnus-topic-mode-map (kbd "C-M-u") 'k-gnus-topic-up-topic)
 (define-key gnus-summary-mode-map (kbd "<tab>") 'k-gnus-toggle-show-thread)
-(define-key gnus-summary-mode-map (kbd "<backtab>") 'k-gnus-toggle-show-all-threads)
+(define-key gnus-summary-mode-map (kbd "C-<tab>") 'k-gnus-toggle-show-all-threads)
 (define-key gnus-article-mode-map (kbd "q") 'delete-window)
 (define-key gnus-summary-mode-map (kbd "q") '(lambda () (interactive) (switch-to-buffer gnus-group-buffer)))
 (define-key gnus-summary-mode-map (kbd "Q") 'gnus-summary-exit)
@@ -1988,6 +2007,86 @@ Just grab them from `gnus-format-specs'."
         (org-insert-time-stamp nil t)
         (insert " " (substring-no-properties candy) "\n")
         (save-buffer)))))
+
+;; Vampire timezone
+;; How much sun-protection-free time left?
+(require 'solar)
+(setq-default calendar-longitude -122.1697
+              calendar-latitude 37.4275)
+(defun time-to-vampire-time (&optional time)
+  (let* ((today-sun (solar-sunrise-sunset (calendar-current-date)))
+         (today-sunrise (* 3600 (caar today-sun)))
+         (today-sunset (* 3600 (caadr today-sun)))
+         (tomorrow-sunrise
+          (* 3600 (caar (solar-sunrise-sunset (calendar-current-date 1)))))
+         (time (pcase (decode-time time)
+                 (`(,s ,m ,h . ,_) (+ s (* 60 (+ m (* 60 h))))))))
+    (cond ((<= time today-sunrise) (list 'sunrise (- today-sunrise time)))
+          ((<= time today-sunset) (list 'sunset (- today-sunset time)))
+          (t (list 'sunrise (+ tomorrow-sunrise (- (* 24 3600) time)))))))
+(defun vampire-time-update ()
+  (let* ((time (time-to-vampire-time))
+         (msg (format "%s till %s" (format-seconds "%h:%.2m:%.2s" (cadr time)) (car time)))
+         (width (string-width msg))
+         (msg (concat (propertize " " 'display
+                                  `(space :align-to (- right-fringe ,width)))
+                      msg)))
+    (with-current-buffer " *Echo Area 0*"
+      (remove-overlays (point-min) (point-max))
+      (overlay-put (make-overlay (point-min) (point-max) nil nil t)
+                   'after-string msg))
+    (with-current-buffer " *Minibuf-0*"
+      (delete-region (point-min) (point-max))
+      (insert msg))
+    (when-let (buffer (get-buffer " *Vampire Time Screensaver*"))
+      (with-current-buffer buffer
+        (delete-region (point-min) (point-max))
+        (let ((l1 (propertize (concat " " (format-seconds "%h:%.2m:%.2s" (cadr time)))
+                              'face '(:height 10.0 :weight normal)))
+              (l2 (propertize (format "till %s" (car time))
+                               'face '(:height 4.0 :weight normal))))
+          (insert l1 (propertize " \n" 'face '(:height 10.0 :weight normal)))
+          (insert (propertize " "
+                              'display `(space :width (,(- (shr-string-pixel-width l1)
+                                                           (shr-string-pixel-width l2)))))
+                  l2)))
+      (posframe-show buffer :poshandler 'posframe-poshandler-frame-center
+                     :internal-border-width 3))))
+(add-hook 'post-command-hook 'vampire-time-update)
+(defvar vampire-time-timer (run-at-time t 1 'vampire-time-update))
+(defun vampire-time-screensaver ()
+  (if insecure-lock-mode
+      (progn
+        (get-buffer-create " *Vampire Time Screensaver*")
+        (vampire-time-update))
+    (posframe-delete " *Vampire Time Screensaver*")))
+
+;;; insecure-lock
+
+(add-to-list 'load-path "~/.emacs.d/lisp/insecure-lock")
+(require 'insecure-lock)
+(setq insecure-lock-mode-hook '(vampire-time-screensaver insecure-lock-blank-screen))
+
+;;; Observe!
+(defun twitter-locked-p (username)
+  (not (equal ""
+              (shell-command-to-string
+               (format "curl -s https://nitter.net/%s | grep \"tweets are protected\"" username)))))
+(defvar twitter-observe-id-list nil)
+(defvar twitter-observe-path nil)
+(defun twitter-observe ()
+  (when twitter-observe-id-list
+    (with-current-buffer (find-file-noselect twitter-observe-path)
+      (end-of-buffer)
+      (unless (bolp) (insert "\n"))
+      (org-insert-time-stamp nil t)
+      (dolist (id twitter-observe-id-list)
+        (insert " " id " " (format "%s" (twitter-locked-p id))))
+      (insert "\n")
+      (save-buffer))))
+(defvar twitter-observe-timer
+  (run-at-time 0 300
+               (lambda () (make-thread 'twitter-observe "Twitter Observer"))))
 
 (provide 'init)
 ;;; init.el ends here

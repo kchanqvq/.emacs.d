@@ -1,3 +1,6 @@
 [submodule "lisp/xwwp"]
 	path = lisp/xwwp
 	url = git@github.com:BlueFlo0d/xwwp
+[submodule "lisp/insecure-lock"]
+	path = lisp/insecure-lock
+	url = git@github.com:BlueFlo0d/insecure-lock.git

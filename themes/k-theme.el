@@ -194,8 +194,8 @@
  ;; `(slime-highlight-edits-face ((,class (:weight bold))))
  `(slime-repl-input-face ((default :weight normal)))
  `(slime-repl-prompt-face ((default :inherit k-prompt)))
- `(slime-repl-output-face ((default :background ,k-bg-2 :extend t)))
- `(slime-repl-result-face ((default :inherit k-comment)))
+ `(slime-repl-output-face ((default :background ,k-bg-grey-1 :extend t)))
+ `(slime-repl-result-face ((default :background ,k-bg-grey-1 :extend t :inherit k-comment)))
  `(slime-repl-inputed-output-face ((default :foreground ,k-dk-pink :slant normal)))
  `(slime-repl-output-mouseover-face ((default :inherit (match slime-repl-inputed-output-face))))
 
@@ -389,7 +389,6 @@
  ;; `(emms-browser-year/genre-face ((,class (:inherit outline-1))))
  `(emms-playlist-selected-face ((default :inherit match :extend t)))
  `(emms-playlist-track-face ((default :foreground ,k-fg)))
- `(emms-mode-line-title ((default :inherit italic)))
 
  ;; ytel
  `(ytel-video-published-face ((default :inherit org-date)))
