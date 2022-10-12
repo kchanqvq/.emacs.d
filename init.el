@@ -83,10 +83,11 @@
   elnode dtrt-indent ctable comment-or-uncomment-sexp
   clean-aindent-mode cdlatex bug-hunter buffer-move
   auto-highlight-symbol auctex anzu aggressive-indent
-  adjust-parens ace-link 2048-game ytel all-the-icons))
+  adjust-parens ace-link 2048-game ytel all-the-icons cider))
 (let ((to-install (remove-if #'package-installed-p k-packages)))
   (when to-install
     (message "%s packages to be installed." (length to-install))
+    (package-refresh-contents)
     (dolist (package to-install)
       (ignore-errors (package-install package)))))
 
@@ -2078,7 +2079,7 @@ Just grab them from `gnus-format-specs'."
               (string-to-number (cl-remove-if (lambda (c) (= c ?\,)) (match-string 0)))))
     (with-temp-buffer
       (shell-command
-       (format "curl -s https://nitter.net/%s" "GeniusDromaius")
+       (format "curl -s https://nitter.net/%s" username)
        (current-buffer))
       (goto-char (point-min))
       (list
@@ -2107,8 +2108,9 @@ Just grab them from `gnus-format-specs'."
       (let ((save-silently t))
         (save-buffer)))))
 (defvar twitter-observe-timer
-  (run-at-time 0 300
-               (lambda () (make-thread 'twitter-observe "Twitter Observer"))))
+  (when twitter-observe-id-list
+    (run-at-time 0 300
+                 (lambda () (make-thread 'twitter-observe "Twitter Observer")))))
 
 (provide 'init)
 ;;; init.el ends here
