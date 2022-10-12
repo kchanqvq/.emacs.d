@@ -1591,13 +1591,13 @@ that if there is ht's overlay at at the top then return 'default"
 
 ;; EXWM
 (when (eq window-system 'x)
-  (global-set-key (kbd "<print>")
-                  (lambda ()
-                    (interactive)
-                    (let ((path (concat "~/Documents/Screenshot-" (format-time-string "%Y-%m-%d,%H:%M:%S") ".png")))
-                      (start-process-shell-command
-                       "import" nil (concat "import -window root " path))
-                      (message (concat "Screenshot saved to " path)))))
+  (defun k-screenshot ()
+    (interactive)
+    (let ((path (concat "~/Documents/Screenshot-" (format-time-string "%Y-%m-%d,%H:%M:%S") ".png")))
+      (start-process-shell-command
+       "import" nil (concat "import -window root " path))
+      (message (concat "Screenshot saved to " path))))
+  (global-set-key (kbd "<print>") 'k-screenshot)
 
   (defun k-set-volume (volume)
     "Change volume."
