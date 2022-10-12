@@ -933,13 +933,13 @@ vertico frame."
 
 (defun k-grep-in (filename)
   "Grep in FILENAME."
-  (interactive (list (cdr (embark--vertico-selected))))
   (if (file-directory-p filename)
       (consult-grep filename)
-      (let ((buffer (find-file-noselect filename)))
-        (with-current-buffer buffer
-          (consult-line)))))
-(define-key vertico-map (kbd "C-s") 'k-grep-in)
+    (let ((buffer (find-file-noselect filename)))
+      (with-current-buffer buffer
+        (consult-line)))))
+(define-key embark-file-map (kbd "g") 'k-grep-in)
+(define-key vertico-map (kbd "C-s") (kbd "C-z g"))
 
 (define-key indent-rigidly-map (kbd "C-b") 'indent-rigidly-left)
 (define-key indent-rigidly-map (kbd "C-f") 'indent-rigidly-right)
@@ -957,11 +957,13 @@ vertico frame."
         (add-hook h #'highlight-indent-guides-mode))
       '(emacs-lisp-mode-hook
         lisp-mode-hook
-        scheme-mode-hook))
+        scheme-mode-hook
+        clojure-mode-hook))
 (mapc (lambda (h)
         (add-hook h #'paredit-mode))
       '(slime-repl-mode-hook
-        geiser-repl-mode-hook))
+        geiser-repl-mode-hook
+        cider-repl-mode-hook))
 (add-hook 'emacs-lisp-mode-hook #'rainbow-mode)
 (add-hook 'scheme-mode-hook #'paredit-mode)
 (add-hook 'slime-repl-mode-hook #'paredit-mode)
@@ -1125,6 +1127,9 @@ Otherwise call ORIG-FUN with ARGS."
 ;; Slime debug window non-prolifiration
 (add-to-list 'display-buffer-alist '("\\`*sldb" (display-buffer-reuse-mode-window)))
 
+;;; Clojure
+(require 'cider)
+
 ;;; Magit
 
 (require 'magit)
@@ -1244,9 +1249,7 @@ Otherwise call ORIG-FUN with ARGS."
         ((executable-find "python3") "python3")
         (t (warn "Unable to guess python3 path."))))
 (setq emms-info-tinytag-python-name k-python3)
-(cond ((executable-find "python"))
-      ((executable-find "python3") (setq emms-info-tinytag-python-name "python3"))
-      (t (warn "Unable to guess python3 path for emms-info-tinytag.")))
+(add-to-list 'emms-info-functions 'emms-info-tinytag)
 
 (defun k-emms-toggle-video (&rest args)
   "Tell MPV player to switch to video/no-video mode."
@@ -2069,9 +2072,27 @@ Just grab them from `gnus-format-specs'."
 
 ;;; Observe!
 (defun twitter-locked-p (username)
-  (not (equal ""
-              (shell-command-to-string
-               (format "curl -s https://nitter.net/%s | grep \"tweets are protected\"" username)))))
+  "Returns (tweets followers following locked-p)"
+  (cl-flet ((get-number ()
+              (re-search-forward "[,0-9]+")
+              (string-to-number (cl-remove-if (lambda (c) (= c ?\,)) (match-string 0)))))
+    (with-temp-buffer
+      (shell-command
+       (format "curl -s https://nitter.net/%s" "GeniusDromaius")
+       (current-buffer))
+      (goto-char (point-min))
+      (list
+       (progn
+         (search-forward "Tweets")
+         (get-number))
+       (progn
+         (search-forward "Following")
+         (get-number))
+       (progn
+         (search-forward "Followers")
+         (get-number))
+       (progn (goto-char (point-min))
+              (if (ignore-errors (search-forward "tweets are protected")) t nil))))))
 (defvar twitter-observe-id-list nil)
 (defvar twitter-observe-path nil)
 (defun twitter-observe ()
@@ -2083,7 +2104,8 @@ Just grab them from `gnus-format-specs'."
       (dolist (id twitter-observe-id-list)
         (insert " " id " " (format "%s" (twitter-locked-p id))))
       (insert "\n")
-      (save-buffer))))
+      (let ((save-silently t))
+        (save-buffer)))))
 (defvar twitter-observe-timer
   (run-at-time 0 300
                (lambda () (make-thread 'twitter-observe "Twitter Observer"))))

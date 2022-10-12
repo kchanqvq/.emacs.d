@@ -111,7 +111,7 @@
  `(font-lock-regexp-grouping-backslash ((default :inherit bold)))
  `(font-lock-regexp-grouping-construct ((default :inherit bold)))
 
- `(font-lock-type-face ((default :inherit k-keyword)))
+ `(font-lock-type-face ((default :inherit k-proper-name)))
  `(font-lock-warning-face ((default :inherit warning)))
  `(error ((default :foreground ,k-fg-err :inherit bold)))
  `(shadow ((default :foreground ,k-fg-1)))
@@ -199,6 +199,9 @@
  `(slime-repl-inputed-output-face ((default :foreground ,k-dk-pink :slant normal)))
  `(slime-repl-output-mouseover-face ((default :inherit (match slime-repl-inputed-output-face))))
 
+ `(clojure-keyword-face ((default :inherit k-keyword)))
+ `(cider-result-overlay-face ((default :box (:line-width (-1 . -1) :color ,k-dk-blue))))
+ `(cider-traced-face ((default :inherit region)))
  ;; `(csv-separator-face ((,class (:foreground ,warning))))
 
  ;; `(diff-added ((,class (:foreground ,string))))
