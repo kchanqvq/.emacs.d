@@ -1,4 +1,5 @@
 ;;; -*- lexical-binding: t -*-
+;;; Code:
 (require 'package)
 (defun do-after-load-evaluation (abs-file)
   (dolist (a-l-element after-load-alist)
@@ -19,9 +20,6 @@
 (add-to-list 'load-path "~/.emacs.d/lisp")
 (add-to-list 'load-path "~/.emacs.d/custom")
 (add-to-list 'load-path "~/Projects/crdt")
-(add-to-list 'load-path "~/.emacs.d/lilypond")
-
-(require 'cl)
 
 (tool-bar-mode -1)
 (unless (eq window-system 'ns)
@@ -30,7 +28,6 @@
 (setq gc-cons-threshold 8000000 gc-cons-percentage 0.25)
 (setq-default garbage-collection-messages t)
 (setq-default inhibit-startup-message t)
-(setq async-bytecomp-allowed-packages '(all))
 
 (setq kill-ring-max 5000 kill-whole-line t)
 (setq-default indent-tabs-mode nil)
@@ -69,22 +66,21 @@
 ;; Bootstrap required packages
 (defvar k-packages
   '(embark org-contrib exwm company-posframe orderless
-  pyim-cangjiedict pyim projectile stripes vertico consult
-  embark-consult haskell-mode mini-frame selectrum-prescient
-  marginalia selectrum slime-company slime crdt impatient-mode
-  comment-dwim-2 sudo-edit csv-mode zygospore yasnippet ws-butler
-  volatile-highlights vlf use-package undo-tree telega
-  system-packages smtpmail-multi slack showtip sauron
-  rainbow-mode racket-mode pyim-basedict proof-general posframe
-  pdf-tools paxedit ox-reveal org-static-blog org-present
-  nasm-mode multi-vterm mmm-mode magit languagetool langtool
-  iedit highlight-parentheses highlight-indent-guides
-  goto-last-change gnu-apl-mode geiser flycheck emms-soundcloud
-  elnode dtrt-indent ctable comment-or-uncomment-sexp
-  clean-aindent-mode cdlatex bug-hunter buffer-move
-  auto-highlight-symbol auctex anzu aggressive-indent
-  adjust-parens ace-link 2048-game ytel all-the-icons cider))
-(let ((to-install (remove-if #'package-installed-p k-packages)))
+           pyim-cangjiedict pyim projectile stripes vertico consult
+           embark-consult haskell-mode selectrum-prescient
+           marginalia selectrum slime-company slime crdt impatient-mode
+           comment-dwim-2 sudo-edit csv-mode zygospore yasnippet ws-butler
+           volatile-highlights vlf use-package undo-tree
+           system-packages smtpmail-multi showtip
+           rainbow-mode racket-mode pyim-basedict proof-general posframe
+           pdf-tools paxedit ox-reveal org-static-blog org-present
+           nasm-mode multi-vterm mmm-mode magit iedit highlight-parentheses highlight-indent-guides
+           goto-last-change gnu-apl-mode geiser flycheck emms-soundcloud
+           elnode dtrt-indent ctable comment-or-uncomment-sexp
+           clean-aindent-mode cdlatex lsp-ltex bug-hunter buffer-move
+           auto-highlight-symbol auctex anzu aggressive-indent topsy
+           adjust-parens ace-link 2048-game ytel all-the-icons cider))
+(let ((to-install (cl-remove-if #'package-installed-p k-packages)))
   (when to-install
     (message "%s packages to be installed." (length to-install))
     (package-refresh-contents)
@@ -128,18 +124,18 @@
       ;; Scroll to offset.
       (if (eq company-tooltip-offset-display 'lines)
           (setq limit (company-tooltip--lines-update-offset selection len limit))
-          (company-tooltip--simple-update-offset selection len limit))
+        (company-tooltip--simple-update-offset selection len limit))
 
       (cond
-        ((eq company-tooltip-offset-display 'scrollbar)
-         (setq scrollbar-bounds (company--scrollbar-bounds company-tooltip-offset
-                                                           limit len)))
-        ((eq company-tooltip-offset-display 'lines)
-         (when (> company-tooltip-offset 0)
-           (setq previous (format "...(%d)" company-tooltip-offset)))
-         (setq remainder (- len limit company-tooltip-offset)
-               remainder (when (> remainder 0)
-                           (setq remainder (format "...(%d)" remainder)))))))
+       ((eq company-tooltip-offset-display 'scrollbar)
+        (setq scrollbar-bounds (company--scrollbar-bounds company-tooltip-offset
+                                                          limit len)))
+       ((eq company-tooltip-offset-display 'lines)
+        (when (> company-tooltip-offset 0)
+          (setq previous (format "...(%d)" company-tooltip-offset)))
+        (setq remainder (- len limit company-tooltip-offset)
+              remainder (when (> remainder 0)
+                          (setq remainder (format "...(%d)" remainder)))))))
 
     (when selection
       (cl-decf selection company-tooltip-offset))
@@ -184,7 +180,7 @@
         (setq width (max (+ (length value)
                             (if (and annotation company-tooltip-align-annotations)
                                 (1+ (length annotation))
-                                (length annotation)))
+                              (length annotation)))
                          width))))
 
     (setq width (min window-width
@@ -192,7 +188,7 @@
                      (max company-tooltip-minimum-width
                           (if company-show-quick-access
                               (+ 2 width)
-                              width))))
+                            width))))
 
     (when company-tooltip-width-grow-only
       (setq width (max company--tooltip-current-width width))
@@ -252,8 +248,8 @@
                        (if ann-ralign
                            (if ann-truncate
                                (1+ (length value))
-                               (- width (length annotation)))
-                           (length value))))
+                             (- width (length annotation)))
+                         (length value))))
          (ann-end (min (+ ann-start (length annotation)) (+ margin width)))
          (line (concat left
                        (if (or ann-truncate (not ann-ralign))
@@ -262,10 +258,10 @@
                                     (when (and annotation ann-ralign) " ")
                                     annotation)
                             0 width)
-                           (concat
-                            (company-safe-substring value 0
-                                                    (- width (length annotation)))
-                            annotation))
+                         (concat
+                          (company-safe-substring value 0
+                                                  (- width (length annotation)))
+                          annotation))
                        right)))
     (setq width (+ width margin (length right)))
 
@@ -276,7 +272,7 @@
       (add-face-text-property ann-start ann-end
                               (if selected
                                   'company-tooltip-annotation-selection
-                                  'company-tooltip-annotation)
+                                'company-tooltip-annotation)
                               t line))
     (cl-loop
      with width = (- width (length right))
@@ -287,22 +283,22 @@
      do (add-face-text-property inline-beg inline-end
                                 (if selected
                                     'company-tooltip-common-selection
-                                    'company-tooltip-common)
+                                  'company-tooltip-common)
                                 nil line))
     (when (let ((re (funcall company-search-regexp-function
                              company-search-string)))
             (and (not (string= re ""))
                  (string-match re value)))
       (pcase-dolist (`(,mbeg . ,mend) (company--search-chunks))
-                    (let ((beg (+ margin mbeg))
-                          (end (+ margin mend))
-                          (width (- width (length right))))
-                      (when (< beg width)
-                        (add-face-text-property beg (min end width)
-                                                (if selected
-                                                    'company-tooltip-search-selection
-                                                    'company-tooltip-search)
-                                                nil line)))))
+        (let ((beg (+ margin mbeg))
+              (end (+ margin mend))
+              (width (- width (length right))))
+          (when (< beg width)
+            (add-face-text-property beg (min end width)
+                                    (if selected
+                                        'company-tooltip-search-selection
+                                      'company-tooltip-search)
+                                    nil line)))))
     (when selected
       (add-face-text-property 0 width 'company-tooltip-selection t line))
 
@@ -316,7 +312,7 @@
     ;; OUR CHANGE
     (if (cl-evenp k--company-current-index)
         (add-face-text-property 0 width 'company-tooltip t line)
-        (add-face-text-property 0 width 'k-zebra t line))
+      (add-face-text-property 0 width 'k-zebra t line))
     line))
 
 (byte-compile 'company--create-lines)
@@ -331,7 +327,7 @@
               company-posframe-show-params '(:internal-border-width 1)
               company-posframe-quickhelp-show-params
               '(:poshandler company-posframe-quickhelp-right-poshandler
-                :internal-border-width 1))
+                            :internal-border-width 1))
 (advice-add 'company-posframe-show :after (lambda () (company-posframe-quickhelp-show)))
 
 (company-posframe-mode)
@@ -351,13 +347,16 @@
 
 ;;; Projectile
 
-(projectile-global-mode)
+(require 'projectile)
+(projectile-mode)
 (setq projectile-enable-caching t)
 (defun k--projectile-find-file ()
+  "Find file in project.
+Prompt for project if not currently in one."
   (interactive)
   (if (projectile-project-p)
       (projectile-find-file)
-      (projectile-switch-project)))
+    (projectile-switch-project)))
 
 ;; show whitespace in diff-mode
 (add-hook 'diff-mode-hook (lambda ()
@@ -377,6 +376,7 @@
 ;;; Util functions
 
 (defmacro globalize (mode)
+  "Define and enable a global minor mode from minor MODE."
   (let ((%global-mode-symbol (intern (concat "global-" (symbol-name mode)))))
     `(progn
        (define-globalized-minor-mode ,%global-mode-symbol ,mode
@@ -388,6 +388,8 @@
 
 (defun delete-from-list (list-var element)
   (set list-var (delete element (symbol-value list-var))))
+
+(defmacro k-quote (&rest args) `',args)
 
 ;;; Generic stripes
 ;; I prefer using text-property to color stuff,
@@ -409,7 +411,6 @@
 
 (add-to-list 'custom-theme-load-path "~/.emacs.d/themes")
 
-(aset ansi-color-map 31 '((:inherit match)))
 (setenv "GREP_COLOR" "31")
 (setq-default k-color-style 'bright)
 ;; (setq-default k-color-style 'dark)
@@ -449,7 +450,7 @@
               all-the-icons-default-material-adjust 0.1)
 
 (require 'volatile-highlights)
-(volatile-highlights-mode 0)
+(volatile-highlights-mode)
 
 (require 'clean-aindent-mode)
 (add-hook 'prog-mode-hook 'clean-aindent-mode)
@@ -474,7 +475,6 @@
 
 (require 'vlf-setup)
 (setq vlf-application 'dont-ask)
-(ace-link-setup-default "t")
 
 (require 'highlight-parentheses)
 (setq hl-paren-colors '(nil))
@@ -482,14 +482,9 @@
 (show-paren-mode)
 (globalize highlight-parentheses-mode)
 
-(require 'which-func)
-(setq mode-line-misc-info
-      (assq-delete-all 'which-function-mode mode-line-misc-info))
-(which-function-mode)
-(setq-default which-func-format
-              '(:eval (let ((x (gethash (selected-window) which-func-table)))
-                        (if x (concat "/" (propertize x 'face 'k-proper-name))
-                            ""))))
+(require 'topsy)
+(setq topsy-header-line-format `(:eval (k-pad-mode-line-format (funcall topsy-fn))))
+(add-hook 'prog-mode-hook #'topsy-mode)
 
 ;; Customized functions
 (defun prelude-move-beginning-of-line (arg)
@@ -522,26 +517,26 @@ point reaches the beginning or end of the buffer, stop there."
 line instead."
   (interactive
    (if mark-active (list (region-beginning) (region-end))
-       (message "Copied line")
-       (list (line-beginning-position)
-             (line-beginning-position 2)))))
+     (message "Copied line")
+     (list (line-beginning-position)
+           (line-beginning-position 2)))))
 
 (defadvice kill-region (before slick-cut activate compile)
   "When called interactively with no active region, kill a single
 line instead."
   (interactive
    (if mark-active (list (region-beginning) (region-end))
-       (message "Killed line")
-       (list (line-beginning-position)
-             (line-beginning-position 2)))))
+     (message "Killed line")
+     (list (line-beginning-position)
+           (line-beginning-position 2)))))
 
 ;; kill a line, including whitespace characters until next non-whiepsace character
 ;; of next line
 (defadvice kill-line (before check-position activate)
   (if (member major-mode
               '(emacs-lisp-mode scheme-mode lisp-mode
-                c-mode c++-mode objc-mode
-                latex-mode plain-tex-mode))
+                                c-mode c++-mode objc-mode
+                                latex-mode plain-tex-mode))
       (if (and (eolp) (not (bolp)))
           (progn (forward-char 1)
                  (just-one-space 0)
@@ -603,52 +598,125 @@ indent yanked text (with prefix arg don't indent)."
   (if (member major-mode prelude-indent-sensitive-modes)
       (error "Buffer is indent-sensitive")
     (save-excursion
-     (if (region-active-p)
-         (progn
-           (indent-region (region-beginning) (region-end))
-           (message "Indented selected region."))
-         (progn
-           (indent-buffer)
-           (message "Indented buffer.")))
-     (whitespace-cleanup))))
+      (if (region-active-p)
+          (progn
+            (indent-region (region-beginning) (region-end))
+            (message "Indented selected region."))
+        (progn
+          (indent-buffer)
+          (message "Indented buffer.")))
+      (whitespace-cleanup))))
 (global-set-key (kbd "C-M-\\") 'indent-region-or-buffer)
 
-;; add duplicate line function from Prelude
-;; taken from prelude-core.el
-(defun prelude-get-positions-of-line-or-region ()
-  "Return positions (beg . end) of the current line
-or region."
-  (let (beg end)
-    (if (and mark-active (> (point) (mark)))
-        (exchange-point-and-mark))
-    (setq beg (line-beginning-position))
-    (if mark-active
-        (exchange-point-and-mark))
-    (setq end (line-end-position))
-    (cons beg end)))
+;;; Echo per window
 
-;; smart openline
-(defun prelude-smart-open-line (arg)
-  "Insert an empty line after the current line.
-Position the cursor at its beginning, according to the current mode.
-With a prefix ARG open line above the current line."
-  (interactive "P")
-  (if arg
-      (prelude-smart-open-line-above)
-      (progn
-        (move-end-of-line nil)
-        (newline-and-indent))))
+(defvar-local k--top-separator-ov nil)
 
-(defun prelude-smart-open-line-above ()
-  "Insert an empty line above the current line.
-Position the cursor at it's beginning, according to the current mode."
-  (interactive)
-  (move-beginning-of-line nil)
-  (newline-and-indent)
-  (forward-line -1)
-  (indent-according-to-mode))
+(define-minor-mode k-echo-area-mode "Per window echo area."
+  :lighter nil
+  (if k-echo-area-mode
+      (save-excursion
+        (setq-local overline-margin 0)
+        (goto-char (point-min))
+        (vertical-motion (cons (1- (window-text-width)) 0))
+        (if k--top-separator-ov
+            (move-overlay k--top-separator-ov (point-min) (point))
+          (setq k--top-separator-ov (make-overlay (point-min) (point) nil t t))
+          (overlay-put k--top-separator-ov 'face
+                       '(:overline "#000000"))
+          (overlay-put k--top-separator-ov 'after-string
+                       #(" " 0 1 (display (space :align-to right) face (:overline "#000000"))))))))
 
-(global-set-key (kbd "M-o") 'prelude-smart-open-line)
+(defun k-window-echo-area--map (function &optional buffer)
+  (dolist (frame (frame-list))
+    (dolist (window (window-list frame 'none))
+      (let ((buf (window-buffer window)))
+        (when (and (or (not buffer) (eq (get-buffer buffer) buf))
+                   (buffer-local-value 'k-echo-area-mode buf))
+          (funcall function window
+                   (when-let ((root (window-atom-root window))
+                              (parent (window-child root)))
+                     (and (window-live-p parent) parent))))))))
+
+(defun k-window-echo-area-clear (&optional buffer)
+  (save-selected-window
+    (k-window-echo-area--map
+     (lambda (window parent)
+       (when parent
+         (set-window-parameter parent 'mode-line-format nil))
+       (set-window-parameter window 'window-atom nil)
+       (delete-window window))
+     buffer)))
+
+(defun k-window-echo-area-display (buf)
+  (k-window-echo-area-clear)
+  (save-selected-window
+    (when (minibufferp (window-buffer))
+      (select-window (minibuffer-selected-window)))
+    (let (height window)
+      (set-window-parameter nil 'mode-line-format 'none)
+      (with-current-buffer buf
+        (k-echo-area-mode)
+        (setq-local mode-line-format
+                    (s-replace "%" "%%" (format-mode-line (buffer-local-value 'mode-line-format (window-buffer)))))
+        (setq height (count-screen-lines)))
+      (setq window
+            (display-buffer buf
+                            `(display-buffer-in-atom-window
+                              (window-height . ,(lambda (window)
+                                                  (set-window-text-height window (max height 1))))
+                              (dedicated . t))))
+      window)))
+
+(defvar k-message nil)
+(defun k-message (format-string &rest args)
+  (if (minibufferp (window-buffer))
+      (apply #'message format-string args)
+    (if format-string
+        (setq k-message (apply #'format format-string args))
+      (setq k-message nil))))
+(defun k-message-display ()
+  (with-current-buffer (get-buffer-create " *echo per window*")
+    (if k-message
+        (progn
+          (setq-local cursor-type nil)
+          (delete-region (point-min) (point-max))
+          (insert k-message)
+          (set-window-parameter
+           (k-window-echo-area-display (current-buffer))
+           'no-other-window t))
+      (k-window-echo-area-clear (current-buffer)))))
+(add-hook 'post-command-hook #'k-message-display)
+(add-hook 'echo-area-clear-hook '(lambda () (k-message nil)))
+(add-hook 'window-configuration-change-hook '(lambda () (k-message nil)))
+(setq eldoc-message-function 'k-message)
+
+;;; Flycheck and LSP
+
+(require 'flycheck)
+(defun k-flycheck-display-error-messages (errors)
+  (k-message (flycheck-help-echo-all-error-messages errors)))
+(advice-remove 'flycheck-hide-error-buffer
+               (lambda ()
+                 (unless (flycheck-overlays-at (point))
+                   (k-message-hide))))
+(setq flycheck-display-errors-function #'k-flycheck-display-error-messages)
+(global-flycheck-mode)
+(setq-default flycheck-indication-mode nil)
+(advice-add 'flycheck-jump-to-error :before
+            (lambda (_error)
+              (unless (get-char-property (point) 'flycheck-error)
+                (push-mark))))
+
+;;; Languagetool LSP
+
+(setq-default lsp-headerline-breadcrumb-enable nil
+              lsp-keymap-prefix "<f2>")
+(require 'lsp)
+(require 'lsp-ltex)
+(setq lsp-ltex-version "15.2.0"
+      lsp-ltex-latex-environments '(("mathpar" . "ignore"))
+      lsp-ltex-latex-commands '(("\\lstset{}" . "ignore")))
 
 ;;; LaTeX
 
@@ -672,7 +740,12 @@ Position the cursor at it's beginning, according to the current mode."
 (defun init-latex ()
   (LaTeX-add-environments
    '("mathpar" LaTeX-env-label))
-  (cdlatex-mode))
+  (cdlatex-mode)
+  (visual-line-mode)
+  (lsp-deferred))
+(setq-default TeX-master "main")
+
+(setq-default visual-line-fringe-indicators '(left-curly-arrow right-curly-arrow))
 
 (require 'texmathp)
 (add-to-list 'texmathp-tex-commands '("mathpar" env-on))
@@ -684,78 +757,105 @@ Position the cursor at it's beginning, according to the current mode."
 
 ;;; Completion
 
-;; popup frame layout
-(require 'mini-frame)
+;; (pkg-info-version-info 'vertico)
+;; "0.27"
 (require 'vertico)
-(setq-default mini-frame-resize 'not-set)
-
-(defun k--resize-mini-frame (frame)
-  (let* ((parent mini-frame-selected-frame)
-         (window (frame-selected-window parent))
-         (edges (frame-edges parent))
-         (inner-edges (frame-edges parent 'inner-edges))
-         (pos (window-absolute-pixel-position (window-point window) window)))
-    (fit-frame-to-buffer-1 frame nil nil (- (frame-width parent) 4) 80)
-    (modify-frame-parameters
-     frame
-     `((left . ,(- (min
-                    (car pos)
-                    (- (caddr inner-edges)
-                       (frame-outer-width frame)))
-                   (car edges)))
-       (top . ,(- (if (< (frame-outer-height frame) (- (cadddr edges) (cdr pos)))
-                      (+ (cdr pos)  (line-pixel-height))
-                    (- (cadddr inner-edges) (frame-outer-height)))
-                  (cadr edges)))))))
-(byte-compile 'k--resize-mini-frame)
-
-(defvar k--minibuffer-display-table (make-display-table))
-(set-display-table-slot k--minibuffer-display-table 0 (aref (cdr vertico-multiline) 0))
-(defun k--minibuffer-setup-hook ()
-  (setq-local truncate-lines t)
-  (setq-local fringe-indicator-alist '((truncation)))
-  (setq-local buffer-display-table k--minibuffer-display-table))
-(add-hook 'minibuffer-setup-hook 'k--minibuffer-setup-hook)
-(setq-default resize-mini-frames 'k--resize-mini-frame
-              mini-frame-ignore-functions '(read-passwd))
-(mini-frame-mode)
-(setq-default mini-frame-show-parameters
-              (lambda ()
-                `((no-accept-focus . t) ;; workaround pre-emacs-29: vertico shows no candidates (0/!) on empty input
-                  (left-fringe . 8)
-                  (right-fringe . 8)
-                  (background-color . ,(face-background 'default))
-                  (internal-border-width . 1)
-                  (child-frame-border-width . 1)
-                  (z-group . above))))
 
 (require 'vertico-buffer)
-(setq vertico-buffer-display-action '(display-buffer-below-selected))
-(defun vertico--advice (&rest args)
-  "Advice for completion function, receiving ARGS."
-  (if (member major-mode '(exwm-mode xwidget-webkit-mode))
-      (progn (mini-frame-mode 0) (vertico-buffer-mode 1))
-    (progn (mini-frame-mode 1) (vertico-buffer-mode 0)))
-  (minibuffer-with-setup-hook #'vertico--setup (apply args)))
-(byte-compile 'vertico--advice)
+(defvar-local vertico--buffer-window nil)
+(defun vertico--buffer-resize-window (height)
+  (when k--top-separator-ov
+    (overlay-put k--top-separator-ov 'after-string nil))
+  (let ((string (overlay-get vertico--candidates-ov 'after-string)))
+    (put-text-property 0 1 'display '(space :align-to right) string)
+    (put-text-property 0 1 'face '(:overline "#000000") string))
+  (let ((string (overlay-get vertico--count-ov 'before-string)))
+    (add-face-text-property 0 (length string) '(:overline "#000000") nil string))
+  (set-window-text-height vertico--buffer-window (+ 1 height)))
+
+(defun vertico--format-count ()
+  "Format the count string."
+  (concat
+   (when (> (recursion-depth) 1)
+     (propertize (format "%s " (recursion-depth)) 'face 'warning))
+   (format "%-6s "
+           (format #("%s/%s" 0 2 (face success))
+                   (cond ((>= vertico--index 0) (1+ vertico--index))
+                         ((vertico--allow-prompt-selection-p) "*")
+                         (t "!"))
+                   vertico--total))))
+(defun k-minibuffer-message-advice (orig-func message &rest args)
+  (when vertico--input
+    (setq message (substring message))
+    (add-face-text-property 0 (length message) '(:overline "#000000") nil message))
+  (apply orig-func message args))
+(advice-add 'minibuffer-message :around #'k-minibuffer-message-advice)
+(defun vertico-buffer--setup ()
+  "Setup buffer display."
+  (setq k-message nil)
+  (add-hook 'pre-redisplay-functions 'vertico-buffer--redisplay nil 'local)
+  (setq-local overline-margin 0
+              fringe-indicator-alist '((truncation nil nil)))
+  (let* (win (buf (current-buffer))
+             (_ (unwind-protect
+                    (setf
+                     win (with-minibuffer-selected-window
+                           (k-window-echo-area-display buf))
+                     vertico--buffer-window win)))
+             (sym (make-symbol "vertico-buffer--destroy"))
+             (depth (recursion-depth))
+             (now (window-parameter win 'no-other-window))
+             (ndow (window-parameter win 'no-delete-other-windows)))
+    (fset sym (lambda ()
+                (k-window-echo-area-clear buf)
+                (when (= depth (recursion-depth))
+                  (with-selected-window (active-minibuffer-window)
+                    (when (window-live-p win)
+                      (set-window-parameter win 'no-other-window now)
+                      (set-window-parameter win 'no-delete-other-windows ndow))
+                    (when vertico-buffer-hide-prompt
+                      (set-window-vscroll nil 0))
+                    (remove-hook 'minibuffer-exit-hook sym)))))
+    ;; NOTE: We cannot use a buffer-local minibuffer-exit-hook here.
+    ;; The hook will not be called when abnormally exiting the minibuffer
+    ;; from another buffer via `keyboard-escape-quit'.
+    (add-hook 'minibuffer-exit-hook sym)
+    (set-window-parameter win 'no-other-window t)
+    (set-window-parameter win 'no-delete-other-windows t)
+    (overlay-put vertico--candidates-ov 'window win)
+    (when (and vertico-buffer-hide-prompt vertico--count-ov)
+      (overlay-put vertico--count-ov 'window win))
+    (setq-local show-trailing-whitespace nil
+                truncate-lines t
+                cursor-in-non-selected-windows 'box)))
+(vertico-buffer-mode)
+(advice-remove 'vertico--resize-window #'ignore)
+(advice-add 'vertico--resize-window :override #'vertico--buffer-resize-window)
 
 (require 'marginalia)
-(setq-default marginalia-field-width 80)
 ;; (pkg-info-version-info 'marginalia)
 ;; "20220914.945"
-
-;; Patch `marginalia--affixate'
+;; Automatically give more generous field width
+(setq-default marginalia-field-width 48)
 (defun marginalia--affixate (metadata annotator cands)
   "Affixate CANDS given METADATA and Marginalia ANNOTATOR."
-  ;; OUR CHANGE: Removed adjustment of marginalia-field-width according to (window-width)
-  ;; otherwise it sometimes causes exponential shrinkage of mini-frame width on input
-  (let* ((marginalia--metadata metadata)
-         (cache marginalia--cache))
+  ;; reset `marginalia--candw-max'
+  (let* ((width (cl-loop for win in (get-buffer-window-list) minimize (window-width win)))
+         ;; estimate width
+         (marginalia-field-width
+          (- (floor (* width 0.8))
+             (let ((max (cl-loop for cand in cands
+                                 maximize (string-width cand))))
+               (* (ceiling (or max 0) marginalia--candw-step) marginalia--candw-step))))
+         (marginalia--metadata metadata))
+    (setq-local marginalia--candw-max (default-value 'marginalia--candw-max))
     (marginalia--align
      (with-selected-window (or (minibuffer-selected-window) (selected-window))
        (cl-loop for cand in cands collect
-                (let ((ann (or (marginalia--cached cache annotator cand) "")))
+                ;; don't use `marginalia--cache' because we change width dynamically
+                (let ((ann (or (funcall annotator cand) "")))
                   (cons cand (if (string-blank-p ann) "" ann))))))))
+(byte-compile 'marginalia--affixate)
 
 ;; Multiline candidates
 ;; Don't collapse multiline into single line.
@@ -778,46 +878,44 @@ PROMPT is a string to prompt with."
          ;; because typing RET in the minibuffer might call
          ;; an irrelevant command from the map of copied string.
          (read-from-kill-ring-history
-           (mapcar (lambda (s)
-                     (remove-list-of-text-properties
-                      0 (length s)
-                      '(
-                        keymap local-map action mouse-action
-                        button category help-args)
-                      s)
+          (mapcar (lambda (s)
+                    (remove-list-of-text-properties
+                     0 (length s)
+                     '(
+                       keymap local-map action mouse-action
+                       button category help-args)
                      s)
-                   kill-ring))
+                    s)
+                  kill-ring))
          (completions read-from-kill-ring-history))
     (minibuffer-with-setup-hook
-     (lambda ()
-       ;; Allow ‘SPC’ to be self-inserting
-       (use-local-map
-        (let ((map (make-sparse-keymap)))
-          (set-keymap-parent map (current-local-map))
-          (define-key map " " nil)
-          (define-key map "?" nil)
-          map)))
-     (completing-read
-      prompt
-      (lambda (string pred action)
-        (if (eq action 'metadata)
-            ;; Keep sorted by recency
-            '(metadata (display-sort-function . identity))
-            (complete-with-action action completions string pred)))
-      nil nil nil
-      (if history-pos
-          (cons 'read-from-kill-ring-history
-                (if (zerop history-pos) history-pos (1+ history-pos)))
-          'read-from-kill-ring-history)))))
+        (lambda ()
+          ;; Allow ‘SPC’ to be self-inserting
+          (use-local-map
+           (let ((map (make-sparse-keymap)))
+             (set-keymap-parent map (current-local-map))
+             (define-key map " " nil)
+             (define-key map "?" nil)
+             map)))
+      (completing-read
+       prompt
+       (lambda (string pred action)
+         (if (eq action 'metadata)
+             ;; Keep sorted by recency
+             '(metadata (display-sort-function . identity))
+           (complete-with-action action completions string pred)))
+       nil nil nil
+       (if history-pos
+           (cons 'read-from-kill-ring-history
+                 (if (zerop history-pos) history-pos (1+ history-pos)))
+         'read-from-kill-ring-history)))))
 (byte-compile 'read-from-kill-ring)
 
 ;; Patch `vertico--truncate-multiline'
 (defcustom k-vertico-multiline-max-lines 10
   "Maximum number of lines displayed for a multi-line candidate."
-  :group 'vertico)
-;; (pkg-info-version-info 'vertico)
-;; "0.27"
-(defun vertico--truncate-multiline (cand max-width)
+  :type 'number :group 'vertico)
+(defun vertico--truncate-multiline (cand _max-width)
   "Truncate multiline CAND.
 Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (let ((lines (string-lines cand)))
@@ -830,15 +928,17 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (byte-compile 'vertico--truncate-multiline)
 
 ;; Zebra strips, for better visualization of multiline candidates
-;; Patch `vertico--format-candidate'
-(defun vertico--format-candidate (cand prefix suffix index _start)
-  "Format CAND given PREFIX, SUFFIX and INDEX."
-  (setq cand (vertico--display-string (concat prefix cand suffix "\n")))
-  (cond ((= index vertico--index)
-         (add-face-text-property 0 (length cand) 'vertico-current 'append cand))
-        ((cl-evenp index)
-         (add-face-text-property 0 (length cand) 'k-zebra 'append cand)))
-  cand)
+;; Patch `vertico--display-candidates'
+(defun vertico--display-candidates (lines)
+  "Update candidates overlay `vertico--candidates-ov' with LINES."
+  (move-overlay vertico--candidates-ov (point-max) (point-max))
+  (cl-loop for line in lines
+           for i from 0
+           when (cl-evenp i)
+           do (add-face-text-property 0 (length line) 'k-zebra 'append line))
+  (overlay-put vertico--candidates-ov 'after-string
+               (apply #'concat #(" " 0 1 (cursor t)) (and lines "\n") lines))
+  (vertico--resize-window (* (ceiling (length lines) 2) 2)))
 (byte-compile 'vertico--format-candidate)
 (setq-default vertico-count 20)
 
@@ -858,13 +958,16 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 ;;; Key bindings
 
-(define-key key-translation-map (kbd "C-h") (kbd "DEL"))
-(define-key key-translation-map (kbd "DEL") (kbd "C-h"))
-(define-key key-translation-map (kbd "M-h") (kbd "M-DEL"))
+(define-key key-translation-map (kbd "<f1>") (kbd "C-h"))
 
+;; Embark
 (require 'consult)
 (require 'embark)
 (require 'embark-consult)
+(setq embark-prompter #'embark-completing-read-prompter)
+(setq embark-indicators
+      (k-quote embark--vertico-indicator embark-minimal-indicator
+               embark-highlight-indicator embark-isearch-highlight-indicator))
 (global-set-key (kbd "C-M-h") 'backward-kill-sexp)
 ;; (define-key isearch-mode-map (kbd "s-s") 'helm-swoop-from-isearch)
 (global-set-key (kbd "s-m") 'magit-status)
@@ -877,20 +980,11 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (global-set-key (kbd "C-c C-c C-SPC") 'consult-global-mark)
 (global-set-key (kbd "s-s") 'consult-line)
 (global-set-key (kbd "C-z") 'embark-act)
-(defun k-display-embark-buffer (buffer alist)
-  "Display BUFFER with ALIST, and hide mini-frame during display.
-Useful for *Embark Actions* so that it doesn't get occluded by
-vertico frame."
-  (make-frame-invisible mini-frame-frame)
-  (with-current-buffer buffer
-    (add-hook 'kill-buffer-hook (lambda () (message "HERE") (make-frame-visible mini-frame-frame)) nil t))
-  (display-buffer-reuse-window buffer alist))
-(setq embark-verbose-indicator-display-action  '(k-display-embark-buffer))
 
 (cl-flet ((global-set-key (key command)
-         (when (k-exwm-enabled-p)
-           (define-key exwm-mode-map key command))
-         (global-set-key key command)))
+            (when (k-exwm-enabled-p)
+              (define-key exwm-mode-map key command))
+            (global-set-key key command)))
   (global-set-key (kbd "s-0") 'delete-window)
   (global-set-key (kbd "s-1") 'zygospore-toggle-delete-other-windows)
   (global-set-key (kbd "C-x 1") 'zygospore-toggle-delete-other-windows)
@@ -940,12 +1034,23 @@ vertico frame."
       (with-current-buffer buffer
         (consult-line)))))
 (define-key embark-file-map (kbd "g") 'k-grep-in)
-(define-key vertico-map (kbd "C-s") (kbd "C-z g"))
+(define-key vertico-map (kbd "C-s")
+            (lambda ()
+              (interactive)
+              (embark--act 'k-grep-in (car (embark--targets)) embark-quit-after-action)))
 
 (define-key indent-rigidly-map (kbd "C-b") 'indent-rigidly-left)
 (define-key indent-rigidly-map (kbd "C-f") 'indent-rigidly-right)
 (define-key indent-rigidly-map (kbd "M-b") 'indent-rigidly-left-to-tab-stop)
 (define-key indent-rigidly-map (kbd "M-f") 'indent-rigidly-right-to-tab-stop)
+
+(define-key flycheck-mode-map (kbd "M-n") 'flycheck-next-error)
+(define-key flycheck-mode-map (kbd "M-p") 'flycheck-previous-error)
+(define-key lsp-mode-map (kbd "s-d") 'lsp-execute-code-action)
+
+(ace-link-setup-default "o")
+
+(define-key emacs-lisp-mode-map (kbd "C-c C-p") #'eval-print-last-sexp)
 
 ;;; Lisp development
 
@@ -954,7 +1059,7 @@ vertico frame."
 (require 'slime-repl)
 (mapc (lambda (h)
         (add-hook h #'paredit-mode)
-        (add-hook h '(lambda () (setq outline-regexp "(section-start")))
+        (add-hook h (lambda () (setq outline-regexp "(section-start")))
         (add-hook h #'highlight-indent-guides-mode))
       '(emacs-lisp-mode-hook
         lisp-mode-hook
@@ -968,11 +1073,12 @@ vertico frame."
 (add-hook 'emacs-lisp-mode-hook #'rainbow-mode)
 (add-hook 'scheme-mode-hook #'paredit-mode)
 (add-hook 'slime-repl-mode-hook #'paredit-mode)
+(add-hook 'slime-repl-mode-hook #'k-pad-header-line-after-advice)
 (add-hook 'lisp-mode-hook #'slime-mode)
 (add-hook 'lisp-mode-hook #'slime-editing-mode)
 (add-hook 'lisp-mode-hook 'ensure-slime)
 (mapc (lambda (h)
-        (add-hook h '(lambda () (setq-local lisp-indent-function 'common-lisp-indent-function))))
+        (add-hook h (lambda () (setq-local lisp-indent-function 'common-lisp-indent-function))))
       '(lisp-mode-hook slime-repl-mode-hook))
 (font-lock-add-keywords 'lisp-mode '(("(\\(setf\\)" 1 font-lock-keyword-face)
                                      ("(\\(setq\\)" 1 font-lock-keyword-face)
@@ -986,8 +1092,7 @@ vertico frame."
 (setq auto-mode-alist (delq (assoc "\\.rkt\\'" auto-mode-alist) auto-mode-alist))
 (setq auto-mode-alist (cons '("\\.lisp" . lisp-mode) auto-mode-alist))
 
-(slime-setup '(slime-company slime-fancy slime-quicklisp slime-asdf
-               slime-banner slime-media slime-parse))
+(slime-setup '(slime-company slime-fancy slime-quicklisp slime-asdf slime-media slime-parse))
 (require 'slime-company)
 (setq-default slime-company-completion 'fuzzy)
 (setq slime-lisp-implementations
@@ -1006,25 +1111,29 @@ vertico frame."
   (slime-repl))
 (define-key slime-mode-map (kbd "s-x") 'slime-repl-sync)
 (define-key slime-repl-mode-map (kbd "M-r") nil)
-(dolist (map (list slime-editing-map slime-repl-mode-map))
-  (define-key map (kbd "C-c I") nil)
-  (define-key map (kbd "C-h i") 'slime-inspect)
-  (define-key map (kbd "C-h v") 'slime-describe-symbol)
-  (define-key map (kbd "C-h f") 'slime-describe-function))
-(define-key slime-mode-map (kbd "C-h h") 'slime-hyperspec-lookup)
+(define-key slime-editing-map (kbd "<f2>")
+            (define-keymap
+              "v" #'slime-inspect
+              "o" #'slime-describe-symbol
+              "i" #'slime-documentation-lookup))
 (defun slime-undefine ()
   "Undefine toplevel definition at point."
   (interactive)
-  (cl-macrolet
-   ((run-with (symbol)
-              `(slime-eval `(cl:let ((symbol (cl:find-symbol ,(upcase (symbol-name name)))))
-                              (cl:when symbol (,,symbol symbol))))))
-   (slime-dcase
-    (slime-parse-toplevel-form)
-    (((:defun :defgeneric :defmacro) name) (run-with 'cl:fmakunbound))
-    (((:defvar :defparameter) name) (run-with 'cl:makunbound))
-    (((:defconstant) name) (run-with 'cl:unintern))
-    (((:defstruct :defclass) name) (run-with 'cl:make-instance-obsolete)))))
+  (cl-flet
+      ((run-with (f p symbol)
+         (message "%s %s => %s" f symbol
+                  (slime-eval
+                   `(cl:let ((symbol (cl:find-symbol ,(upcase (symbol-name symbol)))))
+                            (cl:cond ((cl:null symbol) "No such symbol")
+                                     ((cl:not (,p symbol)) "Not defined")
+                                     (t (,f symbol))))))))
+    (slime-dcase
+        (slime-parse-toplevel-form)
+      (((:defun :defgeneric :defmacro) name) (run-with 'cl:fmakunbound 'cl:fboundp name))
+      (((:defvar :defparameter) name) (run-with 'cl:makunbound 'cl:boundp name))
+      (((:defconstant) name) (run-with 'cl:unintern 'cl:identity name))
+      (((:defstruct :defclass) name) (run-with 'cl:make-instances-obsolete 'cl:find-class name)))))
+(define-key slime-mode-map (kbd "C-M-g") 'slime-undefine)
 
 ;; #+nil structural comment for Common Lisp
 (require 'paredit)
@@ -1033,7 +1142,7 @@ vertico frame."
   `(let ((marker (point-marker)))
      (set-marker-insertion-type marker t)
      (unwind-protect
-          (progn ,@body)
+         (progn ,@body)
        (goto-char marker))))
 (defmacro structured-comment-maybe (thing string)
   `(advance-save-excursion
@@ -1046,19 +1155,19 @@ vertico frame."
               (delete-region start (point))
               t))
           (save-excursion
-           (let ((end (point)))
-             (skip-chars-backward "\r\n[:blank:]")
-             (backward-char 5)
-             (when (looking-at-p "#\\+nil")
-               (delete-region (point) end)
-               t)))
+            (let ((end (point)))
+              (skip-chars-backward "\r\n[:blank:]")
+              (backward-char 5)
+              (when (looking-at-p "#\\+nil")
+                (delete-region (point) end)
+                t)))
           (progn
             (when floating (goto-char marker))
             (insert ,string))))))
 (defun structured-comment-advice (orig-fun &optional n)
   (if slime-mode
       (structured-comment-maybe 'sexp "#+nil ")
-      (funcall orig-fun n)))
+    (funcall orig-fun n)))
 (advice-add 'comment-or-uncomment-sexp :around 'structured-comment-advice)
 (define-key paredit-mode-map (kbd "M-;") #'comment-or-uncomment-sexp)
 (defun structured-comment-defun ()
@@ -1067,27 +1176,28 @@ vertico frame."
   (if slime-mode
       (structured-comment-maybe 'defun "#+nil
 ")
-      (save-excursion
-       (beginning-of-line)
-       (if (eq (char-after) ?\;)
-           (comment-or-uncomment-sexp)
-           (beginning-of-defun)
-           (comment-or-uncomment-sexp)))))
+    (save-excursion
+      (beginning-of-line)
+      (if (eq (char-after) ?\;)
+          (comment-or-uncomment-sexp)
+        (beginning-of-defun)
+        (comment-or-uncomment-sexp)))))
 (define-key paredit-mode-map (kbd "C-M-;") #'structured-comment-defun)
 
 ;; *slime-scratch*
 (defun switch-to-scratch ()
+  "Switch to scratch buffer."
   (interactive)
   (if slime-editing-mode
       (slime-scratch)
-      (switch-to-buffer-other-window "*scratch*")))
+    (switch-to-buffer-other-window "*scratch*")))
 (global-set-key (kbd "s-o") 'switch-to-scratch)
 
 ;; Slime mode line
 (defun slime-mode-line ()
   (concat (slime-connection-name) " "
           (propertize (downcase (string-trim (slime-current-package) "#?:\\|\"" "\""))
-                      'face 'mode-line-buffer-id)))
+                      'face 'k-proper-name)))
 
 ;; Hacks to make slime-autodoc works better
 (setq auto-save-no-message t) ;; Slime auto-saves like crazy for some reason...
@@ -1110,7 +1220,7 @@ vertico frame."
 Otherwise call ORIG-FUN with ARGS."
   (if mark-active
       (kill-region 0 0 'region)
-      (apply orig-fun args)))
+    (apply orig-fun args)))
 (advice-add 'paxedit-kill :around #'k--paxedit-kill-advice)
 (add-hook 'paredit-mode-hook #'paxedit-mode)
 (define-key paxedit-mode-map (kbd "M-j") #'paxedit-compress)
@@ -1118,9 +1228,10 @@ Otherwise call ORIG-FUN with ARGS."
 
 ;; Enable Paredit and Company in Lisp related minibuffers
 (defun sexp-minibuffer-hook ()
-  (when (or (eq this-command 'eval-expression)
-            (string-prefix-p "sldb" (symbol-name this-command))
-            (string-prefix-p "slime" (symbol-name this-command)))
+  (when (and (symbolp this-command)
+             (or (eq this-command 'eval-expression)
+                 (string-prefix-p "sldb" (symbol-name this-command))
+                 (string-prefix-p "slime" (symbol-name this-command))))
     (paredit-mode)
     (company-mode)))
 (add-hook 'minibuffer-setup-hook 'sexp-minibuffer-hook)
@@ -1135,30 +1246,30 @@ Otherwise call ORIG-FUN with ARGS."
 
 (require 'magit)
 (defun cloc-magit-root ()
+  "Run Count Line Of Code for current Git repo."
   (interactive)
-  (message "%s" (shell-command-to-string
-                 (concat "cloc " (magit-toplevel)))))
-(add-hook 'magit-post-commit-hook 'cloc-magit-root)
+  (term (concat "cloc " (magit-toplevel))))
 
 ;;; window/buffer/frame/workspaces movement
 
 (require 'zygospore)
 (require 'windmove)
-(windmove-default-keybindings)
+
 ;; Moving between window/buffer/frame/workspaces in 4 directions
 (defun next-workspace (direction)
-  (case direction
+  (cl-case direction
     (left (exwm-workspace-switch (1- exwm-workspace-current-index)))
     (right (exwm-workspace-switch (1+ exwm-workspace-current-index)))))
 (if (not (k-exwm-enabled-p))
-    (require 'framemove)
-    (defun windmove-select-advice (orig-func dir &rest args)
-      "Let windmove do its own thing, if there is an error, try framemove in that direction."
-      (condition-case err
-                      (apply orig-func dir args)
-                      (error (next-workspace dir))))
-    (advice-add 'windmove-do-window-select :around #'windmove-select-advice))
-(setq framemove-hook-into-windmove t)
+    (progn
+      (require 'framemove)
+      (setq framemove-hook-into-windmove t))
+  (defun windmove-select-advice (orig-func dir &rest args)
+    "If there is an error, try framemove in that direction."
+    (condition-case nil
+        (apply orig-func dir args)
+      (error (next-workspace dir))))
+  (advice-add 'windmove-do-window-select :around #'windmove-select-advice))
 (require 'buffer-move)
 ;; Intuitively, this works like windmove but move buffer together with cursor.
 (global-set-key (kbd "C-s-p") #'buf-move-up)
@@ -1168,40 +1279,41 @@ Otherwise call ORIG-FUN with ARGS."
 ;; Override buffer-move to support inter-frame/inter-exwm-workspace buffer movement.
 (defun buf-move-to (direction)
   "Helper function to move the current buffer to the window in the given
-   direction (with must be 'up, 'down', 'left or 'right). An error is
+   direction (with must be `up', `down', `left' or `right').  An error is
    thrown, if no window exists in this direction."
   (let* ((this-win (selected-window))
          (buf-this-buf (window-buffer this-win))
          (other-win
-           (let ((buf-this-window (windmove-find-other-window direction)))
-             (if (null buf-this-window)
-                 (progn
-                   (if (k-exwm-enabled-p)
-                       (next-workspace direction)
-                       (fm-next-frame direction))
-                   (selected-window))
-                 buf-this-window))))
+          (let ((buf-this-window (windmove-find-other-window direction)))
+            (if (null buf-this-window)
+                (progn
+                  (if (k-exwm-enabled-p)
+                      (next-workspace direction)
+                    (fm-next-frame direction))
+                  (selected-window))
+              buf-this-window))))
     (if (null other-win)
         (error "No window in this direction")
-        (if (window-dedicated-p other-win)
-            (error "The window in this direction is dedicated"))
-        (if (string-match "^ \\*Minibuf" (buffer-name (window-buffer other-win)))
-            (error "The window in this direction is the Minibuf"))
-        (if (eq buffer-move-behavior 'move)
-            ;; switch selected window to previous buffer (moving)
-            (switch-to-prev-buffer this-win)
-            ;; switch selected window to buffer of other window (swapping)
-            (set-window-buffer this-win (window-buffer other-win)))
+      (if (window-dedicated-p other-win)
+          (error "The window in this direction is dedicated"))
+      (if (string-match "^ \\*Minibuf" (buffer-name (window-buffer other-win)))
+          (error "The window in this direction is the Minibuf"))
+      (if (eq buffer-move-behavior 'move)
+          ;; switch selected window to previous buffer (moving)
+          (switch-to-prev-buffer this-win)
+        ;; switch selected window to buffer of other window (swapping)
+        (set-window-buffer this-win (window-buffer other-win)))
 
-        ;; switch other window to this buffer
-        (set-window-buffer other-win buf-this-buf)
+      ;; switch other window to this buffer
+      (set-window-buffer other-win buf-this-buf)
 
-        (when (or (null buffer-move-stay-after-swap)
-                  (eq buffer-move-behavior 'move))
-          (select-window other-win)))))
+      (when (or (null buffer-move-stay-after-swap)
+                (eq buffer-move-behavior 'move))
+        (select-window other-win)))))
 
 ;;; Avy jump
 
+(require 'avy)
 (defconst hyper-mask (- ?\H-a ?a))
 (defun hyper-ace ()
   (interactive)
@@ -1220,6 +1332,9 @@ Otherwise call ORIG-FUN with ARGS."
 (require 'emms-setup)
 (emms-all)
 (emms-mode-line-mode 0)
+(require 'emms-player-mpv)
+(setq emms-player-list '(emms-player-mpv))
+(setq emms-source-file-default-directory "~/Music/EMMS/")
 (defun k-emms-mode-line ()
   (concat
    (propertize
@@ -1232,7 +1347,7 @@ Otherwise call ORIG-FUN with ARGS."
           (t (all-the-icons-material "sync"))))
    (if emms-player-playing-p
        (concat " " (propertize (format-seconds "%.2h:%z%.2m:%.2s" emms-playing-time)
-                           'face 'mode-line-highlight)
+                               'face 'mode-line-highlight)
                "/" (propertize
                     (let ((total (emms-track-get
                                   (emms-playlist-current-selected-track)
@@ -1241,9 +1356,6 @@ Otherwise call ORIG-FUN with ARGS."
                     'face 'bold))
      "")))
 
-(require 'emms-player-mpv)
-(setq emms-player-list '(emms-player-mpv))
-(setq emms-source-file-default-directory "~/Music/EMMS/")
 (require 'emms-info-tinytag)
 (defvar k-python3
   (cond ((executable-find "python") "python")
@@ -1253,17 +1365,23 @@ Otherwise call ORIG-FUN with ARGS."
 (add-to-list 'emms-info-functions 'emms-info-tinytag)
 
 (defun k-emms-toggle-video (&rest args)
-  "Tell MPV player to switch to video/no-video mode."
+  "TELL MPV player to switch to video/no-video mode."
   (interactive)
   (let* ((no-video-now (member "--no-video" emms-player-mpv-parameters))
          (no-video-wanted (if args (car args) (not no-video-now))))
     (if no-video-wanted
         (add-to-list 'emms-player-mpv-parameters "--no-video")
-        (setq emms-player-mpv-parameters (delete "--no-video" emms-player-mpv-parameters)))
+      (setq emms-player-mpv-parameters (delete "--no-video" emms-player-mpv-parameters)))
     (when (process-live-p emms-player-mpv-proc)
       (if no-video-wanted
           (emms-player-mpv-cmd '(set vid no))
-          (emms-player-mpv-cmd '(set vid auto))))))
+        (emms-player-mpv-cmd '(set vid auto))))))
+
+(defun emms-playing-time-display ()
+  "Display playing time on the mode line."
+  ;; (setq emms-playing-time (round (1+ emms-playing-time)))
+  (emms-player-mpv-event-playing-time-sync)
+  (force-mode-line-update))
 
 (defun k-emms-player-mpv-event-function (json-data)
   (pcase (alist-get 'event json-data)
@@ -1277,22 +1395,29 @@ Otherwise call ORIG-FUN with ARGS."
   "Place an overlay over the currently selected track."
   (when emms-playlist-selected-marker
     (save-excursion
-     (goto-char emms-playlist-selected-marker)
-     (let ((reg (emms-property-region (point) 'emms-track)))
-       (if emms-playlist-mode-selected-overlay
-           (move-overlay emms-playlist-mode-selected-overlay
-                         (car reg)
-                         (1+ (cdr reg)))
-           (setq emms-playlist-mode-selected-overlay
-                 (make-overlay (car reg)
-                               (1+ (cdr reg))
-                               nil t nil))
-           (overlay-put emms-playlist-mode-selected-overlay
-                        'face 'emms-playlist-selected-face)
-           (overlay-put emms-playlist-mode-selected-overlay
-                        'evaporate t)
-           (overlay-put emms-playlist-mode-selected-overlay
-                        'priority 1))))))
+      (goto-char emms-playlist-selected-marker)
+      (let ((reg (emms-property-region (point) 'emms-track)))
+        (if emms-playlist-mode-selected-overlay
+            (move-overlay emms-playlist-mode-selected-overlay
+                          (car reg)
+                          (1+ (cdr reg)))
+          (setq emms-playlist-mode-selected-overlay
+                (make-overlay (car reg)
+                              (1+ (cdr reg))
+                              nil t nil))
+          (overlay-put emms-playlist-mode-selected-overlay
+                       'face 'emms-playlist-selected-face)
+          (overlay-put emms-playlist-mode-selected-overlay
+                       'evaporate t)
+          (overlay-put emms-playlist-mode-selected-overlay
+                       'priority 1))))))
+
+(define-key emms-playlist-mode-map (kbd "p") #'emms-pause)
+(define-key emms-playlist-mode-map (kbd "n") nil)
+(define-key emms-playlist-mode-map (kbd "M-p") #'emms-previous)
+(define-key emms-playlist-mode-map (kbd "M-n") #'emms-next)
+(define-key emms-playlist-mode-map (kbd "C-M-p") #'emms-playlist-mode-previous)
+(define-key emms-playlist-mode-map (kbd "C-M-n") #'emms-playlist-mode-next)
 
 ;; Eye candies
 (add-hook 'emms-playlist-mode 'stripes-mode)
@@ -1304,12 +1429,12 @@ Otherwise call ORIG-FUN with ARGS."
   (unless (stringp format)
     (setq format (format-mode-line format)))
   `(#(" " 0 1 (face default display (space :width left-fringe)))
-     ,(truncate-string-to-width
-       format
-       (window-text-width (get-buffer-window (current-buffer)))
-       nil nil (truncate-string-ellipsis))
-     #(" " 0 1 (display (space :align-to right)))
-     #(" " 0 1 (face default display (space :width right-fringe)))))
+    ,(truncate-string-to-width
+      format
+      (window-text-width (get-buffer-window (current-buffer)))
+      nil nil (truncate-string-ellipsis))
+    #(" " 0 1 (display (space :align-to right)))
+    #(" " 0 1 (face default display (space :width right-fringe)))))
 (byte-compile 'k-pad-mode-line-format)
 
 (defvar k-selected-window nil)
@@ -1325,16 +1450,17 @@ Otherwise call ORIG-FUN with ARGS."
               mode-line-format
               '(:eval
                 (k-pad-mode-line-format
-                 '("" mode-line-mule-info mode-line-client mode-line-modified mode-line-remote " "
+                 '("" mode-line-mule-info mode-line-client mode-line-modified
+                   mode-line-remote " "
                    (14 (:eval (if (k-mode-line-selected-p) #("%c" 0 2 (face mode-line-emphasis))
-                                  "%c"))
-                    (#(" %l/" 0 3 (face mode-line-highlight))
-                           (:propertize (:eval (number-to-string (line-number-at-pos (point-max))))
-                                        face bold)))
+                                "%c"))
+                       (#(" %l/" 0 3 (face mode-line-highlight))
+                        (:propertize (:eval (number-to-string (line-number-at-pos (point-max))))
+                                     face bold)))
                    "  " (:propertize "%b" face mode-line-buffer-id)
-                   ((which-func-mode which-func-format)) " \t"
+                   " \t"
                    (mode-line-process ("(" mode-name ":" mode-line-process  ")")
-                    mode-name)
+                                      mode-name)
                    "  " mode-line-misc-info))))
 
 (defvar-local k-pad-last-header-line-format nil)
@@ -1346,7 +1472,9 @@ Otherwise call ORIG-FUN with ARGS."
         (t (unless (equal header-line-format k-pad-last-header-line-format)
              (setq-local header-line-format `(:eval (k-pad-mode-line-format ',header-line-format)))
              (setq-local k-pad-last-header-line-format header-line-format)))))
+(add-hook 'Info-mode-hook #'k-pad-header-line-after-advice)
 ;; (add-hook 'window-buffer-change-functions 'k-pad-header-line-after-advice)
+
 ;;; Cute and useless visuals!
 
 (require 'highlight-tail)
@@ -1380,7 +1508,7 @@ Otherwise call ORIG-FUN with ARGS."
                              highlight-tail-colors))
                    100)
                 highlight-tail-colors
-                (append highlight-tail-colors (list '(null . 100)))))
+              (append highlight-tail-colors (list '(null . 100)))))
       (setq highlight-tail-face-max highlight-tail-steps)
       (highlight-tail-add-colors-fade-table 'start)
       (highlight-tail-add-colors-fade-table 'default)
@@ -1410,11 +1538,11 @@ that if there is ht's overlay at at the top then return 'default"
                 (assoc point-face highlight-tail-nonhtfaces-bgcolors))
           (if point-face-from-cache
               (setq point-face-bgcolor-hex (cdr point-face-from-cache))
-              (setq point-face-bgcolor (face-background point-face nil t))
-              (when (or (eq point-face-bgcolor nil)
-                        (eq point-face-bgcolor 'unspecified))
-                (setq point-face-bgcolor 'default))))
-        (setq point-face-bgcolor 'default))
+            (setq point-face-bgcolor (face-background point-face nil t))
+            (when (or (eq point-face-bgcolor nil)
+                      (eq point-face-bgcolor 'unspecified))
+              (setq point-face-bgcolor 'default))))
+      (setq point-face-bgcolor 'default))
     (when (not point-face-bgcolor-hex)  ; not read from cache
       (if (eq point-face-bgcolor 'default)
           (setq point-face-bgcolor-hex 'default)
@@ -1451,10 +1579,10 @@ that if there is ht's overlay at at the top then return 'default"
 (require 'racket-mode)
 (add-hook 'racket-mode-hook 'geiser-mode)
 (define-key racket-mode-map (kbd "M-l")
-  (lambda ()
-    (interactive)
-    (geiser-load-file (buffer-file-name (current-buffer)))
-    (switch-to-geiser-module (geiser-eval--get-module) (current-buffer))))
+            (lambda ()
+              (interactive)
+              (geiser-load-file (buffer-file-name (current-buffer)))
+              (switch-to-geiser-module (geiser-eval--get-module) (current-buffer))))
 (define-key scheme-mode-map (kbd "C-h h") 'geiser-doc-look-up-manual)
 
 (setq geiser-mode-start-repl-p t)
@@ -1509,15 +1637,15 @@ that if there is ht's overlay at at the top then return 'default"
 (add-hook 'eww-after-render-hook 'k-eww-after-render-hook)
 (defun k-eww-read-url ()
   (let* ((cand
-            (completing-read "Enter URL or keywords: " k-eww-history)))
+          (completing-read "Enter URL or keywords: " k-eww-history)))
     (or (gethash cand k-eww-history) cand)))
 (defun eww-new-buffer (url)
   (interactive (list (k-eww-read-url)))
   (with-temp-buffer
-      (if current-prefix-arg
-          (let ((eww-search-prefix "https://scholar.google.com/scholar?q="))
-            (eww url))
-          (eww url))))
+    (if current-prefix-arg
+        (let ((eww-search-prefix "https://scholar.google.com/scholar?q="))
+          (eww url))
+      (eww url))))
 (define-key eww-mode-map (kbd "G") 'eww-new-buffer)
 
 (when (k-exwm-enabled-p)
@@ -1536,7 +1664,7 @@ that if there is ht's overlay at at the top then return 'default"
 (when (featurep 'xwidget-internal)
   (add-to-list 'load-path "~/.emacs.d/lisp/xwwp")
   (require 'xwwp-full)
-  (define-key xwidget-webkit-mode-map (kbd "t") 'xwwp-ace-toggle)
+  (define-key xwidget-webkit-mode-map (kbd "o") 'xwwp-ace-toggle)
   (define-key xwidget-webkit-mode-map (kbd "s-h") 'xwwp-section)
   (setq-default xwwp-ace-label-style
                 `(("z-index" . "2147483647")
@@ -1561,31 +1689,31 @@ that if there is ht's overlay at at the top then return 'default"
   (k-emms-toggle-video no-video)
   (ytel-add t)
   (with-current-emms-playlist
-      (emms-playlist-previous)
+    (emms-playlist-previous)
     (emms-playlist-mode-play-current-track)))
 (defun ytel-add (&optional here)
   "Add video at point to EMMS playlist."
   (interactive "P")
   (let* ((video (ytel-get-current-video))
-     	 (id    (ytel-video-id video))
+         (id    (ytel-video-id video))
          (url (concat "https://www.youtube.com/watch?v=" id))
          (track (emms-track 'url url)))
     (emms-track-set track 'info-title (ytel-video-title video))
     (emms-track-set track 'info-playing-time (ytel-video-length video))
     (with-current-emms-playlist
-        (if here
-            (emms-playlist-insert-track track)
-            (save-excursion
-             (goto-char (point-max))
-             (emms-playlist-insert-track track))))))
+      (if here
+          (emms-playlist-insert-track track)
+        (save-excursion
+          (goto-char (point-max))
+          (emms-playlist-insert-track track))))))
 (define-key ytel-mode-map (kbd "RET") 'ytel-play)
 (define-key ytel-mode-map (kbd "p") (kbd "C-u RET"))
 (define-key ytel-mode-map (kbd "a") 'ytel-add)
 (add-hook 'ytel-mode-hook 'stripes-mode)
 (add-hook 'ytel-mode-hook
           '(lambda ()
-            (setq-local hl-line-face '(:inherit match :extend t))
-            (hl-line-mode)))
+             (setq-local hl-line-face '(:inherit match :extend t))
+             (hl-line-mode)))
 
 ;;; PDF Tools
 
@@ -1623,7 +1751,8 @@ that if there is ht's overlay at at the top then return 'default"
 (setq undo-strong-limit 10000000)
 (setq undo-outer-limit 100000000)
 (setq undo-tree-enable-undo-in-region t)
-(setq undo-tree-visualizer-timestamps t)
+(setq undo-tree-visualizer-timestamps t
+      undo-tree-auto-save-history nil) ;; To fucking slow!
 (define-key undo-tree-visualizer-mode-map (kbd "M-n") #'undo-tree-visualize-redo-to-x)
 (define-key undo-tree-visualizer-mode-map (kbd "M-p") #'undo-tree-visualize-undo-to-x)
 
@@ -1686,29 +1815,6 @@ that if there is ht's overlay at at the top then return 'default"
 ;;         '(" *Minibuf-0*" " *Minibuf-1*" " *Echo Area 0*" " *Echo Area 1*"))
 ;;   (add-to-list 'default-frame-alist '(alpha . 70)))
 
-;;; Notifications
-
-(require 'sauron)
-(setq sauron-separate-frame nil)
-(setq sauron-min-priority 3)
-(setq sauron-log-buffer-max-lines most-positive-fixnum)
-(defadvice notifications-notify
-    (after sr-notifications-hook (&rest params) disable)
-  "\"Hook\" `sauron-add-event' to `notifications-notify'"
-  (let ((title (plist-get params :title))
-        (body (plist-get params :body))
-        (prio (sr-notifications-urgency-to-priority
-               (plist-get params :urgency)))
-        (callback (plist-get params :on-action)))
-    (sauron-add-event
-     'notify
-     prio
-     (concat title
-             (if (and title body) " - ") body)
-     callback)))
-(ad-enable-advice 'notifications-notify 'after 'sr-notifications-hook)
-(ad-activate 'notifications-notify)
-
 ;;; ERC
 
 (advice-add 'erc-update-mode-line-buffer :after 'k-pad-header-line-after-advice)
@@ -1738,9 +1844,9 @@ that if there is ht's overlay at at the top then return 'default"
 (setq-default gnus-select-method '(nnnil nil)
               gnus-secondary-select-methods
               '((nnimap "Stanford"
-                 (nnimap-address "localhost")
-                 (nnimap-server-port 1143)
-                 (nnimap-stream plain))))
+                        (nnimap-address "localhost")
+                        (nnimap-server-port 1143)
+                        (nnimap-stream plain))))
 (add-to-list 'gnus-parameters '("" (display . all)))
 
 
@@ -1750,9 +1856,9 @@ that if there is ht's overlay at at the top then return 'default"
 
 (defun gnus-nnimap-count-format (n)
   (let ((method (or gnus-tmp-method gnus-select-method)))
-  (when (eq (car method) 'nnimap)
-    (let ((counts (nnimap-request-message-counts gnus-tmp-group method)))
-      (if counts (format "%d" (nth n counts)) "?")))))
+    (when (eq (car method) 'nnimap)
+      (let ((counts (nnimap-request-message-counts gnus-tmp-group method)))
+        (if counts (format "%d" (nth n counts)) "?")))))
 
 (defun gnus-user-format-function-t (dummy)
   (or (gnus-nnimap-count-format 0)
@@ -1789,7 +1895,7 @@ that if there is ht's overlay at at the top then return 'default"
                (assoc "MESSAGES"
                       (assoc "STATUS"
                              (nnimap-command "STATUS %S (MESSAGES UNSEEN)"
-                                      (utf7-encode imap-group t))))))
+                                             (utf7-encode imap-group t))))))
           (message "Requesting message count for %s...done" group)
           (and response
                (mapcar #'string-to-number
@@ -1814,19 +1920,19 @@ that if there is ht's overlay at at the top then return 'default"
 Just grab them from `gnus-format-specs'."
   (let (new-format entry type val updated)
     (while (setq type (pop types))
-           ;; Jump to the proper buffer to find out the value of the
-           ;; variable, if possible.  (It may be buffer-local.)
-           (save-current-buffer
-	    (let ((buffer (intern (format "gnus-%s-buffer" type))))
-	      (when (and (boundp buffer)
-		         (setq val (symbol-value buffer))
-                         (gnus-buffer-live-p val))
-	        (set-buffer val)))
-	    (setq new-format (symbol-value
-			      (intern (format "gnus-%s-line-format" type))))
-	    (setq entry (cdr (assq type gnus-format-specs)))
-	    (set (intern (format "gnus-%s-line-format-spec" type))
-	         (cadr entry))))
+      ;; Jump to the proper buffer to find out the value of the
+      ;; variable, if possible.  (It may be buffer-local.)
+      (save-current-buffer
+        (let ((buffer (intern (format "gnus-%s-buffer" type))))
+          (when (and (boundp buffer)
+                     (setq val (symbol-value buffer))
+                     (gnus-buffer-live-p val))
+            (set-buffer val)))
+        (setq new-format (symbol-value
+                          (intern (format "gnus-%s-line-format" type))))
+        (setq entry (cdr (assq type gnus-format-specs)))
+        (set (intern (format "gnus-%s-line-format-spec" type))
+             (cadr entry))))
     updated))
 (setq-default gnus-use-full-window nil
               gnus-group-line-format nil
@@ -1846,64 +1952,64 @@ Just grab them from `gnus-format-specs'."
       gnus-format-specs
       '((article-mode nil "")
         (summary-dummy nil
-         (progn
-           (insert "   ")
-           (put-text-property
-            (point)
-            (progn
-              (insert ":                             :")
-              (point))
-            'mouse-face gnus-mouse-face)
-           (insert " " gnus-tmp-subject "\n")))
+                       (progn
+                         (insert "   ")
+                         (put-text-property
+                          (point)
+                          (progn
+                            (insert ":                             :")
+                            (point))
+                          'mouse-face gnus-mouse-face)
+                         (insert " " gnus-tmp-subject "\n")))
         (summary-mode nil "")
         (summary nil
-         (add-face-text-property (point)
-          (let (gnus-position)
-            (insert (propertize (string gnus-tmp-unread gnus-tmp-replied gnus-tmp-score-char)
-                                'face '(nil default) 'gnus-face t)
-                    (propertize (truncate-string-to-width
-                                 (concat gnus-tmp-indentation
-                                         (gnus-summary-from-or-to-or-newsgroups gnus-tmp-header gnus-tmp-from))
-                                 28 0 ?  (truncate-string-ellipsis))
-                                'face '((:inherit (shadow k-proper-name)) default) 'gnus-face t)
-                    #("  " 0 2 (face (nil default) gnus-face t)))
-            (setq gnus-position (point))
-            (insert (propertize (truncate-string-to-width
-                gnus-tmp-subject-or-nil
-                70 0 nil (truncate-string-ellipsis))
-               'face '((:inherit (variable-pitch bold)) default) 'gnus-face t)
-   #(" " 0 1 (face (nil default) gnus-face t display (space :align-to (- text 14))))
-   (propertize (format "%12s \n" (gnus-user-date (mail-header-date gnus-tmp-header)))
-               'face `((:inherit (shadow k-quote)) default) 'gnus-face t))
-            (put-text-property gnus-position (1+ gnus-position) 'gnus-position t)
-            (point))
-          (if (cl-evenp (line-number-at-pos (point))) 'stripes nil) t))
+                 (add-face-text-property (point)
+                                         (let (gnus-position)
+                                           (insert (propertize (string gnus-tmp-unread gnus-tmp-replied gnus-tmp-score-char)
+                                                               'face '(nil default) 'gnus-face t)
+                                                   (propertize (truncate-string-to-width
+                                                                (concat gnus-tmp-indentation
+                                                                        (gnus-summary-from-or-to-or-newsgroups gnus-tmp-header gnus-tmp-from))
+                                                                28 0 ?  (truncate-string-ellipsis))
+                                                               'face '((:inherit (shadow k-proper-name)) default) 'gnus-face t)
+                                                   #("  " 0 2 (face (nil default) gnus-face t)))
+                                           (setq gnus-position (point))
+                                           (insert (propertize (truncate-string-to-width
+                                                                gnus-tmp-subject-or-nil
+                                                                70 0 nil (truncate-string-ellipsis))
+                                                               'face '((:inherit (variable-pitch bold)) default) 'gnus-face t)
+                                                   #(" " 0 1 (face (nil default) gnus-face t display (space :align-to (- text 14))))
+                                                   (propertize (format "%12s \n" (gnus-user-date (mail-header-date gnus-tmp-header)))
+                                                               'face `((:inherit (shadow k-quote)) default) 'gnus-face t))
+                                           (put-text-property gnus-position (1+ gnus-position) 'gnus-position t)
+                                           (point))
+                                         (if (cl-evenp (line-number-at-pos (point))) 'stripes nil) t))
         (topic nil
-         (progn
-           (insert indentation "[ ")
-           (put-text-property
-            (point)
-            (progn
-              (add-text-properties
-               (point)
-               (progn (insert name) (point))
-               (cons 'face (cons (list 'bold 'default) '(gnus-face t))))
-              (point))
-            'mouse-face gnus-mouse-face)
-           (insert (format " -- %d ]%s\n" total-number-of-articles visible))))
+               (progn
+                 (insert indentation "[ ")
+                 (put-text-property
+                  (point)
+                  (progn
+                    (add-text-properties
+                     (point)
+                     (progn (insert name) (point))
+                     (cons 'face (cons (list 'bold 'default) '(gnus-face t))))
+                    (point))
+                  'mouse-face gnus-mouse-face)
+                 (insert (format " -- %d ]%s\n" total-number-of-articles visible))))
         (group-mode nil "")
         (group nil
-         (progn
-           (insert (format "%c%c%c%s%5s/%-5s %c"
-                           gnus-tmp-marked-mark
-                           gnus-tmp-subscribed
-                           gnus-tmp-process-marked
-                           gnus-group-indentation
-                           (gnus-user-format-function-y gnus-tmp-header)
-                           (gnus-user-format-function-t gnus-tmp-header)
-                           gnus-tmp-summary-live))
-           (put-text-property (point) (progn (insert gnus-tmp-qualified-group) (point)) 'mouse-face gnus-mouse-face)
-           (insert "\n")))
+               (progn
+                 (insert (format "%c%c%c%s%5s/%-5s %c"
+                                 gnus-tmp-marked-mark
+                                 gnus-tmp-subscribed
+                                 gnus-tmp-process-marked
+                                 gnus-group-indentation
+                                 (gnus-user-format-function-y gnus-tmp-header)
+                                 (gnus-user-format-function-t gnus-tmp-header)
+                                 gnus-tmp-summary-live))
+                 (put-text-property (point) (progn (insert gnus-tmp-qualified-group) (point)) 'mouse-face gnus-mouse-face)
+                 (insert "\n")))
         (version . "28.2") (gnus-version . 5.13)))
 
 ;; Key bindings for trauma repression
@@ -1916,7 +2022,7 @@ Just grab them from `gnus-format-specs'."
   (if (cl-find-if (lambda (ov) (eq (overlay-get ov 'invisible) 'gnus-sum))
                   (overlays-in (point-min) (point-max)))
       (gnus-summary-show-all-threads)
-      (gnus-summary-hide-all-threads)))
+    (gnus-summary-hide-all-threads)))
 (defun k-gnus-toggle-show-topic ()
   (interactive)
   (unless (gnus-topic-fold)
@@ -1925,7 +2031,7 @@ Just grab them from `gnus-format-specs'."
   (interactive)
   (if (gnus-group-topic-name)
       (gnus-topic-goto-topic (gnus-topic-parent-topic (gnus-current-topic)))
-      (gnus-topic-goto-topic (gnus-current-topic))))
+    (gnus-topic-goto-topic (gnus-current-topic))))
 
 (define-key gnus-topic-mode-map (kbd "<tab>") 'k-gnus-toggle-show-topic)
 (define-key gnus-topic-mode-map (kbd "C-M-u") 'k-gnus-topic-up-topic)
@@ -1934,7 +2040,7 @@ Just grab them from `gnus-format-specs'."
 (define-key gnus-article-mode-map (kbd "q") 'delete-window)
 (define-key gnus-summary-mode-map (kbd "q") '(lambda () (interactive) (switch-to-buffer gnus-group-buffer)))
 (define-key gnus-summary-mode-map (kbd "Q") 'gnus-summary-exit)
-(define-key gnus-article-mode-map (kbd "t") 'ace-link)
+(define-key gnus-article-mode-map (kbd "o") 'ace-link)
 (define-key gnus-summary-mode-map (kbd "t") 'gnus-summary-toggle-threads)
 (define-key gnus-summary-mode-map (kbd "M-n") 'gnus-summary-next-unread-article)
 (define-key gnus-summary-mode-map (kbd "M-p") 'gnus-summary-prev-unread-article)
@@ -1954,16 +2060,14 @@ Just grab them from `gnus-format-specs'."
 
 ;;; Misc handy commands
 
+(defvar lookup-word-buffer nil)
 (defun lookup-word (word)
   (interactive (list (thing-at-point 'word t)))
-  (setq available-windows
-        (delete (selected-window) (window-list)))
-  (setq new-window
-        (or (car available-windows)
-            (split-window-sensibly)
-            (split-window-right)))
-  (select-window new-window)
-  (browse-url (format "https://en.wiktionary.org/wiki/%s#Latin" word)))
+  (let ((display-buffer-alist '((".*" display-buffer-below-selected))))
+    (select-window (display-buffer
+                    (or (and (buffer-live-p lookup-word-buffer) lookup-word-buffer)
+                        (current-buffer)))))
+  (setq lookup-word-buffer (browse-url (format "https://en.wiktionary.org/wiki/%s#Latin" word))))
 
 (defun demolish-package (symbol)
   "Nuke everything under namespace SYMBOL."
@@ -1985,6 +2089,14 @@ Just grab them from `gnus-format-specs'."
 ;; (I hate plans and notifications!)
 (defcustom candy-list nil "List of candies." :type '(list string) :group 'applications)
 (defcustom candy-regimen-path nil "Path to save regimen log." :type 'file :group 'applications)
+(defun get-candy-time (candy)
+  (with-current-buffer (find-file-noselect candy-regimen-path)
+    (condition-case
+        nil
+        (save-excursion
+          (search-backward candy)
+          (- (org-time-stamp-to-now (buffer-substring (line-beginning-position) (point)) t)))
+      (search-failed nil))))
 (defun candy-time! ()
   "Choose your poison!"
   (interactive)
@@ -1995,18 +2107,12 @@ Just grab them from `gnus-format-specs'."
       (end-of-buffer)
       (unless (bolp) (insert "\n"))
       (let* ((completion-extra-properties
-               (list :annotation-function
-                     ;; Display elapsed time since last intake
-                     (lambda (candy)
-                       (with-current-buffer buffer
-                         (condition-case
-                          nil
-                          (save-excursion
-                           (search-backward candy)
-                           (let ((time (format-seconds "%dd %hh %z%mm"
-                                                       (- (org-time-stamp-to-now (buffer-substring (line-beginning-position) (point)) t)))))
-                             (concat " (" time ")")))
-                          (search-failed nil))))))
+              (list :annotation-function
+                    ;; Display elapsed time since last intake
+                    (lambda (candy)
+                      (let ((time (get-candy-time candy)))
+                        (when time
+                          (concat "(" (format-seconds "%dd %hh %z%mm" time) ")"))))))
              (candy (completing-read "Choose your posion: " candy-list)))
         (org-insert-time-stamp nil t)
         (insert " " (substring-no-properties candy) "\n")
@@ -2030,7 +2136,12 @@ Just grab them from `gnus-format-specs'."
           (t (list 'sunrise (+ tomorrow-sunrise (- (* 24 3600) time)))))))
 (defun vampire-time-update ()
   (let* ((time (time-to-vampire-time))
-         (msg (format "%s till %s" (format-seconds "%h:%.2m:%.2s" (cadr time)) (car time)))
+         (msg (format (concat "%s till %s"
+                              (propertize " | " 'face `(:foreground ,k-bg-blue))
+                              "%s")
+                      (format-seconds "%h:%.2m:%.2s" (cadr time))
+                      (car time)
+                      (format-seconds "%h:%.2m:%.2s" (get-candy-time "Estradiol"))))
          (width (string-width msg))
          (msg (concat (propertize " " 'display
                                   `(space :align-to (- right-fringe ,width)))
@@ -2048,7 +2159,7 @@ Just grab them from `gnus-format-specs'."
         (let ((l1 (propertize (concat " " (format-seconds "%h:%.2m:%.2s" (cadr time)))
                               'face '(:height 10.0 :weight normal)))
               (l2 (propertize (format "till %s" (car time))
-                               'face '(:height 4.0 :weight normal))))
+                              'face '(:height 4.0 :weight normal))))
           (insert l1 (propertize " \n" 'face '(:height 10.0 :weight normal)))
           (insert (propertize " "
                               'display `(space :width (,(- (shr-string-pixel-width l1)
@@ -2079,7 +2190,7 @@ Just grab them from `gnus-format-specs'."
               (string-to-number (cl-remove-if (lambda (c) (= c ?\,)) (match-string 0)))))
     (with-temp-buffer
       (shell-command
-       (format "curl -s https://nitter.net/%s" username)
+       (format "curl -s -k https://nitter.net/%s" username)
        (current-buffer))
       (goto-char (point-min))
       (list

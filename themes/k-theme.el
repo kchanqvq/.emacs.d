@@ -5,6 +5,7 @@
 ;; Tweek fonts to  match `window-text-pixel-size'...
 
 (defvar k-light-monospace "Source Code Pro-20:weight=light")
+(defvar k-monospace "Source Code Pro")
 (defvar k-serif-monospace "Libertinus Mono-19")
 (defvar k-courier-height 200)
 (set-frame-font k-light-monospace nil t)
@@ -25,6 +26,8 @@
   (defconst k-bg-grey-1 "grey95")
   (defconst k-bg-grey-2 "grey90")
   (defconst k-bg-grey-3 "grey80")
+  (defconst k-fg-orange "#FF703B")
+  (defconst k-fg-red "#FF0000")
 
   (defconst k-bg "#ffffff")
   (defconst k-bg-1 k-bg-blue)
@@ -37,7 +40,7 @@
   (defconst k-fg "#000000")
   (defconst k-fg-1 "#7070a0")
   (defconst k-fg-con k-fg-pink)
-  (defconst k-fg-err "#FF703B")
+
 
   (defconst blink-cursor-colors (list k-fg-blue k-fg-pink k-fg-purple))
   (defconst blink-highlight-colors (list k-bg-blue k-bg-pink k-bg-purple)))
@@ -87,10 +90,12 @@
  `(k-string ((default :foreground ,k-dk-pink)))
  `(k-doc ((default :font ,k-serif-monospace :inherit k-string :weight normal)))
  `(k-comment ((default  :inherit italic :foreground ,k-fg-1)))
- `(k-common ((default :inherit bold)))
+ `(k-common ((default :foreground ,k-fg :inherit bold)))
  `(k-prompt ((default :inherit bold :foreground ,k-fg-pink)))
  `(k-zebra ((default :background ,k-bg-blue :extend t)))
  `(default ((default :background ,k-bg :foreground ,k-fg :weight light)))
+ `(fixed-pitch ((default :family ,k-monospace)))
+ `(variable-pitch ((default :family "Newsreader" :height 220 :weight normal)))
  '(bold ((default :weight normal)))
  '(bold-italic ((default :slant italic :weight normal)))
  '(underline ((default :underline t)))
@@ -113,31 +118,24 @@
 
  `(font-lock-type-face ((default :inherit k-proper-name)))
  `(font-lock-warning-face ((default :inherit warning)))
- `(error ((default :foreground ,k-fg-err :inherit bold)))
+ `(error ((default :foreground ,k-fg-red :inherit bold)))
  `(shadow ((default :foreground ,k-fg-1)))
- `(success ((default :foreground ,k-dk-blue :inherit bold)))
- `(warning ((default :foreground ,k-fg-err :inherit bold)))
+ `(success ((default :foreground ,k-dk-blue)))
+ `(warning ((default :foreground ,k-dk-pink :inherit bold)))
 
  ;; Flycheck
- ;; `(flycheck-error ((,class (:underline (:style wave :color ,error)))))
+ `(flycheck-error-list-highlight ((default :inherit bold)))
+ `(flycheck-info ((default :underline (:style wave :color ,k-fg-blue))))
+ `(flycheck-warning ((default :underline (:style wave :color ,k-fg-pink))))
+ `(flycheck-error ((default :underline (:style wave :color ,k-fg-red))))
  ;; `(flycheck-info ((,class (:underline (:style wave :color ,warning)))))
- ;; `(flycheck-warning ((,class (:underline (:style wave :color ,warning)))))
- ;; `(flycheck-fringe-error ((,class (:foreground ,error))))
- ;; `(flycheck-fringe-info ((,class (:foreground ,warning))))
- ;; `(flycheck-fringe-warning ((,class (:foreground ,warning))))
-
- ;; Flymake
- ;; `(flymake-warnline ((,class (:underline (:style wave :color ,warning) :background ,background))))
- ;; `(flymake-errline ((,class (:underline (:style wave :color ,error) :background ,background))))
-
- ;; Flyspell
- ;; `(flyspell-incorrect ((,class (:underline (:style wave :color ,error)))))
+ `(lsp-ui-sideline-code-action ((default :inherit button)))
 
  ;; Search
  `(match ((default :background ,k-bg-con)))
  `(lazy-highlight ((default :inherit region)))
  `(isearch ((default :inherit match)))
- `(isearch-fail ((default :inherit error)))
+ `(isearch-fail ((default :foreground ,k-fg-red)))
 
  ;; Avy
  `(avy-lead-face ((default :background ,k-dk-blue :foreground ,k-bg
@@ -151,6 +149,7 @@
  `(fringe ((default :foreground ,k-fg-1)))
  `(vertical-border ((default :foreground ,k-bg)))
  `(window-divider-first-pixel ((default :foreground ,k-bg)))
+ `(k-bottom-separator ((default :underline (:color ,k-fg :position 0))))
  `(border ((default :inherit fringe)))
  `(border-glyph (nil))
  `(highlight ((default :inherit region)))
@@ -162,13 +161,17 @@
  `(mode-line-inactive ((default :inherit mode-line)))
  `(mode-line-emphasis ((default :foreground ,k-dk-purple :inherit (mode-line bold))))
  `(mode-line-highlight ((default :foreground ,k-dk-blue :inherit (mode-line bold))))
- `(minibuffer-prompt ((default :background ,k-bg :weight normal)))
+ `(minibuffer-prompt ((default :inherit bold)))
  `(region ((default :background ,k-bg-1)))
  `(secondary-selection ((default :background ,k-bg-1)))
- `(header-line ((default :background ,k-bg :underline ,k-fg)))
+ `(header-line ((default :background ,k-bg :underline (:color ,k-fg :position 10))))
 
  `(button ((default :underline t :foreground ,k-fg :inherit bold)))
  `(link ((default :foreground ,k-fg-1 :inherit button)))
+ `(link-visited ((default :foreground ,k-dk-pink :inherit link)))
+ `(info-menu-star ((default :foreground ,k-dk-pink)))
+ `(info-header-node ((default :inherit outline-1)))
+ `(info-menu-header ((default :inherit outline-2)))
  `(widget-button ((default :foreground ,k-fg :background ,k-bg-blue :box (:line-width 1))))
  `(widget-field ((default :foreground ,k-fg :background ,k-bg-1 :box (:line-width 1))))
 
@@ -198,6 +201,7 @@
  `(slime-repl-result-face ((default :background ,k-bg-grey-1 :extend t :inherit k-comment)))
  `(slime-repl-inputed-output-face ((default :foreground ,k-dk-pink :slant normal)))
  `(slime-repl-output-mouseover-face ((default :inherit (match slime-repl-inputed-output-face))))
+ `(sldb-restartable-frame-line-face ((default :inherit button)))
 
  `(clojure-keyword-face ((default :inherit k-keyword)))
  `(cider-result-overlay-face ((default :box (:line-width (-1 . -1) :color ,k-dk-blue))))
@@ -226,7 +230,7 @@
  ;; `(eldoc-highlight-function-argument ((,class (:foreground ,string :weight bold))))
 
  ;; macrostep
- ;; `(macrostep-expansion-highlight-face ((,class (:background ,brighter-bg :foreground nil))))
+ `(macrostep-expansion-highlight-face ((default :background ,k-bg-grey-1 :extend t)))
 
  ;; undo-tree
  `(undo-tree-visualizer-default-face ((default :inherit shadow)))
@@ -236,10 +240,6 @@
 
  ;; Magit
 
- ;; `(magit-diff-added ((default :background ,"#ddffdd")))
- ;; `(magit-diff-added-highlight ((default :background ,"#cceecc")))
- ;; `(magit-diff-removed ((default :background ,"#ffe9e9")))
- ;; `(magit-diff-removed-highlight ((default :background ,"#ffdddd")))
  `(magit-diff-added ((default :background ,k-bg-blue :foreground ,k-fg-1)))
  `(magit-diff-added-highlight ((default :background ,k-bg-blue)))
  `(magit-diff-removed ((default :background ,k-bg-pink :foreground ,k-fg-1)))
@@ -295,9 +295,10 @@
  ;; `(regex-tool-matched-face ((,class (:foreground nil :background nil :inherit match))))
 
  ;; Completion
- `(vertico-current ((default :inherit match)))
+ `(vertico-current ((default :inherit match :extend t)))
  `(vertico-group-title ((default :background ,k-bg-purple :inherit bold)))
  `(vertico-group-separator ((default :background ,k-bg-purple :strike-through t :inherit shadow)))
+ `(embark-target ((default :inherit vertico-current)))
  `(completions-common-part ((default :inherit k-common)))
  `(completions-annotations ((default :inherit k-comment)))
  `(orderless-match-face-0 ((default :inherit k-common)))
@@ -322,9 +323,18 @@
  ;; `(company-echo-common ((,class (:inherit company-echo :foreground ,function))))
 
  ;; LaTeX
- `(font-latex-math-face ((default :inherit shadow)))
- `(font-latex-sedate-face ((default :inherit bold)))
+ `(font-latex-math-face ((default :inherit k-keyword)))
+ `(font-latex-sedate-face ((default)))
  `(font-latex-warning-face ((default :inherit warning)))
+ `(font-latex-string-face ((default :inherit k-string)))
+ `(font-latex-sectioning-0-face ((default :inherit outline-1)))
+ `(font-latex-sectioning-1-face ((default :inherit outline-1)))
+ `(font-latex-sectioning-2-face ((default :inherit outline-2)))
+ `(font-latex-sectioning-3-face ((default :inherit outline-3)))
+ `(font-latex-sectioning-4-face ((default :inherit outline-4)))
+ `(font-latex-sectioning-5-face ((default :inherit outline-5)))
+ `(font-latex-italic-face ((default :inherit (bold italic))))
+ `(font-latex-bold-face ((default :inherit bold)))
  `(preview-face ((default :background ,k-bg-grey-1 :extend t)))
 
  ;; `(org-agenda-structure ((,class (:foreground ,success))))
@@ -339,7 +349,7 @@
  `(org-date ((default :foreground ,k-dk-pink :inherit k-quote)))
  ;; `(org-document-info ((,class (:foreground ,warning))))
  ;; `(org-document-info-keyword ((,class (:foreground ,string))))
- ;; `(org-document-title ((,class (:weight bold :foreground ,warning :height 1.44))))
+ `(org-document-title ((default :inherit outline-1)))
  ;; `(org-done ((,class (:foreground ,string))))
  ;; `(org-ellipsis ((,class (:foreground ,comment))))
  ;; `(org-footnote ((,class (:foreground ,warning))))
@@ -361,7 +371,7 @@
  `(hl-line ((default :inherit region)))
  `(stripes ((default :background ,k-bg-grey-1)))
  `(highlight-indent-guides-character-face ((default :foreground ,k-bg-2)))
- `(highlight-indent-guides-top-character-face ((default :foreground ,k-bg-1)))
+ `(highlight-indent-guides-top-character-face ((default :foreground ,k-bg-blue)))
  `(highlight-indent-guides-odd-face ((default :inherit highlight-indent-guides-character-face)))
  `(highlight-indent-guides-even-face ((default :inherit highlight-indent-guides-character-face)))
 
@@ -375,15 +385,14 @@
  ;; `(message-separator ((,class (:foreground ,success))))
 
  ;; Outline
- `(outline-1  ((default :height 1.5 :inherit bold)))
- `(outline-2 ((default :height 1.3 :inherit bold)))
- `(outline-3 ((default :height 1.12 :inherit bold)))
- `(outline-4 ((default :height 1.0 :inherit bold)))
- `(outline-5 ((default :height 1.0 :inherit bold)))
- `(outline-6 ((default :height 1.0 :inherit bold)))
- `(outline-7 ((default :height 1.0 :inherit bold)))
- `(outline-8 ((default :height 1.0 :inherit bold)))
- `(outline-9 ((default :height 1.0 :inherit bold)))
+ `(outline-1  ((default :height 1.5 :inherit outline-8)))
+ `(outline-2 ((default :height 1.3 :inherit outline-8)))
+ `(outline-3 ((default :height 1.12 :inherit outline-8)))
+ `(outline-4 ((default :height 1.0 :inherit outline-8)))
+ `(outline-5 ((default :height 1.0 :inherit outline-8)))
+ `(outline-6 ((default :height 1.0 :inherit outline-8)))
+ `(outline-7 ((default :height 1.0 :inherit outline-8)))
+ `(outline-8 ((default :height 1.0 :foreground ,k-dk-blue :inherit bold)))
 
  ;; EMMS
  ;; `(emms-browser-artist-face ((,class (:inherit outline-2))))
