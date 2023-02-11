@@ -742,7 +742,7 @@ indent yanked text (with prefix arg don't indent)."
    '("mathpar" LaTeX-env-label))
   (cdlatex-mode)
   (visual-line-mode)
-  (lsp-deferred))
+  (unless polymode-mode (lsp-deferred)))
 (setq-default TeX-master "main")
 
 (setq-default visual-line-fringe-indicators '(left-curly-arrow right-curly-arrow))
@@ -1125,7 +1125,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                   (slime-eval
                    `(cl:let ((symbol (cl:find-symbol ,(upcase (symbol-name symbol)))))
                             (cl:cond ((cl:null symbol) "No such symbol")
-                                     ((cl:not (,p symbol)) "Not defined")
+                                     ((cl:not (,p symbol)) (cl:unintern symbol) "Uninterned")
                                      (t (,f symbol))))))))
     (slime-dcase
         (slime-parse-toplevel-form)
@@ -1798,12 +1798,79 @@ that if there is ht's overlay at at the top then return 'default"
 (setq org-latex-create-formula-image-program 'dvisvgm)
 (setf (getf org-format-latex-options :scale) 2.0)
 (setq-default org-html-with-latex 'dvisvgm)
-(setq-default org-link-descriptive nil)
+(setq-default org-link-descriptive t
+              org-hide-emphasis-markers t
+              org-src-fontify-natively t)
 (org-babel-do-load-languages 'org-babel-load-languages '((latex . t)))
 (org-babel-do-load-languages 'org-babel-load-languages '((lisp . t)))
 (setq org-babel-lisp-eval-fn 'slime-eval)
 (require 'ox-extra)
 (ox-extras-activate '(ignore-headlines))
+(defun k-org-mode-hook ()
+  (visual-line-mode)
+  (org-variable-pitch-minor-mode)
+  ;; (org-appear-mode)
+  (org-superstar-mode)
+  ;; (org-indent-mode)
+  )
+(add-hook 'org-mode-hook #'k-org-mode-hook)
+
+(setq-default org-superstar-item-bullet-alist
+              '((?* . ?•)
+                (?+ . ?➤)
+                (?- . ?•))
+              org-superstar-headline-bullets-list
+              '(;; Original ones nicked from org-bullets
+                ?◉
+                ?○
+                ?▷))
+
+(setq polymode-prefix-key "\s-b")
+(require 'poly-org)
+(defun k-polymode-init-inner-hook ()
+  (oset pm/chunkmode adjust-face 'org-block)
+  (topsy-mode -1))
+(add-hook 'polymode-init-inner-hook 'k-polymode-init-inner-hook)
+
+(require 'engrave-faces-latex)
+(setq-default engrave-faces-themes
+              '((default
+                 (default :short "default" :slug "D" :foreground "#000000" :background "#ffffff")
+                 (shadow :short "shadow" :slug "h" :foreground "#7f7f7f")
+                 (success :short "success" :slug "sc" :foreground "#228b22" :weight bold)
+                 (warning :short "warning" :slug "w" :foreground "#ff8e00" :weight bold)
+                 (error :short "error" :slug "e" :foreground "#ff0000" :weight bold)
+                 (font-lock-comment-face :short "fl-comment" :slug "c" :foreground "#7f7f7f")
+                 (font-lock-comment-delimiter-face :short "fl-comment-delim" :slug "cd" :foreground "#7f7f7f")
+                 (font-lock-string-face :short "fl-string" :slug "s" :foreground "#8b2252")
+                 (font-lock-doc-face :short "fl-doc" :slug "d" :foreground "#8b2252")
+                 (font-lock-keyword-face :short "fl-keyword" :slug "k" :weight bold)
+                 (font-lock-builtin-face :short "fl-builtin" :slug "b" :foreground "#8b2252")
+                 (font-lock-function-name-face :short "fl-function" :slug "f" :foreground "#0000ff")
+                 (font-lock-doc-markup-face :short "fl-doc-markup" :slug "m" :inherit font-lock-function-name-face)
+                 (font-lock-variable-name-face :short "fl-variable" :slug "v" :inherit font-lock-function-name-face)
+                 (font-lock-type-face :short "fl-type" :slug "t" :inherit font-lock-function-name-face)
+                 (font-lock-constant-face :short "fl-constant" :slug "o" :foreground "#0000ff")
+                 (font-lock-warning-face :short "fl-warning" :slug "wr" :foreground "#ff0000" :weight bold)
+                 (font-lock-negation-char-face :short "fl-neg-char" :slug "nc")
+                 (font-lock-preprocessor-face :short "fl-preprocessor" :slug "pp" :foreground "#483d8b")
+                 (font-lock-regexp-grouping-construct :short "fl-regexp" :slug "rc" :weight bold)
+                 (font-lock-regexp-grouping-backslash :short "fl-regexp-backslash" :slug "rb" :weight bold)
+                 (org-block :short "org-block" :slug "ob")
+                 (highlight-numbers-number :short "hl-number" :slug "hn" :foreground "#008b8b")
+                 (highlight-quoted-quote :short "hl-qquote" :slug "hq" :foreground "#9370db")
+                 (highlight-quoted-symbol :short "hl-qsymbol" :slug "hs" :foreground "#008b8b")
+                 (rainbow-delimiters-depth-1-face :short "rd-1" :slug "rda" :foreground "#707183")
+                 (rainbow-delimiters-depth-2-face :short "rd-2" :slug "rdb" :foreground "#7388d6")
+                 (rainbow-delimiters-depth-3-face :short "rd-3" :slug "rdc" :foreground "#909183")
+                 (rainbow-delimiters-depth-4-face :short "rd-4" :slug "rdd" :foreground "#709870")
+                 (rainbow-delimiters-depth-5-face :short "rd-5" :slug "rde" :foreground "#907373")
+                 (rainbow-delimiters-depth-6-face :short "rd-6" :slug "rdf" :foreground "#6276ba")
+                 (rainbow-delimiters-depth-7-face :short "rd-7" :slug "rdg" :foreground "#858580")
+                 (rainbow-delimiters-depth-8-face :short "rd-8" :slug "rdh" :foreground "#80a880")
+                 (rainbow-delimiters-depth-9-face :short "rd-9" :slug "rdi" :foreground "#887070"))))
+(setq-default org-latex-src-block-backend 'engraved)
+(engrave-faces-use-theme 'default)
 
 ;;; BGEX patch: image background
 
