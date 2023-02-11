@@ -1599,7 +1599,7 @@ that if there is ht's overlay at at the top then return 'default"
 (global-set-key (kbd "s-X") 'multi-vterm)
 (define-key vterm-mode-map (kbd "C-c C-t") nil)
 (define-key vterm-mode-map (kbd "C-c C-j") 'vterm-copy-mode)
-(define-key vterm-mode-map (kbd "C-c C-o") 'vterm-clear)
+(define-key vterm-mode-map (kbd "C-c M-o") 'vterm-clear)
 (define-key vterm-mode-map (kbd "C-d") (lambda () (interactive) (vterm-send-key "d" nil nil t)))
 (define-key vterm-copy-mode-map (kbd "C-c C-k") (lambda () (interactive) (vterm-copy-mode -1)))
 (defun multi-vterm-set-custom-keys ()
@@ -1655,7 +1655,7 @@ that if there is ht's overlay at at the top then return 'default"
   (setq-default browse-url-secondary-browser-function 'k-browse-url-chromium)
   (add-hook 'exwm-update-title-hook
             (lambda ()
-              (exwm-workspace-rename-buffer exwm-title)))
+              (exwm-workspace-rename-buffer (concat "EXWM: " exwm-title))))
   (defun k-eww-reload-in-chromium ()
     (interactive)
     (k-browse-url-chromium (plist-get eww-data :url)))
@@ -2141,7 +2141,7 @@ Just grab them from `gnus-format-specs'."
                               "%s")
                       (format-seconds "%h:%.2m:%.2s" (cadr time))
                       (car time)
-                      (format-seconds "%h:%.2m:%.2s" (get-candy-time "Estradiol"))))
+                      (ignore-error (format-seconds "%h:%.2m:%.2s" (get-candy-time "Estradiol")))))
          (width (string-width msg))
          (msg (concat (propertize " " 'display
                                   `(space :align-to (- right-fringe ,width)))
@@ -2222,6 +2222,28 @@ Just grab them from `gnus-format-specs'."
   (when twitter-observe-id-list
     (run-at-time 0 300
                  (lambda () (make-thread 'twitter-observe "Twitter Observer")))))
+
+;;; Ladder
+(defun start-clash-proxy ()
+  "Start clash proxy."
+  (interactive)
+  (when (get-process "Clash Proxy")
+    (user-error "Clash proxy already started"))
+  (make-process :name "Clash Proxy" :buffer "*clash proxy*"
+                :command (list "clash" "-f" (expand-file-name "~/clash.yaml")))
+  (let ((http-proxy "127.0.0.1:7890"))
+    (setenv "http_proxy" http-proxy)
+    (setenv "https_proxy" http-proxy)
+    (setq url-proxy-services `(("http" . ,http-proxy)
+                               ("https" . ,http-proxy)))))
+(defun stop-clash-proxy ()
+  "Start clash proxy."
+  (interactive)
+  (interrupt-process "Clash Proxy")
+  (setenv "http_proxy")
+  (setenv "https_proxy")
+  (setq url-proxy-services nil))
+
 
 (provide 'init)
 ;;; init.el ends here

@@ -471,8 +471,8 @@
  ;; `(term-color-green   ((,class (:foreground ,string :background ,string))))
  ;; `(term-color-warning  ((,class (:foreground ,highlight :background ,highlight))))
  ;; `(term-color-blue    ((,class (:foreground ,keyword :background ,keyword))))
- ;; `(term-color-magenta ((,class (:foreground ,success :background ,success))))
- ;; `(term-color-cyan    ((,class (:foreground ,warning :background ,warning))))
+ `(term-color-magenta ((default :foreground ,k-dk-pink)))
+ `(term-color-cyan    ((default :foreground ,k-dk-blue)))
  ;; `(term-color-white   ((,class (:foreground ,background :background ,background))))
  )
 
