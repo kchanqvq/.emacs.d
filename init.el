@@ -64,22 +64,25 @@
   (set-fontset-font t 'symbol "Apple Color Emoji" nil 'append))
 
 ;; Bootstrap required packages
+
+(defmacro k-quote (&rest args) `',args)
 (defvar k-packages
-  '(embark org-contrib exwm company-posframe orderless
-           pyim-cangjiedict pyim projectile stripes vertico consult
-           embark-consult haskell-mode selectrum-prescient
-           marginalia selectrum slime-company slime crdt impatient-mode
-           comment-dwim-2 sudo-edit csv-mode zygospore yasnippet ws-butler
-           volatile-highlights vlf use-package undo-tree
-           system-packages smtpmail-multi showtip
-           rainbow-mode racket-mode pyim-basedict proof-general posframe
-           pdf-tools paxedit ox-reveal org-static-blog org-present
-           nasm-mode multi-vterm mmm-mode magit iedit highlight-parentheses highlight-indent-guides
-           goto-last-change gnu-apl-mode geiser flycheck emms-soundcloud
-           elnode dtrt-indent ctable comment-or-uncomment-sexp
-           clean-aindent-mode cdlatex lsp-ltex bug-hunter buffer-move
-           auto-highlight-symbol auctex anzu aggressive-indent topsy
-           adjust-parens ace-link 2048-game ytel all-the-icons cider))
+  (k-quote
+   embark org-contrib exwm company-posframe orderless
+   pyim-cangjiedict pyim projectile stripes vertico consult
+   embark-consult haskell-mode selectrum-prescient
+   marginalia selectrum slime-company slime crdt impatient-mode
+   comment-dwim-2 sudo-edit csv-mode zygospore yasnippet ws-butler
+   volatile-highlights vlf use-package undo-tree
+   system-packages smtpmail-multi showtip
+   rainbow-mode racket-mode pyim-basedict proof-general posframe
+   pdf-tools paxedit ox-reveal org-static-blog org-present
+   nasm-mode multi-vterm mmm-mode magit iedit highlight-parentheses highlight-indent-guides
+   goto-last-change gnu-apl-mode geiser flycheck emms-soundcloud
+   elnode dtrt-indent ctable comment-or-uncomment-sexp
+   clean-aindent-mode cdlatex lsp-ltex bug-hunter buffer-move
+   auto-highlight-symbol auctex anzu aggressive-indent topsy
+   adjust-parens ace-link 2048-game ytel all-the-icons which-key))
 (let ((to-install (cl-remove-if #'package-installed-p k-packages)))
   (when to-install
     (message "%s packages to be installed." (length to-install))
@@ -389,7 +392,12 @@ Prompt for project if not currently in one."
 (defun delete-from-list (list-var element)
   (set list-var (delete element (symbol-value list-var))))
 
-(defmacro k-quote (&rest args) `',args)
+(cl-defmacro with-advice ((symbol how lambda-list &body advice) &body body)
+  `(let ((k-advice (lambda ,lambda-list ,@advice)))
+     (advice-add ',symbol ,how k-advice)
+     (unwind-protect
+         (progn ,@body)
+       (advice-remove ',symbol k-advice))))
 
 ;;; Generic stripes
 ;; I prefer using text-property to color stuff,
@@ -442,6 +450,9 @@ Prompt for project if not currently in one."
                              default-frame-alist)))
 
 ;;; Misc packages
+
+(require 'time)
+(setq-default world-clock-list '(("BJT-8" "Beijing")))
 
 (require 'all-the-icons)
 (setq-default all-the-icons-faicon-scale-factor 0.7
@@ -970,6 +981,8 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                embark-highlight-indicator embark-isearch-highlight-indicator))
 (global-set-key (kbd "C-M-h") 'backward-kill-sexp)
 ;; (define-key isearch-mode-map (kbd "s-s") 'helm-swoop-from-isearch)
+(global-set-key "c" 'describe-char)
+(global-set-key "a" 'describe-face)
 (global-set-key (kbd "s-m") 'magit-status)
 (setq-default consult-preview-key (kbd "C-h"))
 (global-set-key (kbd "s-w") 'save-buffer)
@@ -1026,6 +1039,9 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
           ([?\C-d] . [delete])
           ([?\C-k] . [S-end delete]))))
 
+(setq-default consult-grep-args
+              '("zgrep" (consult--grep-exclude-args) "--null --line-buffered --color=never --ignore-case --line-number -I -r ."))
+
 (defun k-grep-in (filename)
   "Grep in FILENAME."
   (if (file-directory-p filename)
@@ -1077,6 +1093,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (add-hook 'lisp-mode-hook #'slime-mode)
 (add-hook 'lisp-mode-hook #'slime-editing-mode)
 (add-hook 'lisp-mode-hook 'ensure-slime)
+(remove-hook 'lisp-mode-hook 'sly-editing-mode)
 (mapc (lambda (h)
         (add-hook h (lambda () (setq-local lisp-indent-function 'common-lisp-indent-function))))
       '(lisp-mode-hook slime-repl-mode-hook))
@@ -1092,13 +1109,20 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (setq auto-mode-alist (delq (assoc "\\.rkt\\'" auto-mode-alist) auto-mode-alist))
 (setq auto-mode-alist (cons '("\\.lisp" . lisp-mode) auto-mode-alist))
 
-(slime-setup '(slime-company slime-fancy slime-quicklisp slime-asdf slime-media slime-parse))
+(slime-setup '(slime-company slime-fancy slime-quicklisp
+                             slime-asdf slime-media slime-parse slime-mrepl))
 (require 'slime-company)
 (setq-default slime-company-completion 'fuzzy)
 (setq slime-lisp-implementations
       `((sbcl (,inferior-lisp-program "--dynamic-space-size" "4096"))
         (mega-sbcl (,inferior-lisp-program "--dynamic-space-size" "16384" "--control-stack-size" "2"))
         (ccl ("/opt/local/bin/ccl64"))))
+;; mrepl
+(require 'slime-mrepl)
+(add-hook 'slime-mrepl-mode-hook #'paredit-mode)
+(add-to-list 'slime-company-major-modes 'slime-mrepl-mode)
+(add-hook 'slime-mrepl-mode-hook #'slime-company-maybe-enable)
+(add-hook 'slime-mrepl-mode-hook #'slime-autodoc-mode)
 
 ;; Handy slime commands and key bindings
 (defun ensure-slime ()
@@ -1239,8 +1263,10 @@ Otherwise call ORIG-FUN with ARGS."
 ;; Slime debug window non-prolifiration
 (add-to-list 'display-buffer-alist '("\\`*sldb" (display-buffer-reuse-mode-window)))
 
-;;; Clojure
-(require 'cider)
+;;; Which-key
+(require 'which-key)
+(setq-default which-key-idle-delay 0)
+(which-key-mode)
 
 ;;; Magit
 
@@ -1811,8 +1837,7 @@ that if there is ht's overlay at at the top then return 'default"
   (org-variable-pitch-minor-mode)
   ;; (org-appear-mode)
   (org-superstar-mode)
-  ;; (org-indent-mode)
-  )
+  (org-indent-mode))
 (add-hook 'org-mode-hook #'k-org-mode-hook)
 
 (setq-default org-superstar-item-bullet-alist
@@ -1825,8 +1850,54 @@ that if there is ht's overlay at at the top then return 'default"
                 ?○
                 ?▷))
 
-(setq polymode-prefix-key "\s-b")
+(setq polymode-prefix-key (kbd "s-b"))
+(require 'org-inlinetask)
 (require 'poly-org)
+(define-polymode poly-org-mode
+  :hostmode 'poly-org-hostmode
+  :innermodes '(poly-org-innermode poly-org-latex-innermode)
+  :switch-buffer-functions
+  (list (lambda (old new)
+          (let ((font-lock-mode nil))
+            (pm--move-minor-modes '(org-indent-mode) old new))))
+  (setq-local org-src-fontify-natively nil)
+  (setq-local polymode-run-these-before-change-functions-in-other-buffers
+              (append '(org-before-change-function
+                        org-element--cache-before-change
+                        org-table-remove-rectangle-highlight)
+                      polymode-run-these-before-change-functions-in-other-buffers))
+  (setq-local polymode-run-these-after-change-functions-in-other-buffers
+              (append '(org-element--cache-after-change)
+                      polymode-run-these-after-change-functions-in-other-buffers)))
+(setq polymode-move-these-vars-from-old-buffer
+      '(buffer-face-mode
+        buffer-face-mode-face
+        buffer-face-mode-remapping
+        buffer-invisibility-spec
+        buffer-read-only
+        buffer-undo-list
+        buffer-undo-tree
+        display-line-numbers
+        face-remapping-alist
+        isearch-mode ; this seems to be enough to avoid isearch glitching
+        line-move-visual
+        left-margin-width
+        right-margin-width
+        overwrite-mode
+        selective-display
+        text-scale-mode
+        text-scale-mode-amount
+        ;; transient-mark-mode stores here the state of selection
+        ;; when the shift-select-mode is enabled
+        transient-mark-mode
+        truncate-lines
+        truncate-partial-width-windows
+        word-wrap
+        ;; multiple-cursors stores here a command in a pre-command-hook
+        ;; and executes it for all cursors in a post-command-hook so we
+        ;; need to transfer in case the buffer was switched.
+        mc--this-command
+        char-property-alias-alist))
 (defun k-polymode-init-inner-hook ()
   (oset pm/chunkmode adjust-face 'org-block)
   (topsy-mode -1))
@@ -2011,8 +2082,7 @@ Just grab them from `gnus-format-specs'."
               gnus-group-mode-line-format nil
               gnus-group-line-format nil)
 (setq gnus-user-date-format-alist
-      '(((gnus-seconds-today) . "Hodie %H:%M")
-        ((+ 86400 (gnus-seconds-today)) . "Heri %H:%M")
+      '(((gnus-seconds-today) . "%H:%M")
         (604800 . "%a %H:%M")
         ((gnus-seconds-year) . "%b %d")
         (t . "%Y %b %d"))
@@ -2124,6 +2194,13 @@ Just grab them from `gnus-format-specs'."
 (setq-default pyim-punctuation-translate-p '(auto no yes))
 (set-input-method 'pyim)
 (deactivate-input-method)
+(defun k-pyim-probe ()
+  (or buffer-read-only
+      (get-text-property (point) 'read-only)))
+(setq-default pyim-indicator-list '(pyim-indicator-with-modeline)
+              pyim-english-input-switch-functions
+              '(k-pyim-probe pyim-probe-program-mode pyim-probe-isearch-mode))
+(pyim-isearch-mode)
 
 ;;; Misc handy commands
 
@@ -2203,12 +2280,9 @@ Just grab them from `gnus-format-specs'."
           (t (list 'sunrise (+ tomorrow-sunrise (- (* 24 3600) time)))))))
 (defun vampire-time-update ()
   (let* ((time (time-to-vampire-time))
-         (msg (format (concat "%s till %s"
-                              (propertize " | " 'face `(:foreground ,k-bg-blue))
-                              "%s")
+         (msg (format (concat "%s till %s")
                       (format-seconds "%h:%.2m:%.2s" (cadr time))
-                      (car time)
-                      (format-seconds "%h:%.2m:%.2s" (get-candy-time "Estradiol"))))
+                      (car time)))
          (width (string-width msg))
          (msg (concat (propertize " " 'display
                                   `(space :align-to (- right-fringe ,width)))
@@ -2249,46 +2323,120 @@ Just grab them from `gnus-format-specs'."
 (require 'insecure-lock)
 (setq insecure-lock-mode-hook '(vampire-time-screensaver insecure-lock-blank-screen))
 
-;;; Observe!
-(defun twitter-locked-p (username)
-  "Returns (tweets followers following locked-p)"
-  (cl-flet ((get-number ()
-              (re-search-forward "[,0-9]+")
-              (string-to-number (cl-remove-if (lambda (c) (= c ?\,)) (match-string 0)))))
-    (with-temp-buffer
-      (shell-command
-       (format "curl -s -k https://nitter.net/%s" username)
-       (current-buffer))
-      (goto-char (point-min))
-      (list
-       (progn
-         (search-forward "Tweets")
-         (get-number))
-       (progn
-         (search-forward "Following")
-         (get-number))
-       (progn
-         (search-forward "Followers")
-         (get-number))
-       (progn (goto-char (point-min))
-              (if (ignore-errors (search-forward "tweets are protected")) t nil))))))
-(defvar twitter-observe-id-list nil)
-(defvar twitter-observe-path nil)
-(defun twitter-observe ()
-  (when twitter-observe-id-list
-    (with-current-buffer (find-file-noselect twitter-observe-path)
-      (end-of-buffer)
-      (unless (bolp) (insert "\n"))
-      (org-insert-time-stamp nil t)
-      (dolist (id twitter-observe-id-list)
-        (insert " " id " " (format "%s" (twitter-locked-p id))))
-      (insert "\n")
-      (let ((save-silently t))
-        (save-buffer)))))
-(defvar twitter-observe-timer
-  (when twitter-observe-id-list
-    (run-at-time 0 300
-                 (lambda () (make-thread 'twitter-observe "Twitter Observer")))))
+;;; telega
 
+(require 'telega)
+(setq-default
+ telega-filters-custom
+ '(("Main" not (folder "Politics"))
+   ("Important" . important)
+   ("Online" and
+    (not saved-messages)
+    (user is-online))
+   ("lng_filters_type_groups" type basicgroup supergroup)
+   ("lng_filters_type_channels" type channel)
+   ("lng_filters_type_no_archived" . archive))
+ telega-online-status-function 'telega-buffer-p
+ telega-sticker-size '(8 . 24)
+ telega-chat-input-markups '("org" nil)
+ telega-symbol-checkmark "●"
+ telega-symbol-heavy-checkmark "✓"
+ telega-chat-fill-column 90
+ telega-symbol-eye (propertize "🔎" 'face '(shadow k-monochrome-emoji))
+ telega-symbol-pin (propertize "📌" 'face '(success k-monochrome-emoji))
+ telega-symbol-pending (all-the-icons-material "sync")
+ telega-symbol-forward (propertize (compose-chars ?🗩 ?🠒) 'face '(shadow k-monochrome-emoji))
+ telega-symbol-video-chat-passive (all-the-icons-material "videocam" :face 'shadow)
+ telega-symbol-video-chat-active (all-the-icons-material "videocam" :face 'success))
+
+(define-advice  telega-chars-xheight
+    (:around (orig n &optional face) k)
+  (+ (funcall orig n face) (* n 10)))
+(require 'cl)
+(define-advice telega-sticker--create-image
+    (:around (orig &rest args) k)
+  (with-advice
+   (image-type-available-p
+    :around (orig type)
+    (and (not (eq type 'webp))
+         (funcall orig type)))
+   (apply orig args)))
+(define-advice telega--fmt-text-faces (:around (orig fmt-text &optional for-msg) k)
+  (let ((text (funcall orig fmt-text for-msg)))
+    (when for-msg
+      (add-face-text-property 0 (length text) 'variable-pitch t text))
+    text))
+(define-advice telega-ins--special (:around (orig &rest args) k)
+  (with-advice
+   (telega-symbol
+    :around (orig ending)
+    (if (eq ending 'horizontal-bar) " " (funcall orig ending)))
+   (apply orig args)))
+(define-advice telega-ins--message0 (:around (orig &rest args) k)
+  (with-advice
+   (telega-fmt-eval-align
+    :around (orig estr attrs)
+    (funcall orig estr (plist-put attrs :align-symbol nil)))
+   (apply orig args)))
+(require 'gnus-sum)
+(define-advice telega-ins--date (:around (orig timestamp))
+  (telega-ins
+   (condition-case ()
+       (let* ((messy-date timestamp)
+	      ;;If we don't find something suitable we'll use this one
+	      (my-format "%b %d '%y"))
+	 (let* ((difference (time-subtract nil messy-date))
+	        (templist gnus-user-date-format-alist)
+	        (top (eval (caar templist) t)))
+	   (while (if (numberp top) (time-less-p top difference) (not top))
+	     (progn
+	       (setq templist (cdr templist))
+	       (setq top (eval (caar templist) t))))
+	   (if (stringp (cdr (car templist)))
+	       (setq my-format (cdr (car templist)))))
+	 (format-time-string (eval my-format t) messy-date))
+     (error "  ?   "))))
+(defun k-telega-load-all-history ()
+  "Load all history in current chat."
+  (interactive)
+  (with-advice
+   (telega--getChatHistory :around
+       (orig chat from-msg-id offset
+             &optional limit only-local callback)
+       (funcall orig chat from-msg-id offset
+                limit t callback))
+   (when (telega-chatbuf--need-older-history-p)
+     (telega-chatbuf--load-older-history
+      (lambda (_count)
+        (sit-for 0 t)
+        (if (telega-chatbuf--need-older-history-p)
+            (k-telega-load-all-history)
+          (telega-chatbuf--history-state-set :older-loaded nil)))))))
+;; (define-advice telega-chatbuf--load-initial-history
+;;     (:around (orig) k)
+;;   (with-advice
+;;    (telega-chat--load-history :around
+;;        (orig chat &optional from-msg-id offset limit
+;;              callback)
+;;        (funcall orig chat from-msg-id offset limit
+;;                 (lambda (history)
+;;                   (funcall callback history)
+;;                   (k-telega-load-all-history))))
+;;    (funcall orig)))
+(setq-default telega-chat-history-limit 100)
+(add-hook 'telega-root-mode-hook
+          '(lambda ()
+             (setq-local hl-line-face 'match)
+             (hl-line-mode)))
+(map-keymap
+ (lambda (kbd f)
+   (define-key telega-chat-mode-map (concat "" (string kbd)) f)
+   (define-key telega-root-mode-map (concat "" (string kbd)) f))
+ telega-prefix-map)
+(define-key telega-chat-mode-map [f2] nil)
+(define-key telega-root-mode-map [f2] nil)
+(define-key telega-chat-mode-map ""
+            '(lambda (all) (interactive "P") (telega-chatbuf-attach-sticker (not all))))
+(telega-autoplay-mode)
 (provide 'init)
 ;;; init.el ends here
