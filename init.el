@@ -1548,7 +1548,7 @@ that if there is ht's overlay at at the top then return 'default"
   (setq-default browse-url-secondary-browser-function 'k-browse-url-chromium)
   (add-hook 'exwm-update-title-hook
             (lambda ()
-              (exwm-workspace-rename-buffer exwm-title)))
+              (exwm-workspace-rename-buffer (concat "EXWM: " exwm-title))))
   (defun k-eww-reload-in-chromium ()
     (interactive)
     (k-browse-url-chromium (plist-get eww-data :url)))
