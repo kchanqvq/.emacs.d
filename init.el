@@ -454,8 +454,7 @@
         (highlight-indent-guides-mode)))
     (highlight-tail-mode)))
 
-(require 'shr)
-(let ((fringe-width (/ (* (shr-string-pixel-width "o") 4) 3)))
+(let ((fringe-width (/ (* (string-pixel-width "o") 4) 3)))
   (setq default-frame-alist (append
                              `((left-fringe . ,fringe-width)
                                (right-fringe . ,fringe-width))
@@ -685,6 +684,8 @@
 
 (use-package vertico
   :config
+  (setq-default vertico-count 20)
+
   ;; Multiline candidates
   ;; Don't collapse multiline into single line.
   ;; I find this reads much better for, say, `yank-pop'
@@ -755,6 +756,35 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     cand)
   (byte-compile 'vertico--truncate-multiline)
 
+  (defun k-string-pixel-height (string)
+    "Return the width of STRING in pixels."
+    (if (zerop (length string))
+        0
+      ;; Keeping a work buffer around is more efficient than creating a
+      ;; new temporary buffer.
+      (with-current-buffer (get-buffer-create " *string-pixel-width*")
+        (delete-region (point-min) (point-max))
+        (insert string)
+        (cdr (buffer-text-pixel-size
+              nil
+              ;; workaround: to prevent using vertico's window
+              (next-window)
+              t nil)))))
+  (byte-compile 'k-string-pixel-height)
+
+  ;; Patch `vertico--update-scroll'
+  (defun vertico--update-scroll ()
+    "Update scroll position."
+    (let* ((max-scroll (max vertico--index 0))
+           (min-scroll max-scroll)
+           (height (k-string-pixel-height (nth vertico--index vertico--candidates)))
+           (max-height (* (- vertico-count vertico-scroll-margin) (default-line-height))))
+      (while (and (cl-plusp min-scroll)
+                  (<= (cl-incf height (k-string-pixel-height (nth min-scroll vertico--candidates)))
+                      max-height))
+        (cl-decf min-scroll))
+      (setq vertico--scroll (max min-scroll (min vertico--scroll max-scroll)))))
+
   ;; Zebra strips, for better visualization of multiline candidates
   ;; Patch `vertico--display-candidates'
   (defun vertico--display-candidates (lines)
@@ -766,15 +796,16 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
              do (add-face-text-property 0 (length line) 'k-zebra 'append line))
     (overlay-put vertico--candidates-ov 'after-string
                  (apply #'concat #(" " 0 1 (cursor t)) (and lines "\n") lines))
-    (vertico--resize-window (* (ceiling (length lines) 2) 2)))
-  (byte-compile 'vertico--format-candidate)
-  (setq-default vertico-count 20)
+    (vertico--resize-window vertico-count))
+  (byte-compile 'vertico--update-scroll)
+  (byte-compile 'vertico--display-candidate)
 
   (vertico-mode)
 
   (require 'vertico-buffer)
 
   (defun k-vertico-buffer-resize-window (height)
+    ;; we use `fit-window-to-buffer' instead and ignore HEIGHT
     (when k--top-separator-ov
       (overlay-put k--top-separator-ov 'after-string nil))
     (let ((string (overlay-get vertico--candidates-ov 'after-string)))
@@ -782,7 +813,8 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
       (put-text-property 0 1 'face '(:overline "#000000") string))
     (let ((string (overlay-get vertico--count-ov 'before-string)))
       (add-face-text-property 0 (length string) '(:overline "#000000") nil string))
-    (set-window-text-height vertico--buffer-window (+ 1 height)))
+    ;; (set-window-text-height vertico--buffer-window (+ 1 height))
+    (fit-window-to-buffer vertico--buffer-window))
 
   (defun vertico--format-count ()
     "Format the count string."
