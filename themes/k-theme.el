@@ -1,5 +1,7 @@
 ;;; -*- lexical-binding: t -*-
 
+(require 'pdf-tools)
+
 (deftheme k)
 
 ;; Tweek fonts to  match `window-text-pixel-size'...
@@ -9,6 +11,25 @@
 (defvar k-serif-monospace "Libertinus Mono-19")
 (defvar k-courier-height 200)
 (set-frame-font k-light-monospace nil t)
+
+(defun k-set-fonts (scripts spec)
+  (dolist (script scripts)
+    (set-fontset-font t script nil)
+    (if (listp spec)
+        (dolist (s spec)
+          (set-fontset-font t script s nil t))
+        (set-fontset-font t script spec))))
+(k-set-fonts '(han kana cjk-misc)
+             (font-spec :family "PingFang SC"))
+;; (k-set-fonts '(cyrillic phonetic)
+;;   (font-spec :family "Noto Sans" :size 18))
+;; (k-set-fonts  '(hebrew)
+;;               (font-spec :family "Arial Hebrew" :size 16))
+(k-set-fonts '(emoji symbol)
+             (list (font-spec :family "Hiragino Sans" :size 16)
+                   (font-spec :family "Noto Emoji" :size 16)
+                   (font-spec :family "Apple Color Emoji" :size 16)))
+
 
 (defvar k-color-style 'bright)
 (pcase
@@ -43,33 +64,48 @@
 
 
   (defconst blink-cursor-colors (list k-fg-blue k-fg-pink k-fg-purple))
-  (defconst blink-highlight-colors (list k-bg-blue k-bg-pink k-bg-purple)))
+  (defconst blink-highlight-colors (list k-bg-blue k-bg-pink k-bg-purple))
+  (setq-default face-near-same-color-threshold 30000)
+  (delete-from-list 'pdf-tools-enabled-hook 'pdf-view-midnight-minor-mode)
+  (dolist (buffer (buffer-list))
+    (with-current-buffer buffer
+      (when (derived-mode-p 'pdf-view-mode)
+        (pdf-view-midnight-minor-mode -1)))))
 
  ('dark
-  (defconst k-bg-blue "#1e2d57")
-  (defconst k-fg-blue "#0088FF")
-  (defconst k-dk-blue "#75BFFF")
-  (defconst k-bg-purple "#C7B5E8")
-  (defconst k-fg-purple "#55efc4")
-  (defconst k-dk-purple "#55efc4")
-  (defconst k-bg-pink "#fd79a8")
-  (defconst k-fg-pink "#FF8AC2")
-  (defconst k-dk-pink "#FF8AC2")
-  (defconst k-bg-grey-1 "grey20")
-  (defconst k-bg-grey-2 "grey30")
-  (defconst k-bg-grey-3 "grey40")
+  (defconst k-bg-blue "#101010")
+  (defconst k-fg-blue "#50a0ff" )
+  (defconst k-dk-blue "#90d0ff")
+  (defconst k-bg-purple "#103030")
+  (defconst k-fg-purple "#80efc4")
+  (defconst k-dk-purple "#a0ffe0")
+  (defconst k-bg-pink k-fg-purple)
+  (defconst k-fg-pink "#888888")
+  (defconst k-dk-pink  "#90d0ff")
+  (defconst k-bg-grey-1 k-bg-blue)
+  (defconst k-bg-grey-2 "grey20")
+  (defconst k-bg-grey-3 "grey30")
 
-  (defconst k-bg "#273763")
-  (defconst k-bg-1 "#4a587d")
+  (defconst k-fg-red "#ffa000")
+
+  (defconst k-bg "#000000")
+  (defconst k-bg-1 k-dk-blue)
   (defconst k-bg-2 k-bg-blue)
-  (defconst k-bg-con  "#435ca3")
+  (defconst k-bg-con  k-bg-purple)
   (defconst k-bg-con-1 k-bg-purple)
   (defconst k-fg "#ffffff")
-  (defconst k-fg-1 "#2ec4ff")
+  (defconst k-fg-1 k-fg-purple)
   (defconst k-fg-con k-fg-pink)
-  (defconst k-fg-err "#fdcb6e")
-  (defconst blink-cursor-colors (list  "#92c48f" "#6785c5" "#be369c" "#d9ca65"))
-  (defconst blink-highlight-colors (list "#5D7E79" "#475E94" "#733780" "#808164"))))
+  (defconst k-fg-err k-fg-red)
+  (defconst blink-cursor-colors (list k-fg))
+  (defconst blink-highlight-colors (list "#5D7E79" "#475E94" "#733780" "#808164"))
+  (setq-default face-near-same-color-threshold 160000)
+  (setq-default pdf-view-midnight-colors (cons k-fg k-bg))
+  (add-to-list 'pdf-tools-enabled-hook 'pdf-view-midnight-minor-mode)
+  (dolist (buffer (buffer-list))
+    (with-current-buffer buffer
+      (when (derived-mode-p 'pdf-view-mode)
+        (pdf-view-midnight-minor-mode))))))
 
 (defface k-quote nil "Base face for quote.")
 (defface k-keyword nil "Base face for keyword.")
@@ -80,24 +116,28 @@
 (defface k-common nil "Base face for common match substring.")
 (defface k-prompt nil "Base face for prompts.")
 (defface k-zebra nil "Base face for zebra stripes.")
+(defface k-monochrome-emoji nil "Monochrome emoji face.")
 (defface emms-mode-line-title nil "Face for EMMS track title in mode line.")
 
 (custom-theme-set-faces
  'k
- `(k-quote ((default :family "Courier" :height ,k-courier-height :weight normal)))
+ `(k-quote ((default :inherit (fixed-pitch-serif bold) )))
  `(k-keyword ((default :foreground ,k-fg-1 :inherit bold)))
  `(k-proper-name ((default :inherit k-quote :foreground ,k-fg)))
  `(k-string ((default :foreground ,k-dk-pink)))
- `(k-doc ((default :font ,k-serif-monospace :inherit k-string :weight normal)))
+ `(k-doc ((default :font ,k-serif-monospace :inherit (k-string bold))))
  `(k-comment ((default :inherit italic :foreground ,k-fg-1)))
  `(k-common ((default :foreground ,k-fg :inherit bold)))
  `(k-prompt ((default :inherit bold :foreground ,k-fg-pink)))
  `(k-zebra ((default :background ,k-bg-blue :extend t)))
- `(default ((default :background ,k-bg :foreground ,k-fg :weight light)))
+ `(k-monochrome-emoji ((default :font ,(font-spec :family "Noto Emoji" :size 16))))
+ `(default ((default :background ,k-bg :foreground ,k-fg :distant-foreground ,k-bg
+                     :weight light)))
  `(fixed-pitch ((default :family ,k-monospace :height 200 :weight light)))
+ `(fixed-pitch-serif ((default :family "Courier" :height ,k-courier-height :weight light)))
  `(variable-pitch ((default :family "Noto Sans" :height 200 :weight light)))
- '(bold ((default :weight normal)))
- '(bold-italic ((default :slant italic :weight normal)))
+ `(bold ((default :weight normal)))
+ '(bold-italic ((default :inherit (bold italic))))
  '(underline ((default :underline t)))
  '(italic ((default :slant italic)))
  '(font-lock-builtin-face ((default :inherit k-keyword)))
@@ -132,8 +172,8 @@
  `(lsp-ui-sideline-code-action ((default :inherit button)))
 
  ;; Search
- `(match ((default :background ,k-bg-con)))
- `(lazy-highlight ((default :inherit region)))
+ `(match ((default :background ,k-bg-pink)))
+ `(lazy-highlight ((default :distant-foreground ,k-bg :inherit region)))
  `(isearch ((default :inherit match)))
  `(isearch-fail ((default :foreground ,k-fg-red)))
 
@@ -167,7 +207,7 @@
  `(header-line ((default :background ,k-bg :underline (:color ,k-fg :position 10))))
 
  `(button ((default :underline t :foreground ,k-fg :inherit bold)))
- `(link ((default :foreground ,k-fg-1 :inherit button)))
+ `(link ((default :foreground ,k-fg-1 :underline t :inherit bold)))
  `(link-visited ((default :foreground ,k-dk-pink :inherit link)))
  `(info-menu-star ((default :foreground ,k-dk-pink)))
  `(info-header-node ((default :inherit outline-1)))
@@ -188,8 +228,8 @@
  ;; `(whitespace-trailing ((,class (:background ,contrast-bg))))
 
  ;; Parenthesis matching (built-in)))
- `(show-paren-match ((default :background ,k-bg-con)))
- `(show-paren-mismatch ((default :background ,k-bg-con)))
+ `(show-paren-match ((default :background ,k-bg-pink)))
+ `(show-paren-mismatch ((default :background ,k-bg-pink)))
 
  ;; `(sh-heerroroc ((,class (:foreground nil :inherit font-lock-string-face :weight normal))))
  ;; `(sh-quoted-exec ((,class (:foreground nil :inherit font-lock-preprocessor-face))))
@@ -312,8 +352,8 @@
 
  `(company-tooltip ((default :background ,k-bg)))
  `(company-tooltip-selection ((default :inherit match)))
- `(company-tooltip-scrollbar-thumb ((default :background ,k-bg-con-1)))
- `(company-tooltip-scrollbar-track ((default :background ,k-bg-con)))
+ `(company-tooltip-scrollbar-thumb ((default :background ,k-bg-purple)))
+ `(company-tooltip-scrollbar-track ((default :background ,k-bg-pink)))
  ;; `(company-preview-common ((default :foreground ,k-fg-err)))
  ;; `(company-preview-search ((default :foreground ,k-fg-err)))
  `(company-tooltip-common ((default :inherit k-common)))
@@ -465,6 +505,21 @@
  `(shr-h2 ((default :inherit outline-2)))
  `(shr-h3 ((default :inherit outline-3)))
 
+ `(telega-msg-heading ((default :overline ,k-fg :background ,k-bg)))
+ `(telega-msg-inline-forward ((default :inherit shadow)))
+ `(telega-msg-inline-reply ((default :inherit shadow)))
+ `(telega-msg-user-title ((default :inherit (bold variable-pitch) :foreground ,k-fg)))
+ `(telega-msg-self-title ((default :inherit (shadow telega-msg-user-title))))
+ `(telega-username ((default :inherit telega-msg-user-title)))
+ `(telega-chat-prompt ((default :inherit default)))
+ `(telega-entity-type-pre ((default :inherit (shadow fixed-pitch))))
+ `(telega-entity-type-code ((default :inherit (shadow fixed-pitch))))
+ `(telega-entity-type-spoiler ((default :background ,k-fg-1 :foreground ,k-fg-1)))
+ `(telega-button ((default :inherit button)))
+ `(telega-button-active ((default :inherit (highlight button))))
+ `(telega-unmuted-count ((default :foreground ,k-fg-red)))
+ `(telega-mention-count ((default :inherit (telega-unmuted-count bold))))
+ `(pulse-highlight-start-face ((default :background ,k-bg-blue :extend t)))
  ;; ansi-term
  ;; `(term ((,class (:foreground nil :background nil :inherit default))))
  ;; `(term-color-black   ((,class (:foreground ,foreground :background ,foreground))))
@@ -475,11 +530,7 @@
  ;; `(term-color-magenta ((,class (:foreground ,success :background ,success))))
  ;; `(term-color-cyan    ((,class (:foreground ,warning :background ,warning))))
  ;; `(term-color-white   ((,class (:foreground ,background :background ,background))))
- )
-
-;;;###autoload
-(when load-file-name
-  (add-to-list 'custom-theme-load-path
-               (file-name-as-directory (file-name-directory load-file-name))))
+ `(pyim-page ((default :background ,k-bg)))
+ `(pyim-page-selection ((default :inherit match))))
 
 (provide-theme 'k)
