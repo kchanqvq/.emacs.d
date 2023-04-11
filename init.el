@@ -80,7 +80,7 @@
            clean-aindent-mode cdlatex lsp-ltex bug-hunter buffer-move
            auto-highlight-symbol auctex anzu aggressive-indent topsy
            adjust-parens ace-link 2048-game ytel all-the-icons cider
-           poly-org engrave-faces))
+           poly-org engrave-faces enwc))
 (let ((to-install (cl-remove-if #'package-installed-p k-packages)))
   (when to-install
     (message "%s packages to be installed." (length to-install))
@@ -2312,6 +2312,7 @@ Just grab them from `gnus-format-specs'."
   (setenv "https_proxy")
   (setq url-proxy-services nil))
 
+(setq enwc-default-backend 'nm)
 
 (provide 'init)
 ;;; init.el ends here
