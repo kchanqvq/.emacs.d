@@ -143,6 +143,8 @@
 (require 'use-package)
 (setq-default use-package-always-ensure t)
 
+(use-package system-packages)
+
 (defvar k--company-current-index)
 
 (use-package company
@@ -547,7 +549,8 @@
 
 (use-package time
   :config
-  (setq-default world-clock-list '(("BJT-8" "Beijing"))))
+  (setq-default world-clock-list '(("BJT-8" "Beijing")
+                                   ("America/Los_Angeles" "California"))))
 
 (use-package all-the-icons
   :config
@@ -972,7 +975,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (global-set-key (kbd "s-SPC") 'fixup-whitespace)
 
 (global-set-key (kbd "s-g") 'eww-new-buffer)
-(global-set-key (kbd "s-a") 'emms)
 
 (when (k-exwm-enabled-p)
   (setq exwm-input-global-keys
@@ -1299,7 +1301,8 @@ Otherwise call ORIG-FUN with ARGS."
 
 (use-package emms
   :bind
-  ( :map emms-playlist-mode-map
+  ( ("s-a" . emms)
+    :map emms-playlist-mode-map
     ("p" . emms-pause)
     ("n" . l)
     ("M-p" . emms-previous)
@@ -1828,228 +1831,113 @@ that if there is ht's overlay at at the top then return 'default"
               (erc-server-send "CAP REQ :znc.in/self-message")
               (erc-server-send "CAP END")))
 
-;;; GNUS
+;;; Email
 
-(use-package gnus
+(let ((async-shell-command-buffer 'new-buffer))
+  (system-packages-ensure "notmuch")
+  (unless (executable-find "mbsync")
+    (system-packages-install "isync")))
+
+(defvar k-email-accounts
+  '(( "Stanford"
+      host "localhost"
+      user "qthong@stanford.edu"
+      port 1143
+      timeout 0
+      AuthMechs login
+      pass 123 ;; davmail doesn't care
+      ssltype none)))
+(defvar k-maildirs-prefix "~/maildirs/")
+(defun insert-plist (plist)
+  (cl-loop for (k v) on plist by #'cddr
+           do (insert (symbol-name k) " " (prin1-to-string v) "\n"))
+  (insert "\n"))
+(with-temp-buffer
+  (dolist (account k-email-accounts)
+    (let* ((name (car account))
+           (remote (concat name "-remote"))
+           (local (concat name "-local")))
+      (ignore-errors (mkdir (concat k-maildirs-prefix name)))
+      (insert-plist `( IMAPAccount ,name
+                       ,@ (cdr account)))
+      (insert-plist `( IMAPStore ,remote
+                       account ,name))
+      (insert-plist `( MaildirStore ,local
+                       path ,(concat k-maildirs-prefix name "/")
+                       inbox ,(concat k-maildirs-prefix name "/INBOX")
+                       subfolders verbatim))
+      (insert-plist `( channel ,name
+                       far ,(concat ":" remote ":")
+                       near ,(concat ":" local ":")
+                       patterns *
+                       expunge none
+                       CopyArrivalDate yes
+                       sync all
+                       create far
+                       SyncState *))))
+  (write-file "~/.mbsyncrc"))
+
+(defun k-format-relative-date (messy-date)
+  (let* (;;If we don't find something suitable we'll use this one
+         (my-format "%b %d '%y"))
+    (let* ((difference (time-subtract nil messy-date))
+	   (templist '(((gnus-seconds-today) . "%H:%M")
+                       (604800 . "%a %H:%M")
+                       ((gnus-seconds-year) . "%b %d")
+                       (t . "%Y %b %d")))
+	   (top (eval (caar templist) t)))
+      (while (if (numberp top) (time-less-p top difference) (not top))
+        (progn
+	  (setq templist (cdr templist))
+	  (setq top (eval (caar templist) t))))
+      (if (stringp (cdr (car templist)))
+	  (setq my-format (cdr (car templist)))))
+    (format-time-string (eval my-format t) messy-date)))
+
+(use-package notmuch
   :defer t
-  :bind
-  ( :map gnus-topic-mode-map
-    ("<tab>" . k-gnus-toggle-show-topic)
-    ("C-M-u" . k-gnus-topic-up-topic)
-    :map gnus-summary-mode-map
-    ("<tab>" . k-gnus-toggle-show-thread)
-    ("C-<tab>" . k-gnus-toggle-show-all-threads)
-    ("q" . (lambda () (interactive) (switch-to-buffer gnus-group-buffer)))
-    ("Q" . gnus-summary-exit)
-    ("t" . gnus-summary-toggle-threads)
-    ("M-n" . gnus-summary-next-unread-article)
-    ("M-p" . gnus-summary-prev-unread-article)
-    ("n" . gnus-summary-next-article)
-    ("p" . gnus-summary-prev-article)
-    ("g" . gnus-summary-insert-new-articles)
-    :map gnus-article-mode-map
-    ("q" . delete-window)
-    ("o" . ace-link))
   :config
-  (require 'gnus-topic)
-  (setq-default gnus-large-newsgroup nil
-                gnus-use-cache t
-                gnus-cache-enter-articles '(ticked dormant unread read)
-                gnus-cache-remove-articles nil
-                gnus-article-sort-functions '((not gnus-article-sort-by-date))
-                gnus-thread-sort-functions '((not gnus-thread-sort-by-date))
-                gnus-permanently-visible-groups "")
-  (add-hook 'gnus-group-mode-hook 'gnus-topic-mode)
-  (setq-default gnus-select-method '(nnnil nil)
-                gnus-secondary-select-methods
-                '((nnimap "Stanford"
-                          (nnimap-address "localhost")
-                          (nnimap-server-port 1143)
-                          (nnimap-stream plain))))
-  (add-to-list 'gnus-parameters '("" (display . all)))
-
-
-  ;; Correct IMAP Email count, adapted from
-  ;; https://www.emacswiki.org/emacs/GnusNiftyTricks
-  (require 'imap)
-
-  (defun gnus-nnimap-count-format (n)
-    (let ((method (or gnus-tmp-method gnus-select-method)))
-      (when (eq (car method) 'nnimap)
-        (let ((counts (nnimap-request-message-counts gnus-tmp-group method)))
-          (if counts (format "%d" (nth n counts)) "?")))))
-
-  (defun gnus-user-format-function-t (dummy)
-    (or (gnus-nnimap-count-format 0)
-        gnus-tmp-number-total))
-
-  (defun gnus-user-format-function-y (dummy)
-    (or (gnus-nnimap-count-format 1)
-        gnus-tmp-number-of-unread))
-
-  (defvar nnimap-message-count-cache-alist nil)
-
-  (defun nnimap-message-count-cache-clear ()
-    (setq nnimap-message-count-cache-alist nil))
-
-  (defun nnimap-message-count-cache-get (group)
-    (cadr (assoc group nnimap-message-count-cache-alist)))
-
-  (defun nnimap-message-count-cache-set (group count)
-    (push (list group count) nnimap-message-count-cache-alist))
-
-  (defun nnimap-request-message-counts (group method)
-    (or (nnimap-message-count-cache-get group)
-        (let ((counts (nnimap-fetch-message-counts group method)))
-          (nnimap-message-count-cache-set group counts)
-          counts)))
-
-  (defun nnimap-fetch-message-counts (group method)
-    (let ((imap-group (car (last (split-string group ":"))))
-          (server (cadr method)))
-      (when (nnimap-change-group imap-group server)
-        (message "Requesting message count for %s..." group)
-        (with-current-buffer (nnimap-buffer)
-          (let ((response
-                 (assoc "MESSAGES"
-                        (assoc "STATUS"
-                               (nnimap-command "STATUS %S (MESSAGES UNSEEN)"
-                                               (utf7-encode imap-group t))))))
-            (message "Requesting message count for %s...done" group)
-            (and response
-                 (mapcar #'string-to-number
-                         (list
-                          (nth 1 response) (nth 3 response)))))))))
-
-  (add-hook 'gnus-after-getting-new-news-hook 'nnimap-message-count-cache-clear)
-
-  ;; Eye candies
-
-  (add-hook 'gnus-summary-mode-hook 'hl-line-mode)
-  (add-hook 'gnus-group-mode-hook 'hl-line-mode)
-
-  ;; FUCK THIS `gnus-spec' ABOMINATION!!!
-  ;; I'm doing it properly myself
-  ;; 把 `gnus-spec' 霍霍了！
-  (require 'gnus-spec)
-  (defun gnus-set-format (type &optional insertable)
-    (gnus-update-format-specifications nil type))
-  (defun gnus-update-format-specifications (&optional force &rest types)
-    "DON'T update format specifications.
-Just grab them from `gnus-format-specs'."
-    (let (new-format entry type val updated)
-      (while (setq type (pop types))
-        ;; Jump to the proper buffer to find out the value of the
-        ;; variable, if possible.  (It may be buffer-local.)
-        (save-current-buffer
-          (let ((buffer (intern (format "gnus-%s-buffer" type))))
-            (when (and (boundp buffer)
-                       (setq val (symbol-value buffer))
-                       (gnus-buffer-live-p val))
-              (set-buffer val)))
-          (setq new-format (symbol-value
-                            (intern (format "gnus-%s-line-format" type))))
-          (setq entry (cdr (assq type gnus-format-specs)))
-          (set (intern (format "gnus-%s-line-format-spec" type))
-               (cadr entry))))
-      updated))
-  (setq-default gnus-use-full-window nil
-                gnus-group-line-format nil
-                gnus-summary-line-format nil
-                gnus-article-mode-line-format nil
-                gnus-summary-mode-line-format nil
-                gnus-summary-dummy-line-format nil
-                gnus-topic-line-format nil
-                gnus-group-mode-line-format nil
-                gnus-group-line-format nil)
-  (setq gnus-user-date-format-alist
-        '(((gnus-seconds-today) . "%H:%M")
-          (604800 . "%a %H:%M")
-          ((gnus-seconds-year) . "%b %d")
-          (t . "%Y %b %d"))
-        gnus-format-specs
-        '((article-mode nil "")
-          (summary-dummy nil
-                         (progn
-                           (insert "   ")
-                           (put-text-property
-                            (point)
-                            (progn
-                              (insert ":                             :")
-                              (point))
-                            'mouse-face gnus-mouse-face)
-                           (insert " " gnus-tmp-subject "\n")))
-          (summary-mode nil "")
-          (summary nil
-                   (add-face-text-property (point)
-                                           (let (gnus-position)
-                                             (insert (propertize (string gnus-tmp-unread gnus-tmp-replied gnus-tmp-score-char)
-                                                                 'face '(nil default) 'gnus-face t)
-                                                     (propertize (truncate-string-to-width
-                                                                  (concat gnus-tmp-indentation
-                                                                          (gnus-summary-from-or-to-or-newsgroups gnus-tmp-header gnus-tmp-from))
-                                                                  28 0 ?  (truncate-string-ellipsis))
-                                                                 'face '((:inherit (shadow k-proper-name)) default) 'gnus-face t)
-                                                     #("  " 0 2 (face (nil default) gnus-face t)))
-                                             (setq gnus-position (point))
-                                             (insert (propertize (truncate-string-to-width
-                                                                  gnus-tmp-subject-or-nil
-                                                                  70 0 nil (truncate-string-ellipsis))
-                                                                 'face '((:inherit (variable-pitch bold)) default) 'gnus-face t)
-                                                     #(" " 0 1 (face (nil default) gnus-face t display (space :align-to (- text 14))))
-                                                     (propertize (format "%12s \n" (gnus-user-date (mail-header-date gnus-tmp-header)))
-                                                                 'face `((:inherit (shadow k-quote)) default) 'gnus-face t))
-                                             (put-text-property gnus-position (1+ gnus-position) 'gnus-position t)
-                                             (point))
-                                           (if (cl-evenp (line-number-at-pos (point))) 'stripes nil) t))
-          (topic nil
-                 (progn
-                   (insert indentation "[ ")
-                   (put-text-property
-                    (point)
-                    (progn
-                      (add-text-properties
-                       (point)
-                       (progn (insert name) (point))
-                       (cons 'face (cons (list 'bold 'default) '(gnus-face t))))
-                      (point))
-                    'mouse-face gnus-mouse-face)
-                   (insert (format " -- %d ]%s\n" total-number-of-articles visible))))
-          (group-mode nil "")
-          (group nil
-                 (progn
-                   (insert (format "%c%c%c%s%5s/%-5s %c"
-                                   gnus-tmp-marked-mark
-                                   gnus-tmp-subscribed
-                                   gnus-tmp-process-marked
-                                   gnus-group-indentation
-                                   (gnus-user-format-function-y gnus-tmp-header)
-                                   (gnus-user-format-function-t gnus-tmp-header)
-                                   gnus-tmp-summary-live))
-                   (put-text-property (point) (progn (insert gnus-tmp-qualified-group) (point)) 'mouse-face gnus-mouse-face)
-                   (insert "\n")))
-          (version . "28.2") (gnus-version . 5.13)))
-
-  ;; Key bindings for trauma repression
-  (defun k-gnus-toggle-show-thread ()
-    (interactive)
-    (or (gnus-summary-show-thread)
-        (gnus-summary-hide-thread)))
-  (defun k-gnus-toggle-show-all-threads ()
-    (interactive)
-    (if (cl-find-if (lambda (ov) (eq (overlay-get ov 'invisible) 'gnus-sum))
-                    (overlays-in (point-min) (point-max)))
-        (gnus-summary-show-all-threads)
-      (gnus-summary-hide-all-threads)))
-  (defun k-gnus-toggle-show-topic ()
-    (interactive)
-    (unless (gnus-topic-fold)
-      (error "Not at a topic")))
-  (defun k-gnus-topic-up-topic ()
-    (interactive)
-    (if (gnus-group-topic-name)
-        (gnus-topic-goto-topic (gnus-topic-parent-topic (gnus-current-topic)))
-      (gnus-topic-goto-topic (gnus-current-topic)))))
+  (custom-set-faces
+   `(notmuch-search-subject ((default :inherit variable-pitch)))
+   `(notmuch-search-matching-authors ((default :inherit variable-pitch)))
+   `(notmuch-search-date ((default :inherit variable-pitch)))
+   `(notmuch-search-unread-face ((default :inherit bold)))
+   `(notmuch-tag-face ((default :inherit (shadow k-proper-name)))))
+  (setq-default notmuch-search-oldest-first nil
+                notmuch-show-logo nil
+                notmuch-search-result-format)
+  (defun notmuch-search-show-result (result pos)
+    "Insert RESULT at POS."
+    ;; Ignore excluded matches
+    (unless (= (plist-get result :matched) 0)
+      (save-excursion
+        (goto-char pos)
+        (let ((right
+               (concat
+                (let ((tags (plist-get result :tags))
+	              (orig-tags (plist-get result :orig-tags)))
+                  (notmuch-tag-format-tags tags orig-tags))
+                (propertize (format " %s/%s" (plist-get result :matched)
+			            (plist-get result :total))
+		            'face 'notmuch-search-count))))
+          (insert
+           (propertize (k-format-relative-date (plist-get result :timestamp))
+		       'face 'notmuch-search-date)
+           #(" " 0 1 (display (space :align-to 10)))
+           (propertize (truncate-string-to-width
+                        (notmuch-sanitize (plist-get result :authors))
+                        20 0 nil (truncate-string-ellipsis))
+                       'face 'notmuch-search-matching-authors)
+           #(" " 0 1 (display (space :align-to 28)))
+           (propertize (truncate-string-to-width
+                        (notmuch-sanitize (plist-get result :subject))
+                        (- (window-text-width) (length right) 25)
+                        0 nil (truncate-string-ellipsis))
+		       'face 'notmuch-search-subject)
+           (propertize " " 'display `(space :align-to (- text ,(length right))))
+           right "\n"))
+        (notmuch-search-color-line pos (point) (plist-get result :tags))
+        (put-text-property pos (point) 'notmuch-search-result result)))))
 
 ;;; Input Method
 
