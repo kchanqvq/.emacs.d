@@ -119,6 +119,8 @@
 (defface k-monochrome-emoji nil "Monochrome emoji face.")
 (defface emms-mode-line-title nil "Face for EMMS track title in mode line.")
 
+(setq custom--inhibit-theme-enable nil)
+
 (custom-theme-set-faces
  'k
  `(k-quote ((default :inherit (fixed-pitch-serif bold) )))
@@ -465,7 +467,8 @@
  `(erc-keyword-face ((default :inherit k-keyword)))
  `(erc-button ((default :inherit button)))
 
- ;; GNUS
+ ;; Email
+
  `(gnus-group-mail-1 ((default :inherit bold)))
  `(gnus-group-mail-1-empty ((default :foreground ,k-dk-purple)))
  `(gnus-group-mail-2 ((default :inherit bold)))
