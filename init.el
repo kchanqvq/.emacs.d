@@ -1858,6 +1858,7 @@ that if there is ht's overlay at at the top then return 'default"
     (let* ((name (car account))
            (remote (concat name "-remote"))
            (local (concat name "-local")))
+      (ignore-errors (mkdir k-maildirs-prefix))
       (ignore-errors (mkdir (concat k-maildirs-prefix name)))
       (insert-plist `( IMAPAccount ,name
                        ,@ (cdr account)))
@@ -2079,6 +2080,7 @@ that if there is ht's overlay at at the top then return 'default"
    telega-symbol-checkmark "●"
    telega-symbol-heavy-checkmark "✓"
    telega-chat-fill-column 90
+   telega-emoji-use-images nil
    telega-symbol-eye (propertize "🔎" 'face '(shadow k-monochrome-emoji))
    telega-symbol-pin (propertize "📌" 'face '(success k-monochrome-emoji))
    telega-symbol-pending (all-the-icons-material "sync")

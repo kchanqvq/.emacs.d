@@ -10,6 +10,7 @@
 (defvar k-monospace "Source Code Pro")
 (defvar k-serif-monospace "Libertinus Mono-19")
 (defvar k-courier-height 200)
+(defvar k-noto-sans-height 200)
 (set-frame-font k-light-monospace nil t)
 
 (defun k-set-fonts (scripts spec)
@@ -137,7 +138,7 @@
                      :weight light)))
  `(fixed-pitch ((default :family ,k-monospace :height 200 :weight light)))
  `(fixed-pitch-serif ((default :family "Courier" :height ,k-courier-height :weight light)))
- `(variable-pitch ((default :family "Noto Sans" :height 200 :weight light)))
+ `(variable-pitch ((default :family "Noto Sans" :height ,k-noto-sans-height :weight light)))
  `(bold ((default :weight normal)))
  '(bold-italic ((default :inherit (bold italic))))
  '(underline ((default :underline t)))
@@ -206,7 +207,7 @@
  `(minibuffer-prompt ((default :inherit bold)))
  `(region ((default :background ,k-bg-1)))
  `(secondary-selection ((default :background ,k-bg-1)))
- `(header-line ((default :background ,k-bg :underline (:color ,k-fg :position 10))))
+ `(header-line ((default :background ,k-bg :underline (:color ,k-fg :position -10))))
 
  `(button ((default :underline t :foreground ,k-fg :inherit bold)))
  `(link ((default :foreground ,k-fg-1 :underline t :inherit bold)))
