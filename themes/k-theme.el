@@ -11,7 +11,7 @@
 (defvar k-serif-monospace "Libertinus Mono-19")
 (defvar k-courier-height 200)
 (defvar k-noto-sans-height 200)
-(set-frame-font k-light-monospace nil t)
+;; (set-frame-font k-light-monospace nil t)
 
 (defun k-set-fonts (scripts spec)
   (dolist (script scripts)
@@ -134,7 +134,7 @@
  `(k-prompt ((default :inherit bold :foreground ,k-fg-pink)))
  `(k-zebra ((default :background ,k-bg-blue :extend t)))
  `(k-monochrome-emoji ((default :font ,(font-spec :family "Noto Emoji" :size 16))))
- `(default ((default :background ,k-bg :foreground ,k-fg :distant-foreground ,k-bg
+ `(default ((default :font ,k-light-monospace :background ,k-bg :foreground ,k-fg :distant-foreground ,k-bg
                      :weight light)))
  `(fixed-pitch ((default :family ,k-monospace :height 200 :weight light)))
  `(fixed-pitch-serif ((default :family "Courier" :height ,k-courier-height :weight light)))

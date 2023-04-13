@@ -892,10 +892,12 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
       (setq-local show-trailing-whitespace nil
                   truncate-lines t
                   cursor-in-non-selected-windows 'box)))
-  (vertico-buffer-mode)
-
-  (advice-remove 'vertico--resize-window #'ignore)
-  (advice-add 'vertico--resize-window :override #'k-vertico-buffer-resize-window))
+  (define-advice vertico-buffer-mode
+      (:after (&optional arg) k)
+    (when vertico-buffer-mode
+      (advice-remove 'vertico--resize-window #'ignore)
+      (advice-add 'vertico--resize-window :override #'k-vertico-buffer-resize-window)))
+  (vertico-buffer-mode))
 
 ;; (pkg-info-version-info 'marginalia)
 ;; "20220914.945"
@@ -909,10 +911,12 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     (let* ((width (cl-loop for win in (get-buffer-window-list) minimize (window-width win)))
            ;; estimate width
            (marginalia-field-width
-            (- (floor (* width 0.8))
-               (let ((max (cl-loop for cand in cands
-                                   maximize (string-width cand))))
-                 (* (ceiling (or max 0) marginalia--candw-step) marginalia--candw-step))))
+            (max (- (floor (* width 0.8))
+                    (let ((max (cl-loop for cand in cands
+                                        maximize (string-width cand))))
+                      (* (ceiling (or max 0) marginalia--candw-step) marginalia--candw-step)))
+                 ;; minimum value for safety
+                 2))
            (marginalia--metadata metadata))
       (setq-local marginalia--candw-max (default-value 'marginalia--candw-max))
       (marginalia--align
