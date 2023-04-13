@@ -25,6 +25,23 @@
          (progn ,@body)
        (advice-remove ',symbol k-advice))))
 
+(defun k-run-helper-command (command name &optional continuation silent)
+  (with-current-buffer
+      (let ((display-comint-buffer-action
+             (if silent
+                 '(display-buffer-no-window (allow-no-window . t))
+                 '(nil (inhibit-same-window . t)))))
+        (shell name))
+    (set-process-sentinel (get-buffer-process (current-buffer))
+			  (lambda (proc status)
+                            (when continuation
+                              (funcall continuation))))
+    (goto-char (point-max))
+    (comint-send-string (get-buffer-process (current-buffer))
+                        (concat command "\n"))))
+
+;;; Initial config
+
 (require 'package)
 
 (add-to-list 'package-archives
@@ -436,7 +453,7 @@
 (setenv "GREP_COLOR" "31")
 (setq-default k-color-style 'bright)
 ;; (setq-default k-color-style 'dark)
-(load-theme 'k t)
+(load "~/.emacs.d/themes/k-theme.el")
 (defun k-theme-switch (style)
   "Elegantly switch to k-theme with STYLE."
   (interactive
@@ -449,8 +466,7 @@
         (when highlight-indent-guides-mode
           (highlight-indent-guides-mode 0)
           (push buffer fix-highlight-indent-guides))))
-    (load-theme 'k t)
-    (load-theme 'k t)
+    (load "~/.emacs.d/themes/k-theme.el")
     (dolist (buffer fix-highlight-indent-guides)
       (with-current-buffer buffer
         (highlight-indent-guides-mode)))
@@ -1222,7 +1238,7 @@ Otherwise call ORIG-FUN with ARGS."
   (defun cloc-magit-root ()
     "Run Count Line Of Code for current Git repo."
     (interactive)
-    (term (concat "cloc " (magit-toplevel)))))
+    (k-run-helper-command (concat "cloc " (magit-toplevel)) "*cloc*")))
 
 ;;; window/buffer/frame/workspaces movement
 
@@ -1875,7 +1891,7 @@ that if there is ht's overlay at at the top then return 'default"
                        expunge none
                        CopyArrivalDate yes
                        sync all
-                       create far
+                       create near
                        SyncState *))))
   (write-file "~/.mbsyncrc"))
 
@@ -1898,16 +1914,22 @@ that if there is ht's overlay at at the top then return 'default"
 
 (use-package notmuch
   :defer t
+  :bind ( :map notmuch-common-keymap
+          ("G" . k-update-notmuch))
   :config
-  (custom-set-faces
-   `(notmuch-search-subject ((default :inherit variable-pitch)))
-   `(notmuch-search-matching-authors ((default :inherit variable-pitch)))
-   `(notmuch-search-date ((default :inherit variable-pitch)))
-   `(notmuch-search-unread-face ((default :inherit bold)))
-   `(notmuch-tag-face ((default :inherit (shadow k-proper-name)))))
   (setq-default notmuch-search-oldest-first nil
                 notmuch-show-logo nil
-                notmuch-search-result-format)
+                notmuch-tag-formats
+                '(("unread" nil)
+                  ("inbox" nil)
+                  ("replied" (all-the-icons-faicon "reply"))
+                  ("attachment" (all-the-icons-faicon "paperclip"))
+                  ("flagged" (all-the-icons-faicon "flag")))
+                notmuch-message-headers
+                '("Subject"
+                  ;; "Date" ;; relative date already displayed in summary line
+                  "To"
+                  "Cc"))
   (defun notmuch-search-show-result (result pos)
     "Insert RESULT at POS."
     ;; Ignore excluded matches
@@ -1936,10 +1958,16 @@ that if there is ht's overlay at at the top then return 'default"
                         (- (window-text-width) (length right) 25)
                         0 nil (truncate-string-ellipsis))
 		       'face 'notmuch-search-subject)
-           (propertize " " 'display `(space :align-to (- text ,(length right))))
+           (propertize " " 'display `(space :align-to (- text ,(length right) 1)))
            right "\n"))
         (notmuch-search-color-line pos (point) (plist-get result :tags))
-        (put-text-property pos (point) 'notmuch-search-result result)))))
+        (put-text-property pos (point) 'notmuch-search-result result))))
+  (defun k-update-notmuch (&optional silent)
+    "Update email database asynchronously."
+    (interactive)
+    (unless (process-live-p (get-buffer-process (get-buffer "*notmuch update*")))
+      (k-run-helper-command "mbsync -a; notmuch new; exit" "*notmuch update*"
+                                     #'notmuch-refresh-all-buffers silent))))
 
 ;;; Input Method
 
@@ -1966,10 +1994,10 @@ that if there is ht's overlay at at the top then return 'default"
 (defvar lookup-word-buffer nil)
 (defun lookup-word (word)
   (interactive (list (thing-at-point 'word t)))
-  (let ((display-buffer-alist '((".*" display-buffer-below-selected))))
-    (select-window (display-buffer
-                    (or (and (buffer-live-p lookup-word-buffer) lookup-word-buffer)
-                        (current-buffer)))))
+  (select-window (display-buffer-below-selected
+                  (or (and (buffer-live-p lookup-word-buffer) lookup-word-buffer)
+                      (current-buffer))
+                  nil))
   (setq lookup-word-buffer (browse-url (format "https://en.wiktionary.org/wiki/%s#Latin" word))))
 
 (defun demolish-package (symbol)

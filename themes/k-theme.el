@@ -124,7 +124,7 @@
 
 (custom-theme-set-faces
  'k
- `(k-quote ((default :inherit (fixed-pitch-serif bold) )))
+ `(k-quote ((default :inherit (fixed-pitch-serif bold))))
  `(k-keyword ((default :foreground ,k-fg-1 :inherit bold)))
  `(k-proper-name ((default :inherit k-quote :foreground ,k-fg)))
  `(k-string ((default :foreground ,k-dk-pink)))
@@ -470,6 +470,19 @@
 
  ;; Email
 
+ `(message-header-subject ((default :inherit (bold variable-pitch))))
+ `(message-header-to ((default :inherit (bold variable-pitch))))
+ `(message-header-cc ((default :inherit message-header-to)))
+ `(message-header-other ((default :inherit message-header-to)))
+ `(message-header-name ((default :inherit k-keyword)))
+ `(message-mml ((default :foreground ,k-fg-1)))
+ `(notmuch-message-summary-face ((default :inherit message-header-to :background ,k-bg-grey-1)))
+ `(notmuch-search-subject ((default :inherit variable-pitch)))
+ `(notmuch-search-matching-authors ((default :inherit variable-pitch)))
+ `(notmuch-search-date ((default :inherit variable-pitch)))
+ `(notmuch-search-unread-face ((default :inherit bold)))
+ `(notmuch-tag-unread ((default :foreground ,k-dk-pink)))
+ `(notmuch-tag-face ((default :inherit (shadow k-proper-name))))
  `(gnus-group-mail-1 ((default :inherit bold)))
  `(gnus-group-mail-1-empty ((default :foreground ,k-dk-purple)))
  `(gnus-group-mail-2 ((default :inherit bold)))
@@ -536,5 +549,7 @@
  ;; `(term-color-white   ((,class (:foreground ,background :background ,background))))
  `(pyim-page ((default :background ,k-bg)))
  `(pyim-page-selection ((default :inherit match))))
+
+(setq-default goto-address-mail-face '(button k-quote))
 
 (provide-theme 'k)
