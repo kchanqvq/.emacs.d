@@ -1969,8 +1969,8 @@ that if there is ht's overlay at at the top then return 'default"
   (defun k-update-notmuch (&optional silent)
     "Update email database asynchronously."
     (interactive)
-    (unless (process-live-p (get-buffer-process (get-buffer "*notmuch update*")))
-      (k-run-helper-command "mbsync -a; notmuch new; exit" "*notmuch update*"
+    (unless (process-live-p (get-buffer-process (get-buffer "*notmuch-update*")))
+      (k-run-helper-command "mbsync -a; notmuch new; exit" "*notmuch-update*"
                                      #'notmuch-refresh-all-buffers silent))))
 
 ;;; Input Method
