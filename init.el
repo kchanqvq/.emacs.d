@@ -164,6 +164,10 @@
 
 (use-package system-packages)
 
+(use-package ffap
+  :config
+  (ffap-bindings))
+
 (defvar k--company-current-index)
 
 (use-package company
