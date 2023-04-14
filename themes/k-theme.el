@@ -9,8 +9,8 @@
 (defvar k-light-monospace "Source Code Pro-20:weight=light")
 (defvar k-monospace "Source Code Pro")
 (defvar k-serif-monospace "Libertinus Mono-19")
-(defvar k-courier-height 200)
-(defvar k-noto-sans-height 200)
+;; (defvar k-courier-height 200)
+;; (defvar k-noto-sans-height 200)
 ;; (set-frame-font k-light-monospace nil t)
 
 (defun k-set-fonts (scripts spec)
@@ -29,8 +29,9 @@
 (k-set-fonts '(emoji symbol)
              (list (font-spec :family "Hiragino Sans" :size 16)
                    (font-spec :family "Noto Emoji" :size 16)
-                   (font-spec :family "Apple Color Emoji" :size 16)))
-
+                   (cond ((member "Apple Color Emoji"(font-family-list))
+                          (font-spec :family "Apple Color Emoji" :size 16))
+                         (t (font-spec :family "Noto Color Emoji")))))
 
 (defvar k-color-style 'bright)
 (pcase
@@ -136,9 +137,9 @@
  `(k-monochrome-emoji ((default :font ,(font-spec :family "Noto Emoji" :size 16))))
  `(default ((default :font ,k-light-monospace :background ,k-bg :foreground ,k-fg :distant-foreground ,k-bg
                      :weight light)))
- `(fixed-pitch ((default :family ,k-monospace :height 200 :weight light)))
- `(fixed-pitch-serif ((default :family "Courier" :height ,k-courier-height :weight light)))
- `(variable-pitch ((default :family "Noto Sans" :height ,k-noto-sans-height :weight light)))
+ `(fixed-pitch ((default :family ,k-monospace :weight light)))
+ `(fixed-pitch-serif ((default :family "Courier" :weight light)))
+ `(variable-pitch ((default :family "Noto Sans" :weight light)))
  `(bold ((default :weight normal)))
  '(bold-italic ((default :inherit (bold italic))))
  '(underline ((default :underline t)))

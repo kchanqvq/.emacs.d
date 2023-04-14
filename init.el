@@ -105,6 +105,8 @@
 
 ;;; Mode line
 
+(require 'mule-util)
+
 (defun k-pad-mode-line-format (format)
   (unless (stringp format)
     (setq format (format-mode-line format)))
@@ -1009,7 +1011,10 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
           ([?\M-v] . [prior])
           ([?\C-v] . [next])
           ([?\C-d] . [delete])
-          ([?\C-k] . [S-end delete]))))
+          ([?\C-k] . [S-end delete])
+          ([?\C-w] . [?\C-x])
+          ([?\M-w] . [?\C-c])
+          ([?\C-y] . [?\C-v]))))
 
 (setq-default consult-grep-args
               '("zgrep" (consult--grep-exclude-args) "--null --line-buffered --color=never --ignore-case --line-number -I -r ."))
@@ -1636,6 +1641,20 @@ that if there is ht's overlay at at the top then return 'default"
   (setq-default ytel-invidious-api-url "https://vid.puffyan.us"
                 ytel-title-video-reserved-space 40
                 ytel-author-name-reserved-space 20)
+  (defun ytel--insert-video (video)
+    "Insert `VIDEO' in the current buffer."
+    (condition-case nil
+        (insert (ytel--format-video-published (ytel-video-published video))
+	        " "
+	        (ytel--format-author (ytel-video-author video))
+	        " "
+	        (ytel--format-video-length (ytel-video-length video))
+	        " "
+	        (ytel--format-title (ytel-video-title video))
+	        " "
+	        (ytel--format-video-views (ytel-video-views video)))
+      (error (insert "[ERROR]"))))
+  (byte-compile 'ytel--insert-video)
   (defun ytel-play (&optional no-video)
     "Play video at point with EMMS."
     (interactive "P")
@@ -2036,11 +2055,34 @@ that if there is ht's overlay at at the top then return 'default"
     (cond ((<= time today-sunrise) (list 'sunrise (- today-sunrise time)))
           ((<= time today-sunset) (list 'sunset (- today-sunset time)))
           (t (list 'sunrise (+ tomorrow-sunrise (- (* 24 3600) time)))))))
+(defun vampire-time-status ()
+  (let ((time (time-to-vampire-time)))
+    (format "%s till %s"
+            (format-seconds "%h:%.2m:%.2s" (cadr time))
+            (car time))))
+(defvar k-status-functions '(vampire-time-status))
+(defun k-battery-status ()
+  (let ((output (shell-command-to-string "acpi --battery"))
+        (case-fold-search nil))
+    (string-match " \\([0-9]+\\)%," output)
+    (let* ((percent (string-to-number (match-string 1 output)))
+           (charging (string-match-p "Charging" output))
+           (quarter (/ percent 25))
+           (all-the-icons-default-faicon-adjust 0.2))
+      (concat
+       (cond (charging (all-the-icons-alltheicon "battery-charging"))
+             ((> quarter 3) (all-the-icons-faicon "battery-full"))
+             ((> quarter 2) (all-the-icons-faicon "battery-three-quarters"))
+             ((> quarter 1) (all-the-icons-faicon "battery-half"))
+             ((> quarter 0) (all-the-icons-faicon "battery-quarter"))
+             (t (all-the-icons-faicon "battery-empty" :face 'error)))
+       #("  " 0 1 (display "")) ;; compensate for width of the icon
+       (match-string 1 output) "%"))))
+(when (executable-find "acpi")
+  (add-to-list 'k-status-functions 'k-battery-status))
+
 (defun vampire-time-update ()
-  (let* ((time (time-to-vampire-time))
-         (msg (format (concat "%s till %s")
-                      (format-seconds "%h:%.2m:%.2s" (cadr time))
-                      (car time)))
+  (let* ((msg (mapconcat #'funcall k-status-functions (propertize "│" 'face `(:foreground ,k-fg-blue))))
          (width (string-width msg))
          (msg (concat (propertize " " 'display
                                   `(space :align-to (- right-fringe ,width)))
@@ -2052,20 +2094,21 @@ that if there is ht's overlay at at the top then return 'default"
     (with-current-buffer " *Minibuf-0*"
       (delete-region (point-min) (point-max))
       (insert msg))
-    (when-let (buffer (get-buffer " *Vampire Time Screensaver*"))
-      (with-current-buffer buffer
-        (delete-region (point-min) (point-max))
-        (let ((l1 (propertize (concat " " (format-seconds "%h:%.2m:%.2s" (cadr time)))
-                              'face '(:height 10.0 :weight normal)))
-              (l2 (propertize (format "till %s" (car time))
-                              'face '(:height 4.0 :weight normal))))
-          (insert l1 (propertize " \n" 'face '(:height 10.0 :weight normal)))
-          (insert (propertize " "
-                              'display `(space :width (,(- (shr-string-pixel-width l1)
-                                                           (shr-string-pixel-width l2)))))
-                  l2)))
-      (posframe-show buffer :poshandler 'posframe-poshandler-frame-center
-                     :internal-border-width 3))))
+    ;; (when-let (buffer (get-buffer " *Vampire Time Screensaver*"))
+    ;;   (with-current-buffer buffer
+    ;;     (delete-region (point-min) (point-max))
+    ;;     (let ((l1 (propertize (concat " " (format-seconds "%h:%.2m:%.2s" (cadr time)))
+    ;;                           'face '(:height 10.0 :weight normal)))
+    ;;           (l2 (propertize (format "till %s" (car time))
+    ;;                           'face '(:height 4.0 :weight normal))))
+    ;;       (insert l1 (propertize " \n" 'face '(:height 10.0 :weight normal)))
+    ;;       (insert (propertize " "
+    ;;                           'display `(space :width (,(- (shr-string-pixel-width l1)
+    ;;                                                        (shr-string-pixel-width l2)))))
+    ;;               l2)))
+    ;;   (posframe-show buffer :poshandler 'posframe-poshandler-frame-center
+    ;;                  :internal-border-width 3))
+    ))
 (add-hook 'post-command-hook 'vampire-time-update)
 (defvar vampire-time-timer (run-at-time t 1 'vampire-time-update))
 (defun vampire-time-screensaver ()
@@ -2205,6 +2248,20 @@ that if there is ht's overlay at at the top then return 'default"
   (use-package enwc
     :config
     (setq-default enwc-default-backend 'nm)))
+
+(use-package proced
+  :defer t
+  :config
+  (setq-default proced-auto-update-interval 1
+                proced-format-alist
+                '((short comm tree pcpu vsize start time pid user)
+                  (medium comm tree pcpu vsize rss pmem state  ttname start time pid user args)
+                  (long comm tree pri nice pcpu vsize rss pmem ttname state
+                        start time pid user euid group args)
+                  (verbose comm tree pgrp sess pri nice pcpu vsize rss pmem
+                           state thcount  ttname tpgid minflt majflt cminflt cmajflt
+                           start time utime stime ctime cutime cstime etime pid ppid user euid group egid args)))
+  (add-hook 'proced-mode-hook (lambda () (proced-toggle-auto-update 1))))
 
 (provide 'init)
 ;;; init.el ends here
