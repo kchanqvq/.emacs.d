@@ -1696,45 +1696,55 @@ that if there is ht's overlay at at the top then return 'default"
   :config
   (pdf-tools-install))
 
-;; EXWM
-(when (eq window-system 'x)
+;;; EXWM
+(when (executable-find "import")
   (defun k-screenshot ()
     (interactive)
     (let ((path (concat "~/Documents/Screenshot-" (format-time-string "%Y-%m-%d,%H:%M:%S") ".png")))
       (start-process-shell-command
        "import" nil (concat "import -window root " path))
       (message (concat "Screenshot saved to " path))))
-  (global-set-key (kbd "<print>") 'k-screenshot)
-
+  (global-set-key (kbd "<print>") 'k-screenshot))
+(when (executable-find "amixer")
+  (defun k-get-volume ()
+    (let ((output (shell-command-to-string "amixer get Master")))
+      (string-match "\\[\\([0-9]+\\)%\\]" output)
+      (string-to-number (match-string 1 output))))
   (defun k-set-volume (volume)
     "Change volume."
     (interactive (list (read-from-minibuffer
-                        (format "Change volume (current %s): "
-                                (let ((output (shell-command-to-string "amixer get Master")))
-                                  (string-match "\\[\\([0-9]+%\\)\\]" output)
-                                  (match-string 1 output)))
+                        (format "Change volume (current %s%%): "
+                                (k-get-volume))
                         nil nil t)))
     (cl-check-type volume number)
     (unless (= 0 (call-process-shell-command (format "amixer set Master %s%%" volume)))
       (error "Failed to set volume"))))
 
-;;; Undo Tree
-
-(use-package undo-tree
-  :bind ( :map undo-tree-visualizer-mode-map
-          ("M-n" . undo-tree-visualize-redo-to-x)
-          ("M-p" . undo-tree-visualize-undo-to-x))
-  :config
-  (setq undo-limit 1000000)
-  (setq undo-strong-limit 10000000)
-  (setq undo-outer-limit 100000000)
-  (setq undo-tree-enable-undo-in-region t)
-  (setq undo-tree-visualizer-timestamps t
-        undo-tree-auto-save-history nil) ;; To fucking slow!
-
-  (global-undo-tree-mode))
-
-
+(when (executable-find "xrandr")
+  (defun jw/xrandr-output-list ()
+    "Return list of connected X11 screens, according to xrandr."
+    (interactive)
+    (let* ((xrandr-output-regexp "\n\\([^ ]+\\) connected ")
+           (find-outputs
+            (lambda ()
+              (let (output-list)
+                (call-process "xrandr" nil t nil)
+                (goto-char (point-min))
+                (while (re-search-forward xrandr-output-regexp nil 'noerror)
+                  (setq output-list (cons (match-string 1) output-list))
+                  (forward-line))
+                (reverse output-list))))
+           (output-list (with-temp-buffer
+                          (funcall find-outputs))))
+      output-list))
+  (defun k-auto-xrandr ()
+    (let* ((output-list (jw/xrandr-output-list)))
+      (apply #'call-process "xrandr" nil nil nil
+             (mapcan (lambda (output) (list "--output" output "--auto"))
+                     output-list))))
+  (add-hook 'exwm-randr-screen-change-hook 'k-auto-xrandr)
+  (when (k-exwm-enabled-p)
+    (k-auto-xrandr)))
 (use-package org
   :config
   (require 'tex-mode)
@@ -1922,6 +1932,7 @@ that if there is ht's overlay at at the top then return 'default"
                        SyncState *))))
   (write-file "~/.mbsyncrc"))
 
+(require 'gnus-util)
 (defun k-format-relative-date (messy-date)
   (let* (;;If we don't find something suitable we'll use this one
          (my-format "%b %d '%y"))
@@ -1994,7 +2005,16 @@ that if there is ht's overlay at at the top then return 'default"
     (interactive)
     (unless (process-live-p (get-buffer-process (get-buffer "*notmuch-update*")))
       (k-run-helper-command "mbsync -a; notmuch new; exit" "*notmuch-update*"
-                                     #'notmuch-refresh-all-buffers silent))))
+                            #'notmuch-refresh-all-buffers silent))))
+
+(use-package smtpmail
+  :config
+  (setq-default smtpmail-smtp-server "localhost"
+                smtpmail-smtp-service 1025
+                smtpmail-stream-type 'plain
+                smtpmail-smtp-user "qthong@stanford.edu"
+                user-mail-address "qthong@stanford.edu"
+                send-mail-function 'smtpmail-send-it))
 
 ;;; Input Method
 
@@ -2061,28 +2081,34 @@ that if there is ht's overlay at at the top then return 'default"
           (t (list 'sunrise (+ tomorrow-sunrise (- (* 24 3600) time)))))))
 (defun vampire-time-status ()
   (let ((time (time-to-vampire-time)))
-    (format "%s till %s"
-            (format-seconds "%h:%.2m:%.2s" (cadr time))
-            (car time))))
-(defvar k-status-functions '(vampire-time-status))
-(defun k-battery-status ()
-  (let ((output (shell-command-to-string "acpi --battery"))
-        (case-fold-search nil))
-    (string-match " \\([0-9]+\\)%," output)
-    (let* ((percent (string-to-number (match-string 1 output)))
-           (charging (string-match-p "Charging" output))
-           (quarter (/ percent 25))
-           (all-the-icons-default-faicon-adjust 0.2))
-      (concat
-       (cond (charging (all-the-icons-alltheicon "battery-charging"))
-             ((> quarter 3) (all-the-icons-faicon "battery-full"))
-             ((> quarter 2) (all-the-icons-faicon "battery-three-quarters"))
-             ((> quarter 1) (all-the-icons-faicon "battery-half"))
-             ((> quarter 0) (all-the-icons-faicon "battery-quarter"))
-             (t (all-the-icons-faicon "battery-empty" :face 'error)))
-       #("  " 0 1 (display "")) ;; compensate for width of the icon
-       (match-string 1 output) "%"))))
+    (concat (format-seconds "%h:%.2m:%.2s" (cadr time))
+            #("  " 0 1 (display "")) ;; compensate for width of the icon
+            (let ((all-the-icons-default-faicon-adjust 0.25))
+              (if (eq (car time) 'sunrise)
+                  (all-the-icons-faicon "moon-o")
+                (all-the-icons-faicon "sun-o"))))))
+(defvar k-status-functions '(vampire-time-status k-time-status))
+(defun k-time-status ()
+  (format-time-string "%-m/%d %-I:%M %p"))
 (when (executable-find "acpi")
+  (defun k-battery-status ()
+    (let ((output (shell-command-to-string "acpi --battery"))
+          (case-fold-search nil))
+      (string-match " \\([0-9]+\\)%" output)
+      (let* ((percent (string-to-number (match-string 1 output)))
+             (charging (string-match-p "Charging" output))
+             (quarter (/ percent 25))
+             (all-the-icons-default-faicon-adjust 0.2)
+             (all-the-icons-default-alltheicon-adjust 0.2))
+        (concat
+         (cond (charging (all-the-icons-alltheicon "battery-charging"))
+               ((> quarter 3) (all-the-icons-faicon "battery-full"))
+               ((> quarter 2) (all-the-icons-faicon "battery-three-quarters"))
+               ((> quarter 1) (all-the-icons-faicon "battery-half"))
+               ((> quarter 0) (all-the-icons-faicon "battery-quarter"))
+               (t (all-the-icons-faicon "battery-empty" :face 'error)))
+         #("  " 0 1 (display "")) ;; compensate for width of the icon
+         (match-string 1 output) "%"))))
   (add-to-list 'k-status-functions 'k-battery-status))
 
 (defun vampire-time-update ()
@@ -2195,24 +2221,8 @@ that if there is ht's overlay at at the top then return 'default"
       :around (orig estr attrs)
       (funcall orig estr (plist-put attrs :align-symbol nil)))
      (apply orig args)))
-  (require 'gnus-sum)
   (define-advice telega-ins--date (:around (orig timestamp))
-    (telega-ins
-     (condition-case ()
-         (let* ((messy-date timestamp)
-	        ;;If we don't find something suitable we'll use this one
-	        (my-format "%b %d '%y"))
-	   (let* ((difference (time-subtract nil messy-date))
-	          (templist gnus-user-date-format-alist)
-	          (top (eval (caar templist) t)))
-	     (while (if (numberp top) (time-less-p top difference) (not top))
-	       (progn
-	         (setq templist (cdr templist))
-	         (setq top (eval (caar templist) t))))
-	     (if (stringp (cdr (car templist)))
-	         (setq my-format (cdr (car templist)))))
-	   (format-time-string (eval my-format t) messy-date))
-       (error "  ?   "))))
+    (telega-ins (k-format-relative-date timestamp)))
   (defun k-telega-load-all-history ()
     "Load all history in current chat."
     (interactive)
@@ -2266,6 +2276,21 @@ that if there is ht's overlay at at the top then return 'default"
                            state thcount  ttname tpgid minflt majflt cminflt cmajflt
                            start time utime stime ctime cutime cstime etime pid ppid user euid group egid args)))
   (add-hook 'proced-mode-hook (lambda () (proced-toggle-auto-update 1))))
+
+;;; Undo Tree
+
+(use-package undo-tree
+  :bind ( :map undo-tree-visualizer-mode-map
+          ("M-n" . undo-tree-visualize-redo-to-x)
+          ("M-p" . undo-tree-visualize-undo-to-x))
+  :config
+  (setq undo-limit 1000000)
+  (setq undo-strong-limit 10000000)
+  (setq undo-outer-limit 100000000)
+  (setq undo-tree-enable-undo-in-region t)
+  (setq undo-tree-visualizer-timestamps t
+        undo-tree-auto-save-history nil) ;; To fucking slow!
+  (global-undo-tree-mode))
 
 (provide 'init)
 ;;; init.el ends here
