@@ -665,7 +665,8 @@
         lsp-ltex-latex-environments '(("mathpar" . "ignore"))
         lsp-ltex-latex-commands '(("\\lstset{}" . "ignore"))))
 
-(use-package auctex
+(use-package tex
+  :ensure auctex
   :config
   ;; to use pdfview with auctex
   (setq TeX-view-program-selection '((output-pdf "PDF Tools"))
@@ -1577,7 +1578,8 @@ that if there is ht's overlay at at the top then return 'default"
 ;;; Web browsing
 
 (require 'eww)
-(setq browse-url-browser-function 'eww-browse-url)
+(setq-default browse-url-browser-function 'eww-browse-url
+              eww-search-prefix "https://google.com/search?q=")
 (add-hook 'eww-after-render-hook 'k-pad-header-line-after-advice)
 (defvar k-eww-history (make-hash-table :test 'equal)
   "Global history for eww. A EQUAL hash that maps title strings to URL.")
@@ -2284,13 +2286,13 @@ that if there is ht's overlay at at the top then return 'default"
           ("M-n" . undo-tree-visualize-redo-to-x)
           ("M-p" . undo-tree-visualize-undo-to-x))
   :config
-  (setq undo-limit 1000000)
-  (setq undo-strong-limit 10000000)
-  (setq undo-outer-limit 100000000)
-  (setq undo-tree-enable-undo-in-region t)
-  (setq undo-tree-visualizer-timestamps t
-        undo-tree-auto-save-history nil) ;; To fucking slow!
-  (global-undo-tree-mode))
+  (setq-default undo-limit 1000000
+                undo-strong-limit 10000000
+                undo-outer-limit 100000000
+                undo-tree-enable-undo-in-region t
+                undo-tree-auto-save-history nil ;; Too fucking slow!
+                undo-tree-visualizer-timestamps t))
+(global-undo-tree-mode)
 
 (provide 'init)
 ;;; init.el ends here
