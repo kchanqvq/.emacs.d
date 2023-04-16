@@ -40,6 +40,12 @@
     (comint-send-string (get-buffer-process (current-buffer))
                         (concat command "\n"))))
 
+(defun k-global-set-key (key command)
+  "Bind KEY to COMMAND, also works in EXWM windows."
+  (when (k-exwm-enabled-p)
+    (define-key exwm-mode-map key command))
+  (global-set-key key command))
+
 ;;; Initial config
 
 (require 'package)
@@ -102,6 +108,7 @@
   (set-fontset-font t 'symbol "Apple Color Emoji" nil 'append))
 
 (load (setq custom-file "~/.emacs.d/custom/custom.el"))
+(add-hook 'after-save-hook 'executable-make-buffer-file-executable-if-script-p)
 
 ;;; Mode line
 
@@ -163,10 +170,6 @@
 (setq-default use-package-always-ensure t)
 
 (use-package system-packages)
-
-(use-package ffap
-  :config
-  (ffap-bindings))
 
 (defvar k--company-current-index)
 
@@ -464,19 +467,9 @@
   "Elegantly switch to k-theme with STYLE."
   (interactive
    (list (intern (completing-read "Style: " '(bright dark) nil t))))
-  (let (fix-highlight-indent-guides)
-    (setq k-color-style style)
-    (highlight-tail-mode 0)
-    (dolist (buffer (buffer-list))
-      (with-current-buffer buffer
-        (when highlight-indent-guides-mode
-          (highlight-indent-guides-mode 0)
-          (push buffer fix-highlight-indent-guides))))
-    (load "~/.emacs.d/themes/k-theme.el")
-    (dolist (buffer fix-highlight-indent-guides)
-      (with-current-buffer buffer
-        (highlight-indent-guides-mode)))
-    (highlight-tail-mode)))
+  (pcase style
+    ('bright (k-generate-theme 0.578 0.920 0.724 0.000 nil))
+    ('dark (k-generate-theme 0.578 0.446 0.578 0.105 t))))
 
 (let ((fringe-width (/ (* (string-pixel-width "o") 4) 3)))
   (setq default-frame-alist (append
@@ -698,8 +691,7 @@
 
 (use-package cdlatex
   :config
-  (setq cdlatex-math-symbol-alist '((42 ("\\times" "\\product")) (43 ("\\cup" "\\sum"))))
-  (turn-on-cdlatex))
+  (setq cdlatex-math-symbol-alist '((42 ("\\times" "\\product")) (43 ("\\cup" "\\sum")))))
 
 ;;; Completion
 
@@ -977,31 +969,18 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (global-set-key (kbd "s-s") 'consult-line)
 (global-set-key (kbd "C-z") 'embark-act)
 
-(cl-flet ((global-set-key (key command)
-            (when (k-exwm-enabled-p)
-              (define-key exwm-mode-map key command))
-            (global-set-key key command)))
-  (global-set-key (kbd "s-0") 'delete-window)
-  (global-set-key (kbd "s-1") 'zygospore-toggle-delete-other-windows)
-  (global-set-key (kbd "C-x 1") 'zygospore-toggle-delete-other-windows)
-  (global-set-key (kbd "s-2") 'split-window-below)
-  (global-set-key (kbd "s-3") 'split-window-right)
-  (global-set-key (kbd "s-p") 'windmove-up)
-  (global-set-key (kbd "s-n") 'windmove-down)
-  (global-set-key (kbd "s-r") 'windmove-right)
-  (global-set-key (kbd "s-l") 'windmove-left)
-  (global-set-key (kbd "s-k") 'bury-buffer)
-  (global-set-key (kbd "s-i") 'find-file)
-  (global-set-key (kbd "s-q") 'consult-buffer))
-;; (define-key helm-find-files-map (kbd "s-d") 'helm-ff-run-delete-file)
-;; (define-key helm-find-files-map (kbd "s-w") 'helm-ff-run-copy-file)
-;; (define-key helm-find-files-map (kbd "s-l") 'helm-ff-run-symlink-file)
-;; (define-key helm-find-files-map (kbd "s-r") 'helm-ff-run-rename-file)
-;; (define-key helm-buffer-map (kbd "s-d") 'helm-buffer-run-kill-buffers)
-;; (define-key helm-buffer-map (kbd "M-D") nil)
+(k-global-set-key (kbd "s-0") 'delete-window)
+(k-global-set-key (kbd "s-1") 'zygospore-toggle-delete-other-windows)
+(k-global-set-key (kbd "C-x 1") 'zygospore-toggle-delete-other-windows)
+(k-global-set-key (kbd "s-2") 'split-window-below)
+(k-global-set-key (kbd "s-3") 'split-window-right)
+(k-global-set-key (kbd "s-k") 'bury-buffer)
+(k-global-set-key (kbd "s-i") 'find-file)
+(k-global-set-key (kbd "s-q") 'consult-buffer)
+
 (global-set-key (kbd "s-SPC") 'fixup-whitespace)
 
-(global-set-key (kbd "s-g") 'eww-new-buffer)
+(k-global-set-key (kbd "s-g") 'eww-new-buffer)
 
 (when (k-exwm-enabled-p)
   (setq exwm-input-global-keys
@@ -1046,6 +1025,11 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 (define-key emacs-lisp-mode-map (kbd "C-c C-p") #'eval-print-last-sexp)
 
+(use-package kmacro
+  :bind (("C-x (" . kmacro-start-macro-or-insert-counter)
+         ("C-x e" . kmacro-end-or-call-macro)
+         ("C-x )" . nil)))
+
 ;;; Lisp development
 (progn
  ;; General mode setup
@@ -1089,6 +1073,9 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
  (slime-setup '(slime-company slime-fancy slime-quicklisp
                               slime-asdf slime-media slime-parse slime-mrepl))
+ (define-advice slime-load-contribs
+      (:after (&rest args) k)
+    (slime-load-file "~/.emacs.d/scripts.lisp"))
  (require 'slime-company)
  (setq-default slime-company-completion 'fuzzy)
  (setq slime-lisp-implementations
@@ -1239,7 +1226,8 @@ Otherwise call ORIG-FUN with ARGS."
  (add-hook 'minibuffer-setup-hook 'sexp-minibuffer-hook)
 
  ;; Slime debug window non-prolifiration
- (add-to-list 'display-buffer-alist '("\\`*sldb" (display-buffer-reuse-mode-window))))
+ (add-to-list 'display-buffer-alist '("\\`*sldb" (display-buffer-reuse-mode-window)))
+ (slime))
 
 (use-package which-key
   :config
@@ -1256,65 +1244,44 @@ Otherwise call ORIG-FUN with ARGS."
 
 ;;; window/buffer/frame/workspaces movement
 
-(use-package zygospore)
-(use-package buffer-move)
-(use-package windmove
-  :bind (;; Intuitively, this works like windmove but move buffer together with cursor.
-         ("C-s-p" . buf-move-up)
-         ("C-s-n" . buf-move-down)
-         ("C-s-r" . buf-move-right)
-         ("C-s-l" . buf-move-left))
+(use-package buffer-move
   :config
+  ;; Intuitively, this works like windmove but move buffer together with cursor.
+  (k-global-set-key (kbd "C-s-p") 'buf-move-up)
+  (k-global-set-key (kbd "C-s-n") 'buf-move-down)
+  (k-global-set-key (kbd "C-s-r") 'buf-move-right)
+  (k-global-set-key (kbd "C-s-l") 'buf-move-left))
+
+(use-package windmove
+  :config
+  (k-global-set-key (kbd "s-p") 'windmove-up)
+  (k-global-set-key (kbd "s-n") 'windmove-down)
+  (k-global-set-key (kbd "s-r") 'windmove-right)
+  (k-global-set-key (kbd "s-l") 'windmove-left)
   ;; Moving between window/buffer/frame/workspaces in 4 directions
   (defun next-workspace (direction)
     (cl-case direction
       (left (exwm-workspace-switch (1- exwm-workspace-current-index)))
       (right (exwm-workspace-switch (1+ exwm-workspace-current-index)))))
-  (if (not (k-exwm-enabled-p))
-      (progn
-        (require 'framemove)
-        (setq framemove-hook-into-windmove t))
-    (defun windmove-select-advice (orig-func dir &rest args)
-      "If there is an error, try framemove in that direction."
-      (condition-case nil
-          (apply orig-func dir args)
-        (error (next-workspace dir))))
-    (advice-add 'windmove-do-window-select :around #'windmove-select-advice))
+  (when (not (k-exwm-enabled-p))
+      (require 'framemove))
 
-  ;; Override buffer-move to support inter-frame/inter-exwm-workspace buffer movement.
-  (defun buf-move-to (direction)
-    "Helper function to move the current buffer to the window in the given
-   direction (with must be `up', `down', `left' or `right').  An error is
-   thrown, if no window exists in this direction."
-    (let* ((this-win (selected-window))
-           (buf-this-buf (window-buffer this-win))
-           (other-win
-            (let ((buf-this-window (windmove-find-other-window direction)))
-              (if (null buf-this-window)
-                  (progn
-                    (if (k-exwm-enabled-p)
-                        (next-workspace direction)
-                      (fm-next-frame direction))
-                    (selected-window))
-                buf-this-window))))
-      (if (null other-win)
-          (error "No window in this direction")
-        (if (window-dedicated-p other-win)
-            (error "The window in this direction is dedicated"))
-        (if (string-match "^ \\*Minibuf" (buffer-name (window-buffer other-win)))
-            (error "The window in this direction is the Minibuf"))
-        (if (eq buffer-move-behavior 'move)
-            ;; switch selected window to previous buffer (moving)
-            (switch-to-prev-buffer this-win)
-          ;; switch selected window to buffer of other window (swapping)
-          (set-window-buffer this-win (window-buffer other-win)))
+  (define-advice windmove-find-other-window
+      (:around (orig-func direction &rest args) k)
+    "If there is an error, try framemove in that direction."
+    (or (apply orig-func direction args)
+        (progn
+          (if (k-exwm-enabled-p)
+              (next-workspace direction)
+            (fm-next-frame direction))
+          (selected-window)))))
 
-        ;; switch other window to this buffer
-        (set-window-buffer other-win buf-this-buf)
-
-        (when (or (null buffer-move-stay-after-swap)
-                  (eq buffer-move-behavior 'move))
-          (select-window other-win))))))
+(global-set-key (kbd "s-c") nil)
+(use-package winner
+  :bind ( ("s-c" . winner-undo)
+          ("s-C" . winner-redo))
+  :config
+  (winner-mode))
 
 (use-package avy
   :config
@@ -1346,7 +1313,7 @@ Otherwise call ORIG-FUN with ARGS."
   (add-hook 'emms-playlist-mode-hook 'stripes-mode)
   (add-hook 'emms-playlist-mode-hook 'hl-line-mode)
 
-  (setq emms-source-file-default-directory "~/Music/EMMS/")
+  (setq emms-source-file-default-directory "~/.emacs.d/")
 
   ;; Patch `emms-playlist-mode-overlay-selected' so that overlay extend to full line
   ;; Also set a `priority'
@@ -1432,7 +1399,20 @@ Otherwise call ORIG-FUN with ARGS."
           ((executable-find "python3") "python3")
           (t (warn "Unable to guess python3 path."))))
   (setq emms-info-tinytag-python-name k-python3)
-  (add-to-list 'emms-info-functions 'emms-info-tinytag))
+  (add-to-list 'emms-info-functions 'emms-info-tinytag)
+
+  (defun k-emms-generate-theme ()
+    (let ((url (emms-track-get (emms-playlist-current-selected-track) 'name)))
+      (when (string-match "https://www.youtube.com/watch\\?v=\\(.*\\)" url)
+        (slime-eval-async ;; `(cl:ignore-errors (k/cl-user::get-color-url ,(concat "https://img.youtube.com/vi/" (match-string 1 url) "/default.jpg")))
+            `(k/cl-user::get-color-url ,(concat "https://img.youtube.com/vi/" (match-string 1 url) "/default.jpg"))
+          (lambda (colors)
+            (if colors
+                (progn
+                  (message "Generate theme: %s" colors)
+                  (k-generate-theme (nth 0 colors) (nth 1 colors) (nth 2 colors) 0.0 t))
+              (k-theme-switch 'dark)))))))
+  (add-hook 'emms-player-started-hook 'k-emms-generate-theme))
 
 ;;; Cute and useless visuals!
 
@@ -1442,7 +1422,6 @@ Otherwise call ORIG-FUN with ARGS."
 (defvar blink-cursor-colors nil)
 (defvar blink-highlight-colors nil)
 (setq highlight-tail-colors `((,(car blink-highlight-colors) . 0)))
-(highlight-tail-mode)
 (setq blink-cursor-count 0)
 (blink-cursor-mode)
 (defun blink-cursor-timer-function ()
@@ -1452,27 +1431,28 @@ Otherwise call ORIG-FUN with ARGS."
     (let ((color (nth blink-cursor-count blink-cursor-colors))
           (hl-color (nth blink-cursor-count blink-highlight-colors)))
       (set-cursor-color color)
-      (setq highlight-tail-colors `((,hl-color . 0)))
-      (setq highlight-tail-colors-fade-list nil
-            highlight-tail-nonhtfaces-bgcolors nil
-            highlight-tail-const-overlays-list nil
-            highlight-tail-update-const-overlays-to-this-list nil
-            highlight-tail-face-max nil)
-      (let* ((background-color-name (face-background 'default))
-             (background-color-hex (highlight-tail-hex-from-colorname
-                                    background-color-name)))
-        (setq highlight-tail-default-background-color background-color-name))
-      (setq highlight-tail-colors-with-100
-            (if (= (cdr (nth (1- (length highlight-tail-colors))
-                             highlight-tail-colors))
-                   100)
-                highlight-tail-colors
-              (append highlight-tail-colors (list '(null . 100)))))
-      (setq highlight-tail-face-max highlight-tail-steps)
-      (highlight-tail-add-colors-fade-table 'start)
-      (highlight-tail-add-colors-fade-table 'default)
-      (highlight-tail-make-faces
-       (highlight-tail-get-colors-fade-table-with-key 'default))
+      (when nil
+        (setq highlight-tail-colors `((,hl-color . 0)))
+        (setq highlight-tail-colors-fade-list nil
+              highlight-tail-nonhtfaces-bgcolors nil
+              highlight-tail-const-overlays-list nil
+              highlight-tail-update-const-overlays-to-this-list nil
+              highlight-tail-face-max nil)
+        (let* ((background-color-name (face-background 'default))
+               (background-color-hex (highlight-tail-hex-from-colorname
+                                      background-color-name)))
+          (setq highlight-tail-default-background-color background-color-name))
+        (setq highlight-tail-colors-with-100
+              (if (= (cdr (nth (1- (length highlight-tail-colors))
+                               highlight-tail-colors))
+                     100)
+                  highlight-tail-colors
+                (append highlight-tail-colors (list '(null . 100)))))
+        (setq highlight-tail-face-max highlight-tail-steps)
+        (highlight-tail-add-colors-fade-table 'start)
+        (highlight-tail-add-colors-fade-table 'default)
+        (highlight-tail-make-faces
+         (highlight-tail-get-colors-fade-table-with-key 'default)))
       (setq blink-cursor-count (+ 1 blink-cursor-count))))
   (internal-show-cursor nil (not (internal-show-cursor-p))))
 
@@ -1519,13 +1499,11 @@ that if there is ht's overlay at at the top then return 'default"
     point-face-bgcolor-hex))
 (byte-compile 'highlight-tail-get-bgcolor-hex)
 
-(require 'highlight-indent-guides)
-(setq highlight-indent-guides-method 'bitmap)
-(clrhash highlight-indent-guides--bitmap-memo)
-(setq highlight-indent-guides-bitmap-function 'highlight-indent-guides--bitmap-line)
-(setq highlight-indent-guides-responsive 'top)
-(setq highlight-indent-guides-auto-enabled nil)
-(setq highlight-indent-guides-delay 0)
+(use-package highlight-indent-guides
+  :config
+  (setq highlight-indent-guides-method 'character)
+  (setq highlight-indent-guides-responsive nil)
+  (setq highlight-indent-guides-auto-enabled nil))
 
 ;;; Scheme
 
@@ -1620,6 +1598,12 @@ that if there is ht's overlay at at the top then return 'default"
     (k-browse-url-chromium (plist-get eww-data :url)))
   (define-key eww-mode-map (kbd "f") 'k-eww-reload-in-chromium))
 
+(use-package pdf-tools
+  :config
+  (pdf-tools-install))
+
+(k-theme-switch 'bright)
+
 (when (featurep 'xwidget-internal)
   (add-to-list 'load-path "~/.emacs.d/lisp/xwwp")
   (require 'xwwp-full)
@@ -1690,13 +1674,6 @@ that if there is ht's overlay at at the top then return 'default"
             '(lambda ()
                (setq-local hl-line-face '(:inherit match :extend t))
                (hl-line-mode))))
-
-(use-package pdf-tools
-  :defer t
-  :mode
-  ("\\.pdf\\'" . pdf-view-mode)
-  :config
-  (pdf-tools-install))
 
 ;;; EXWM
 (when (executable-find "import")
@@ -1952,6 +1929,10 @@ that if there is ht's overlay at at the top then return 'default"
 	  (setq my-format (cdr (car templist)))))
     (format-time-string (eval my-format t) messy-date)))
 
+(require 'message)
+(setq-default message-signature "Best,\nQiantan"
+              message-fill-column nil)
+
 (use-package notmuch
   :defer t
   :bind ( :map notmuch-common-keymap
@@ -1969,7 +1950,11 @@ that if there is ht's overlay at at the top then return 'default"
                 '("Subject"
                   ;; "Date" ;; relative date already displayed in summary line
                   "To"
-                  "Cc"))
+                  "Cc")
+                notmuch-wash-citation-regexp  "\\(^[[:space:]]*>.*\n\\)+\\|\\(^____*\n\\(.*\n\\)*\\)"
+                notmuch-wash-citation-lines-prefix 2
+                notmuch-wash-citation-lines-suffix 0
+                notmuch-fcc-dirs nil)
   (defun notmuch-search-show-result (result pos)
     "Insert RESULT at POS."
     ;; Ignore excluded matches
@@ -2005,7 +1990,14 @@ that if there is ht's overlay at at the top then return 'default"
   (defun k-update-notmuch (&optional silent)
     "Update email database asynchronously."
     (interactive)
-    (unless (process-live-p (get-buffer-process (get-buffer "*notmuch-update*")))
+    (unless
+      (cl-find-if (lambda (p)
+                    (let ((case-fold-search t))
+                      (string-match-p "davmail" (or (cdr (assoc 'args (process-attributes p))) ""))))
+                  (list-system-processes))
+      (start-process "davmail" "*davmail*" "davmail"))
+    (if (process-live-p (get-buffer-process (get-buffer "*notmuch-update*")))
+        (unless silent (display-buffer "*notmuch-update*" '(nil (inhibit-same-window . t))))
       (k-run-helper-command "mbsync -a; notmuch new; exit" "*notmuch-update*"
                             #'notmuch-refresh-all-buffers silent))))
 
@@ -2282,7 +2274,8 @@ that if there is ht's overlay at at the top then return 'default"
 ;;; Undo Tree
 
 (use-package undo-tree
-  :bind ( :map undo-tree-visualizer-mode-map
+  :bind ( ("s-z" . undo-tree-visualize)
+          :map undo-tree-visualizer-mode-map
           ("M-n" . undo-tree-visualize-redo-to-x)
           ("M-p" . undo-tree-visualize-undo-to-x))
   :config
