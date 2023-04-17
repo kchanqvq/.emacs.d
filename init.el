@@ -471,7 +471,7 @@
     ('bright (k-generate-theme 0.578 0.920 0.724 0.000 nil))
     ('dark (k-generate-theme 0.578 0.446 0.578 0.105 t))))
 
-(let ((fringe-width (/ (* (string-pixel-width "o") 4) 3)))
+(let ((fringe-width (/ (* (string-pixel-width "o") 16) 3)))
   (setq default-frame-alist (append
                              `((left-fringe . ,fringe-width)
                                (right-fringe . ,fringe-width))
