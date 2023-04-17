@@ -667,6 +667,7 @@
    `(shadow ((default :foreground ,k-fg-1)))
    `(success ((default :foreground ,k-dk-blue)))
    `(warning ((default :foreground ,k-dk-pink :inherit bold)))
+   `(escape-glyph ((default :foreground ,k-fg-red :distant-foreground ,k-fg-red)))
 
    ;; Flycheck
    `(flycheck-error-list-highlight ((default :inherit bold)))
@@ -1046,6 +1047,7 @@
    `(term-color-magenta ((default :foreground ,k-dk-purple)))
    `(term-color-cyan    ((default :foreground ,k-dk-blue)))
    `(term-color-white   ((default (:inherit default))))
+
    `(pyim-page ((default :background ,k-bg)))
    `(pyim-page-selection ((default :inherit match)))))
 
@@ -1535,7 +1537,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (setq embark-indicators
         '( embark--vertico-indicator embark-minimal-indicator
            embark-highlight-indicator embark-isearch-highlight-indicator)))
-(use-package embark-consult)
+;(use-package embark-consult)
 
 ;;; Misc key bindings
 
