@@ -1056,6 +1056,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
  (add-hook 'lisp-mode-hook #'slime-mode)
  (add-hook 'lisp-mode-hook #'slime-editing-mode)
  (add-hook 'lisp-mode-hook 'ensure-slime)
+
  (remove-hook 'lisp-mode-hook 'sly-editing-mode)
  (mapc (lambda (h)
          (add-hook h (lambda () (setq-local lisp-indent-function 'common-lisp-indent-function))))
@@ -1094,6 +1095,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
  (defun ensure-slime ()
    (unless slime-default-connection
      (slime)))
+ (ensure-slime)
 
  (defun slime-repl-sync ()
    "Switch to Slime REPL and synchronize package/directory."
@@ -1313,7 +1315,6 @@ Otherwise call ORIG-FUN with ARGS."
   (emms-mode-line-mode 0)
   (add-hook 'emms-playlist-mode-hook 'stripes-mode)
   (add-hook 'emms-playlist-mode-hook 'hl-line-mode)
-  (add-hook 'emms-playlist-mode-hook 'ensure-slime)
 
   (setq emms-source-file-default-directory "~/.emacs.d/")
 
@@ -1748,6 +1749,10 @@ that if there is ht's overlay at at the top then return 'default"
   (add-hook 'exwm-randr-screen-change-hook 'k-auto-xrandr)
   (when (k-exwm-enabled-p)
     (k-auto-xrandr)))
+
+(when (k-exwm-enabled-p)
+  (start-process "picom" "*picom*" "picom"))
+
 (use-package org
   :config
   (require 'tex-mode)
