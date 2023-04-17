@@ -468,8 +468,8 @@
   (interactive
    (list (intern (completing-read "Style: " '(bright dark) nil t))))
   (pcase style
-    ('bright (k-generate-theme 0.578 0.920 0.724 0.000 nil))
-    ('dark (k-generate-theme 0.578 0.446 0.578 0.105 t))))
+    ('bright (k-generate-theme 0.578 1.0 0.920 1.0 0.724 1.0 0.000 nil))
+    ('dark (k-generate-theme 0.578 1.0 0.446 1.0 0.578 1.0 0.105 t))))
 
 (let ((fringe-width (/ (* (string-pixel-width "o") 4) 3)))
   (setq default-frame-alist (append
@@ -984,7 +984,8 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 (when (k-exwm-enabled-p)
   (setq exwm-input-global-keys
-        `((,(kbd "s-<escape>") . exwm-reset)))
+        `((,(kbd "s-<escape>") . exwm-reset)
+          (,(kbd "s-s") . exwm-background/exwm-background-window)))
   (setq exwm-input-simulation-keys
         '(([?\C-b] . [left])
           ([?\C-f] . [right])
@@ -1092,7 +1093,8 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
  ;; Handy slime commands and key bindings
  (defun ensure-slime ()
    (unless slime-default-connection
-     (save-excursion (slime))))
+     (slime)))
+
  (defun slime-repl-sync ()
    "Switch to Slime REPL and synchronize package/directory."
    (interactive)
@@ -1226,8 +1228,7 @@ Otherwise call ORIG-FUN with ARGS."
  (add-hook 'minibuffer-setup-hook 'sexp-minibuffer-hook)
 
  ;; Slime debug window non-prolifiration
- (add-to-list 'display-buffer-alist '("\\`*sldb" (display-buffer-reuse-mode-window)))
- (slime))
+ (add-to-list 'display-buffer-alist '("\\`*sldb" (display-buffer-reuse-mode-window))))
 
 (use-package which-key
   :config
@@ -1312,6 +1313,7 @@ Otherwise call ORIG-FUN with ARGS."
   (emms-mode-line-mode 0)
   (add-hook 'emms-playlist-mode-hook 'stripes-mode)
   (add-hook 'emms-playlist-mode-hook 'hl-line-mode)
+  (add-hook 'emms-playlist-mode-hook 'ensure-slime)
 
   (setq emms-source-file-default-directory "~/.emacs.d/")
 
@@ -1366,7 +1368,7 @@ Otherwise call ORIG-FUN with ARGS."
                         (if total (format-seconds "%.2h:%z%.2m:%.2s" total) "unknown"))
                       'face 'bold))
        "")))
-
+  (add-to-list 'emms-player-mpv-parameters "--ytdl-format=best")
   (defun k-emms-toggle-video (&rest args)
     "TELL MPV player to switch to video/no-video mode."
     (interactive)
@@ -1404,15 +1406,33 @@ Otherwise call ORIG-FUN with ARGS."
   (defun k-emms-generate-theme ()
     (let ((url (emms-track-get (emms-playlist-current-selected-track) 'name)))
       (when (string-match "https://www.youtube.com/watch\\?v=\\(.*\\)" url)
-        (slime-eval-async ;; `(cl:ignore-errors (k/cl-user::get-color-url ,(concat "https://img.youtube.com/vi/" (match-string 1 url) "/default.jpg")))
+        (slime-eval-async
             `(k/cl-user::get-color-url ,(concat "https://img.youtube.com/vi/" (match-string 1 url) "/default.jpg"))
           (lambda (colors)
             (if colors
-                (progn
+                (let ((inhibit-message t))
                   (message "Generate theme: %s" colors)
-                  (k-generate-theme (nth 0 colors) (nth 1 colors) (nth 2 colors) 0.0 t))
-              (k-theme-switch 'dark)))))))
-  (add-hook 'emms-player-started-hook 'k-emms-generate-theme))
+                  (apply #'k-generate-theme
+                         (append colors '(0.0 t)))
+                  (set-frame-parameter nil 'alpha 90))
+              (k-theme-switch 'dark)
+              (set-frame-parameter nil 'alpha 100)))))))
+
+  (when (k-exwm-enabled-p)
+    (add-hook 'emms-player-started-hook 'k-emms-generate-theme)
+
+    ;; Rage haxxxx!!!  This relies on `exwm--update-class' being
+    ;; called right after `exwm--update-window-type' in
+    ;; `exwm-manage--manage-window', so we can overwrite
+    ;; `exwm-window-type' to let code after this think the `mpv'
+    ;; window is a desktop window.
+    (defun k-exwm-update-class ()
+      (pcase exwm-class-name
+        ("mpv"
+         (setq exwm-window-type (list xcb:Atom:_NET_WM_WINDOW_TYPE_DESKTOP))
+         (with-slots (x y width height) (exwm-workspace--get-geometry exwm--frame)
+           (exwm--set-geometry exwm--id x y width height)))))
+    (add-hook 'exwm-update-class-hook 'k-exwm-update-class)))
 
 ;;; Cute and useless visuals!
 
@@ -1698,6 +1718,10 @@ that if there is ht's overlay at at the top then return 'default"
     (cl-check-type volume number)
     (unless (= 0 (call-process-shell-command (format "amixer set Master %s%%" volume)))
       (error "Failed to set volume"))))
+(when (k-exwm-enabled-p)
+  (use-package hydra)
+  (add-to-list 'load-path "~/.emacs.d/lisp/exwm-background")
+  (require 'exwm-background))
 
 (when (executable-find "xrandr")
   (defun jw/xrandr-output-list ()
@@ -2106,7 +2130,7 @@ that if there is ht's overlay at at the top then return 'default"
   (add-to-list 'k-status-functions 'k-battery-status))
 
 (defun vampire-time-update ()
-  (let* ((msg (mapconcat #'funcall k-status-functions (propertize "│" 'face `(:foreground ,k-fg-blue))))
+  (let* ((msg (mapconcat #'funcall k-status-functions "  "))
          (width (string-width msg))
          (msg (concat (propertize " " 'display
                                   `(space :align-to (- right-fringe ,width)))

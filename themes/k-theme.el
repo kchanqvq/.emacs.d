@@ -55,32 +55,33 @@
 (defsubst k-hsl-to-hex (h s l)
   (apply #'color-rgb-to-hex (color-hsl-to-rgb h s l)))
 ;; (k-generate-theme 0.578 0.724 0.920 0.000 0.667 nil)
-(defun k-generate-theme (hue-1 hue-2 hue-3 contrast dark-p)
+(defun k-generate-theme (hue-1 sat-1 hue-2 sat-2 hue-3 sat-3
+                               contrast dark-p)
   (if dark-p
-      (setq k-bg-blue (k-hsl-to-hex hue-1 0.4 0.3)
-            k-fg-blue (k-hsl-to-hex hue-1 1.0 0.75)
-            k-dk-blue (k-hsl-to-hex hue-1 1.0 0.8)
+      (setq k-bg-blue (k-hsl-to-hex hue-1 (* sat-1 0.4) 0.3)
+            k-fg-blue (k-hsl-to-hex hue-1 sat-1 0.75)
+            k-dk-blue (k-hsl-to-hex hue-1 sat-1 0.8)
             k-bg-stripe (k-hsl-to-hex 0.0 0.0 0.1))
-    (setq k-bg-blue (k-hsl-to-hex hue-1 1.0 0.87)
-          k-fg-blue (k-hsl-to-hex hue-1 1.0 0.75)
-          k-dk-blue (k-hsl-to-hex hue-1 1.0 0.5)
+    (setq k-bg-blue (k-hsl-to-hex hue-1 sat-1 0.87)
+          k-fg-blue (k-hsl-to-hex hue-1 sat-1 0.75)
+          k-dk-blue (k-hsl-to-hex hue-1 sat-1 0.5)
           k-bg-stripe k-bg-blue))
 
   (if dark-p
-      (setq k-bg-pink (k-hsl-to-hex hue-2 0.4 0.3)
-            k-fg-pink (k-hsl-to-hex hue-2 1.0 0.75)
-            k-dk-pink (k-hsl-to-hex hue-2 1.0 0.8))
-    (setq k-bg-pink (k-hsl-to-hex hue-2 0.9 0.92)
-          k-fg-pink (k-hsl-to-hex hue-2 1.0 0.75)
-          k-dk-pink (k-hsl-to-hex hue-2 1.0 0.5)))
+      (setq k-bg-pink (k-hsl-to-hex hue-2 (* sat-2 0.4) 0.3)
+            k-fg-pink (k-hsl-to-hex hue-2 sat-2 0.75)
+            k-dk-pink (k-hsl-to-hex hue-2 sat-2 0.8))
+    (setq k-bg-pink (k-hsl-to-hex hue-2 (* sat-2 0.9) 0.92)
+          k-fg-pink (k-hsl-to-hex hue-2 sat-2 0.75)
+          k-dk-pink (k-hsl-to-hex hue-2 sat-2 0.5)))
 
   (if dark-p
-      (setq k-bg-purple (k-hsl-to-hex hue-3 0.4 0.3)
-            k-fg-purple (k-hsl-to-hex hue-3 1.0 0.75)
-            k-dk-purple (k-hsl-to-hex hue-3 1.0 0.8))
-    (setq k-bg-purple (k-hsl-to-hex hue-3 0.9 0.92)
-          k-fg-purple (k-hsl-to-hex hue-3 1.0 0.75)
-          k-dk-purple (k-hsl-to-hex hue-3 1.0 0.5)))
+      (setq k-bg-purple (k-hsl-to-hex hue-3 (* sat-3 0.4) 0.3)
+            k-fg-purple (k-hsl-to-hex hue-3 sat-3 0.75)
+            k-dk-purple (k-hsl-to-hex hue-3 sat-3 0.8))
+    (setq k-bg-purple (k-hsl-to-hex hue-3 (* sat-3 0.9) 0.92)
+          k-fg-purple (k-hsl-to-hex hue-3 sat-3 0.75)
+          k-dk-purple (k-hsl-to-hex hue-3 sat-3 0.5)))
 
   (if dark-p
       (setq k-bg-grey-1 (k-hsl-to-hex 0.0 0.0 0.10)
@@ -94,7 +95,7 @@
   (if dark-p
       (setq k-bg "#000000"
             k-fg (k-hsl-to-hex 0.0 0.0 1.0)
-            k-fg-1 (k-hsl-to-hex hue-1 1.0 0.8))
+            k-fg-1 (k-hsl-to-hex hue-1 sat-1 0.8))
     (setq k-bg "#ffffff"
           k-fg (k-hsl-to-hex 0.0 0.0 0.0)
           k-fg-1 (k-hsl-to-hex
@@ -196,6 +197,7 @@
    `(font-lock-type-face ((default :inherit k-proper-name)))
    `(font-lock-warning-face ((default :inherit warning)))
    `(error ((default :foreground ,k-fg-red :inherit bold)))
+   `(escape-glyph ((default :foreground ,k-fg-pink)))
    `(shadow ((default :foreground ,k-fg-1)))
    `(success ((default :foreground ,k-dk-blue)))
    `(warning ((default :foreground ,k-dk-pink :inherit bold)))
