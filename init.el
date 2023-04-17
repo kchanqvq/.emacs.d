@@ -1032,15 +1032,15 @@
    `(telega-mention-count ((default :inherit (telega-unmuted-count bold))))
    `(pulse-highlight-start-face ((default :background ,k-bg-blue :extend t)))
    ;; ansi-term
-   ;; `(term ((,class (:foreground nil :background nil :inherit default))))
-   ;; `(term-color-black   ((,class (:foreground ,foreground :background ,foreground))))
-   ;; `(term-color-error     ((,class (:foreground ,error :background ,error))))
-   ;; `(term-color-green   ((,class (:foreground ,string :background ,string))))
-   ;; `(term-color-warning  ((,class (:foreground ,highlight :background ,highlight))))
-   ;; `(term-color-blue    ((,class (:foreground ,keyword :background ,keyword))))
-   `(term-color-magenta ((default :foreground ,k-dk-pink)))
+   `(term ((default (:inherit default))))
+   `(term-color-black   ((default (:foreground ,k-bg))))
+   `(term-color-error     ((default (:foreground ,k-fg-red))))
+   `(term-color-green   ((default (:foreground ,k-dk-purple))))
+   `(term-color-warning  ((default (:foreground ,k-dk-pink))))
+   `(term-color-blue    ((default (:foreground ,k-dk-blue))))
+   `(term-color-magenta ((default :foreground ,k-dk-purple)))
    `(term-color-cyan    ((default :foreground ,k-dk-blue)))
-   ;; `(term-color-white   ((,class (:foreground ,background :background ,background))))
+   `(term-color-white   ((default (:inherit default))))
    `(pyim-page ((default :background ,k-bg)))
    `(pyim-page-selection ((default :inherit match)))))
 
@@ -1879,7 +1879,7 @@ Otherwise call ORIG-FUN with ARGS."
 
 (use-package emms
   :bind
-  ( ("s-a" . emms)
+  ( ("s-a" . k-emms)
     :map emms-playlist-mode-map
     ("p" . emms-pause)
     ("n" . l)
@@ -1895,6 +1895,14 @@ Otherwise call ORIG-FUN with ARGS."
   (add-hook 'emms-playlist-mode-hook 'hl-line-mode)
 
   (setq emms-source-file-default-directory "~/.emacs.d/")
+  (defun k-emms ()
+    "Switch to the current emms-playlist buffer, use
+emms-playlist-mode and query for a playlist to open."
+    (interactive)
+    (if (or (null emms-playlist-buffer)
+	    (not (buffer-live-p emms-playlist-buffer)))
+        (call-interactively 'emms-play-playlist))
+    (emms-playlist-mode-go))
 
   ;; Patch `emms-playlist-mode-overlay-selected' so that overlay extend to full line
   ;; Also set a `priority'
