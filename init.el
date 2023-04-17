@@ -70,7 +70,7 @@
 (setq-default visual-line-fringe-indicators '(left-curly-arrow right-curly-arrow))
 
 (setq gc-cons-threshold 8000000 gc-cons-percentage 0.25)
-(setq-default garbage-collection-messages t)
+(setq-default garbage-collection-messages nil)
 (setq-default inhibit-startup-message t)
 
 (setq kill-ring-max 5000 kill-whole-line t)
@@ -515,35 +515,39 @@
 (defvar k-fg)
 (defvar k-fg-1)
 
+(defvar k--hsl-sat 1.0)
 (defsubst k-hsl-to-hex (h s l)
-  (apply #'color-rgb-to-hex (color-hsl-to-rgb h s l)))
+  (apply #'color-rgb-to-hex (color-hsl-to-rgb h (* s k--hsl-sat) l)))
 ;; (k-generate-theme 0.578 0.724 0.920 0.000 0.667 nil)
-(defun k-generate-theme (hue-1 hue-2 hue-3 contrast dark-p)
-  (if dark-p
-      (setq k-bg-blue (k-hsl-to-hex hue-1 0.4 0.3)
+(defun k-generate-theme (hue-1 sat-1 hue-2 sat-2 hue-3 sat-3 contrast dark-p)
+  (let ((k--hsl-sat sat-1))
+    (if dark-p
+        (setq k-bg-blue (k-hsl-to-hex hue-1 0.4 0.3)
+              k-fg-blue (k-hsl-to-hex hue-1 1.0 0.75)
+              k-dk-blue (k-hsl-to-hex hue-1 1.0 0.8)
+              k-bg-stripe (k-hsl-to-hex 0.0 0.0 0.1))
+      (setq k-bg-blue (k-hsl-to-hex hue-1 1.0 0.87)
             k-fg-blue (k-hsl-to-hex hue-1 1.0 0.75)
-            k-dk-blue (k-hsl-to-hex hue-1 1.0 0.8)
-            k-bg-stripe (k-hsl-to-hex 0.0 0.0 0.1))
-    (setq k-bg-blue (k-hsl-to-hex hue-1 1.0 0.87)
-          k-fg-blue (k-hsl-to-hex hue-1 1.0 0.75)
-          k-dk-blue (k-hsl-to-hex hue-1 1.0 0.5)
-          k-bg-stripe k-bg-blue))
+            k-dk-blue (k-hsl-to-hex hue-1 1.0 0.5)
+            k-bg-stripe k-bg-blue)))
 
-  (if dark-p
-      (setq k-bg-pink (k-hsl-to-hex hue-2 0.4 0.3)
+  (let ((k--hsl-sat sat-2))
+    (if dark-p
+        (setq k-bg-pink (k-hsl-to-hex hue-2 0.4 0.3)
+              k-fg-pink (k-hsl-to-hex hue-2 1.0 0.75)
+              k-dk-pink (k-hsl-to-hex hue-2 1.0 0.8))
+      (setq k-bg-pink (k-hsl-to-hex hue-2 0.9 0.92)
             k-fg-pink (k-hsl-to-hex hue-2 1.0 0.75)
-            k-dk-pink (k-hsl-to-hex hue-2 1.0 0.8))
-    (setq k-bg-pink (k-hsl-to-hex hue-2 0.9 0.92)
-          k-fg-pink (k-hsl-to-hex hue-2 1.0 0.75)
-          k-dk-pink (k-hsl-to-hex hue-2 1.0 0.5)))
+            k-dk-pink (k-hsl-to-hex hue-2 1.0 0.5))))
 
-  (if dark-p
-      (setq k-bg-purple (k-hsl-to-hex hue-3 0.4 0.3)
+  (let ((k--hsl-sat sat-3))
+    (if dark-p
+        (setq k-bg-purple (k-hsl-to-hex hue-3 0.4 0.3)
+              k-fg-purple (k-hsl-to-hex hue-3 1.0 0.75)
+              k-dk-purple (k-hsl-to-hex hue-3 1.0 0.8))
+      (setq k-bg-purple (k-hsl-to-hex hue-3 0.9 0.92)
             k-fg-purple (k-hsl-to-hex hue-3 1.0 0.75)
-            k-dk-purple (k-hsl-to-hex hue-3 1.0 0.8))
-    (setq k-bg-purple (k-hsl-to-hex hue-3 0.9 0.92)
-          k-fg-purple (k-hsl-to-hex hue-3 1.0 0.75)
-          k-dk-purple (k-hsl-to-hex hue-3 1.0 0.5)))
+            k-dk-purple (k-hsl-to-hex hue-3 1.0 0.5))))
 
   (if dark-p
       (setq k-bg-grey-1 (k-hsl-to-hex 0.0 0.0 0.10)
@@ -554,17 +558,18 @@
           k-bg-grey-3 (k-hsl-to-hex 0.0 0.0 0.80)))
   (setq k-fg-red (k-hsl-to-hex contrast 1.0 0.5))
 
-  (if dark-p
-      (setq k-bg "#000000"
-            k-fg (k-hsl-to-hex 0.0 0.0 1.0)
-            k-fg-1 (k-hsl-to-hex hue-1 1.0 0.8))
-    (setq k-bg "#ffffff"
-          k-fg (k-hsl-to-hex 0.0 0.0 0.0)
-          k-fg-1 (k-hsl-to-hex
-                  (if (< (mod (- hue-2 hue-1) 1.0) 0.5)
-                      (+ hue-1 0.1)
-                    (- hue-1 0.1))
-                  0.20 0.53)))
+  (let ((k--hsl-sat sat-1))
+    (if dark-p
+        (setq k-bg "#000000"
+              k-fg (k-hsl-to-hex 0.0 0.0 1.0)
+              k-fg-1 (k-hsl-to-hex hue-1 1.0 0.8))
+      (setq k-bg "#ffffff"
+            k-fg (k-hsl-to-hex 0.0 0.0 0.0)
+            k-fg-1 (k-hsl-to-hex
+                    (if (< (mod (- hue-2 hue-1) 1.0) 0.5)
+                        (+ hue-1 0.1)
+                      (- hue-1 0.1))
+                    0.20 0.53))))
 
   (if dark-p
       (progn
@@ -1056,7 +1061,8 @@
   (setq default-frame-alist (append
                              `((left-fringe . ,fringe-width)
                                (right-fringe . ,fringe-width))
-                             default-frame-alist)))
+                             default-frame-alist))
+  (add-to-list 'default-frame-alist '(alpha . 100)))
 
 ;;; Echo per window
 
@@ -1862,6 +1868,7 @@ Otherwise call ORIG-FUN with ARGS."
 
 (global-set-key (kbd "s-c") nil)
 (use-package winner
+  :defer nil
   :bind ( ("s-c" . winner-undo)
           ("s-C" . winner-redo))
   :config
@@ -1889,7 +1896,8 @@ Otherwise call ORIG-FUN with ARGS."
     ("M-p" . emms-previous)
     ("M-n" . emms-next)
     ("C-M-p" . emms-playlist-mode-previous)
-    ("C-M-n" . emms-playlist-mode-next))
+    ("C-M-n" . emms-playlist-mode-next)
+    ([remap save-buffer] . emms-playlist-save))
   :config
   (require 'emms-setup)
   (emms-all)
@@ -2004,7 +2012,7 @@ emms-playlist-mode and query for a playlist to open."
                   (message "Generate theme: %s" colors)
                   (apply #'k-generate-theme
                          (append colors '(0.0 t)))
-                  (set-frame-parameter nil 'alpha 90))
+                  (set-frame-parameter nil 'alpha 80))
               (k-theme-switch 'dark)
               (set-frame-parameter nil 'alpha 100)))))))
 
