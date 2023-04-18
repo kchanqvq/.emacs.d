@@ -151,6 +151,8 @@
                    (mode-line-process ("(" mode-name ":" mode-line-process  ")")
                                       mode-name)
                    "  " mode-line-misc-info))))
+(defun tab-line-format () "")
+(global-tab-line-mode)
 
 (defvar-local k-pad-last-header-line-format nil)
 (defun k-pad-header-line-after-advice (&optional object &rest args)
@@ -511,25 +513,24 @@
 (defvar k-fg-red)
 
 (defvar k-bg)
-(defvar k-bg-stripe)
 (defvar k-fg)
 (defvar k-fg-1)
+(defvar k-theme-dark-p nil)
 
 (defvar k--hsl-sat 1.0)
 (defsubst k-hsl-to-hex (h s l)
   (apply #'color-rgb-to-hex (color-hsl-to-rgb h (* s k--hsl-sat) l)))
 ;; (k-generate-theme 0.578 0.724 0.920 0.000 0.667 nil)
 (defun k-generate-theme (hue-1 sat-1 hue-2 sat-2 hue-3 sat-3 contrast dark-p)
+  (setq k-theme-dark-p dark-p)
   (let ((k--hsl-sat sat-1))
     (if dark-p
         (setq k-bg-blue (k-hsl-to-hex hue-1 0.4 0.3)
               k-fg-blue (k-hsl-to-hex hue-1 1.0 0.75)
-              k-dk-blue (k-hsl-to-hex hue-1 1.0 0.8)
-              k-bg-stripe (k-hsl-to-hex 0.0 0.0 0.1))
+              k-dk-blue (k-hsl-to-hex hue-1 1.0 0.8))
       (setq k-bg-blue (k-hsl-to-hex hue-1 1.0 0.87)
             k-fg-blue (k-hsl-to-hex hue-1 1.0 0.75)
-            k-dk-blue (k-hsl-to-hex hue-1 1.0 0.5)
-            k-bg-stripe k-bg-blue)))
+            k-dk-blue (k-hsl-to-hex hue-1 1.0 0.5))))
 
   (let ((k--hsl-sat sat-2))
     (if dark-p
@@ -592,6 +593,7 @@
         (with-current-buffer buffer
           (when (derived-mode-p 'pdf-view-mode)
             (pdf-view-midnight-minor-mode -1))))))
+  (kill-buffer " *echo per window*")
 
   ;; (let (fix-highlight-indent-guides)
   ;;   (highlight-tail-mode 0)
@@ -618,6 +620,7 @@
 (defface k-zebra nil "Base face for zebra stripes.")
 (defface k-monochrome-emoji nil "Monochrome emoji face.")
 (defface emms-mode-line-title nil "Face for EMMS track title in mode line.")
+(defface k-separator-overline nil "Face for separator overlines.")
 
 (setq-default goto-address-mail-face '(button k-quote))
 
@@ -634,7 +637,12 @@
    `(k-comment ((default :inherit italic :foreground ,k-fg-1)))
    `(k-common ((default :foreground ,k-fg :inherit bold)))
    `(k-prompt ((default :inherit bold :foreground ,k-fg-pink)))
-   `(k-zebra ((default :background ,k-bg-stripe :extend t)))
+   (if k-theme-dark-p
+       `(k-zebra ((default :background ,k-bg-grey-1 :extend t)))
+     `(k-zebra ((default :background ,k-bg-blue :extend t))))
+   (if k-theme-dark-p
+       `(k-separator-overline ((default :overline ,k-bg-grey-2)))
+     `(k-separator-overline ((default :overline ,k-fg))))
    `(k-monochrome-emoji ((default :font ,(font-spec :family "Noto Emoji" :size 16))))
    `(default ((default :font ,k-light-monospace :background ,k-bg :foreground ,k-fg :distant-foreground ,k-bg
                        :weight light)))
@@ -694,15 +702,18 @@
    `(cursor ((default (:background ,k-fg-pink))))
    `(fringe ((default :foreground ,k-fg-1)))
    `(vertical-border ((default :foreground ,k-bg)))
+   `(tab-line ((default :background ,k-bg)))
+   `(window-divider ((default :foreground ,k-bg)))
    `(window-divider-first-pixel ((default :foreground ,k-bg)))
-   `(k-bottom-separator ((default :underline (:color ,k-fg :position 0))))
+   `(window-divider-last-pixel ((default :foreground ,k-bg)))
    `(border ((default :inherit fringe)))
-   `(border-glyph (nil))
    `(highlight ((default :inherit region)))
    ;; `(gui-element ((,class (:background ,contrast-bg))))
    `(internal-border ((default (:background ,k-bg-blue))))
    `(child-frame-border ((default (:background ,k-bg-blue))))
-   `(mode-line ((default :background ,k-bg-stripe)))
+   (if k-theme-dark-p
+       `(mode-line ((default :background ,k-bg-grey-1)))
+     `(mode-line ((default :background ,k-bg-blue))))
    `(mode-line-buffer-id ((default :inherit (mode-line bold))))
    `(mode-line-inactive ((default :inherit mode-line)))
    `(mode-line-emphasis ((default :foreground ,k-dk-purple :inherit (mode-line bold))))
@@ -1082,10 +1093,10 @@
         (if k--top-separator-ov
             (move-overlay k--top-separator-ov (point-min) (point))
           (setq k--top-separator-ov (make-overlay (point-min) (point) nil t t))
-          (overlay-put k--top-separator-ov 'face
-                       '(:overline "#000000"))
+          (overlay-put k--top-separator-ov 'face 'k-separator-overline)
           (overlay-put k--top-separator-ov 'after-string
-                       #(" " 0 1 (display (space :align-to right) face (:overline "#000000"))))))))
+                       (propertize " "  'display '(space :align-to right)
+                                   'face 'k-separator-overline))))))
 
 (defun k-window-echo-area--map (function &optional buffer)
   (dolist (frame (frame-list))
@@ -1118,7 +1129,9 @@
       (with-current-buffer buf
         (k-echo-area-mode)
         (setq-local mode-line-format
-                    (s-replace "%" "%%" (format-mode-line (buffer-local-value 'mode-line-format (window-buffer)))))
+                    (let ((parent-mode-line (buffer-local-value 'mode-line-format (window-buffer))))
+                      (when parent-mode-line
+                        (s-replace "%" "%%" (format-mode-line parent-mode-line)))))
         (setq height (count-screen-lines)))
       (setq window
             (display-buffer buf
@@ -1137,6 +1150,8 @@
       (setq k-message nil))))
 (defun k-message-display ()
   (with-current-buffer (get-buffer-create " *echo per window*")
+    (setq-local header-line-format nil
+                tab-line-format nil)
     (if k-message
         (progn
           (setq-local cursor-type nil)
@@ -1417,9 +1432,9 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
       (overlay-put k--top-separator-ov 'after-string nil))
     (let ((string (overlay-get vertico--candidates-ov 'after-string)))
       (put-text-property 0 1 'display '(space :align-to right) string)
-      (put-text-property 0 1 'face '(:overline "#000000") string))
+      (put-text-property 0 1 'face 'k-separator-overline string))
     (let ((string (overlay-get vertico--count-ov 'before-string)))
-      (add-face-text-property 0 (length string) '(:overline "#000000") nil string))
+      (add-face-text-property 0 (length string) 'k-separator-overline nil string))
     ;; (set-window-text-height vertico--buffer-window (+ 1 height))
     (fit-window-to-buffer vertico--buffer-window))
 
@@ -1438,7 +1453,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (defun k-minibuffer-message-advice (orig-func message &rest args)
     (when vertico--input
       (setq message (substring message))
-      (add-face-text-property 0 (length message) '(:overline "#000000") nil message))
+      (add-face-text-property 0 (length message) 'k-separator-overline nil message))
     (apply orig-func message args))
   (advice-add 'minibuffer-message :around #'k-minibuffer-message-advice)
 
@@ -1478,6 +1493,8 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
       (when (and vertico-buffer-hide-prompt vertico--count-ov)
         (overlay-put vertico--count-ov 'window win))
       (setq-local show-trailing-whitespace nil
+                  header-line-format nil
+                  tab-line-format nil
                   truncate-lines t
                   cursor-in-non-selected-windows 'box)))
   (define-advice vertico-buffer-mode
