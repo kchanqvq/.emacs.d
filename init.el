@@ -139,8 +139,7 @@
               mode-line-format
               '(:eval
                 (k-pad-mode-line-format
-                 '("" mode-line-mule-info mode-line-client mode-line-modified
-                   mode-line-remote " "
+                 '(""
                    (14 (:eval (if (k-mode-line-selected-p) #("%c" 0 2 (face mode-line-emphasis))
                                 "%c"))
                        (#(" %l/" 0 3 (face mode-line-highlight))
@@ -150,9 +149,8 @@
                    " \t"
                    (mode-line-process ("(" mode-name ":" mode-line-process  ")")
                                       mode-name)
-                   "  " mode-line-misc-info))))
-(defun tab-line-format () "")
-(global-tab-line-mode)
+                   "  " mode-line-misc-info)))
+              tab-line-format "")
 
 (defvar-local k-pad-last-header-line-format nil)
 (defun k-pad-header-line-after-advice (&optional object &rest args)
@@ -593,7 +591,8 @@
         (with-current-buffer buffer
           (when (derived-mode-p 'pdf-view-mode)
             (pdf-view-midnight-minor-mode -1))))))
-  (kill-buffer " *echo per window*")
+  (when (get-buffer " *echo per window*")
+    (kill-buffer " *echo per window*"))
 
   ;; (let (fix-highlight-indent-guides)
   ;;   (highlight-tail-mode 0)
@@ -702,7 +701,6 @@
    `(cursor ((default (:background ,k-fg-pink))))
    `(fringe ((default :foreground ,k-fg-1)))
    `(vertical-border ((default :foreground ,k-bg)))
-   `(tab-line ((default :background ,k-bg)))
    `(window-divider ((default :foreground ,k-bg)))
    `(window-divider-first-pixel ((default :foreground ,k-bg)))
    `(window-divider-last-pixel ((default :foreground ,k-bg)))
@@ -711,13 +709,15 @@
    ;; `(gui-element ((,class (:background ,contrast-bg))))
    `(internal-border ((default (:background ,k-bg-blue))))
    `(child-frame-border ((default (:background ,k-bg-blue))))
+   `(tab-line ((default :background ,k-bg)))
+
    (if k-theme-dark-p
        `(mode-line ((default :background ,k-bg-grey-1)))
      `(mode-line ((default :background ,k-bg-blue))))
-   `(mode-line-buffer-id ((default :inherit (mode-line bold))))
    `(mode-line-inactive ((default :inherit mode-line)))
-   `(mode-line-emphasis ((default :foreground ,k-dk-purple :inherit (mode-line bold))))
-   `(mode-line-highlight ((default :foreground ,k-dk-blue :inherit (mode-line bold))))
+   `(mode-line-buffer-id ((default :inherit bold)))
+   `(mode-line-emphasis ((default :foreground ,k-dk-purple :inherit bold)))
+   `(mode-line-highlight ((default :foreground ,k-dk-blue :inherit bold)))
    `(minibuffer-prompt ((default :inherit bold)))
    `(region ((default :background ,k-bg-blue)))
    `(secondary-selection ((default :background ,k-bg-blue)))
@@ -2310,7 +2310,8 @@ that if there is ht's overlay at at the top then return 'default"
   (add-hook 'ytel-mode-hook
             '(lambda ()
                (setq-local hl-line-face '(:inherit match :extend t))
-               (hl-line-mode))))
+               (hl-line-mode)))
+  (advice-add 'ytel--draw-buffer :after #'k-pad-header-line-after-advice))
 
 ;;; EXWM
 (when (executable-find "import")
