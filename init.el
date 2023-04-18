@@ -574,7 +574,7 @@
       (progn
         (defconst blink-cursor-colors (list k-fg))
         (defconst blink-highlight-colors (list "#5D7E79" "#475E94" "#733780" "#808164"))
-        (setq-default face-near-same-color-threshold 160000)
+        (setq-default face-near-same-color-threshold 50000)
         (setq-default pdf-view-midnight-colors (cons k-fg k-bg))
         (add-to-list 'pdf-tools-enabled-hook 'pdf-view-midnight-minor-mode)
         (dolist (buffer (buffer-list))
