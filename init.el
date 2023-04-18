@@ -707,7 +707,7 @@
    `(border ((default :inherit fringe)))
    `(highlight ((default :inherit region)))
    ;; `(gui-element ((,class (:background ,contrast-bg))))
-   `(internal-border ((default (:background ,k-bg-blue))))
+   `(internal-border ((default (:background ,k-bg))))
    `(child-frame-border ((default (:background ,k-bg-blue))))
    `(tab-line ((default :background ,k-bg)))
 
@@ -1070,12 +1070,13 @@
     ('bright (k-generate-theme 0.578 1.0 0.920 1.0 0.724 1.0 0.000 nil))
     ('dark (k-generate-theme 0.578 1.0 0.446 1.0 0.578 1.0 0.105 t))))
 
-(let ((fringe-width (/ (* (string-pixel-width "o") 16) 3)))
-  (setq default-frame-alist (append
-                             `((left-fringe . ,fringe-width)
-                               (right-fringe . ,fringe-width))
-                             default-frame-alist))
-  (add-to-list 'default-frame-alist '(alpha . 100)))
+(setq default-frame-alist (append
+                           `((left-fringe . 16)
+                             (right-fringe . 16)
+                             (right-divider-width . 32)
+                             (internal-border-width . 16))
+                           default-frame-alist))
+(add-to-list 'default-frame-alist '(alpha . 100))
 
 ;;; Echo per window
 
