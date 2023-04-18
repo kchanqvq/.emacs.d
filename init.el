@@ -1074,7 +1074,8 @@
                            `((left-fringe . 16)
                              (right-fringe . 16)
                              (right-divider-width . 32)
-                             (internal-border-width . 16))
+                             (internal-border-width . 16)
+                             (undecorated . t))
                            default-frame-alist))
 (add-to-list 'default-frame-alist '(alpha . 100))
 
