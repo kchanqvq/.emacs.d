@@ -753,7 +753,7 @@
 
    ;; Emacs interface
    `(cursor ((default (:background ,k-fg-pink))))
-   `(fringe ((default :foreground ,k-fg-1)))
+   `(fringe ((default :foreground ,k-fg-1 :background ,k-bg)))
    `(vertical-border ((default :foreground ,k-bg)))
    `(window-divider ((default :foreground ,k-bg)))
    `(window-divider-first-pixel ((default :foreground ,k-bg)))
