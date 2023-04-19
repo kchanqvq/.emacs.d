@@ -12,7 +12,7 @@
        (,%global-mode-symbol))))
 
 (defun k-exwm-enabled-p ()
-  (member #'exwm--server-stop kill-emacs-hook))
+  (member 'exwm--server-stop kill-emacs-hook))
 
 (defun delete-from-list (list-var element)
   (set list-var (delete element (symbol-value list-var))))
@@ -45,6 +45,41 @@
   (when (k-exwm-enabled-p)
     (define-key exwm-mode-map key command))
   (global-set-key key command))
+
+(require 'subr-x)
+(require 'mule-util)
+
+(defun k-fill-right (string)
+  (let* ((width (string-pixel-width string)))
+    (concat (propertize " " 'display
+                        `(space :align-to (- right-fringe (,width))))
+            string)))
+(defun k-insert-fill-right (string)
+  ;; More correct than `k-fill-right' in some cases, respect current
+  ;; buffer settings (e.g. invisibility spec)
+  (let ((from (point)))
+    (insert " " string)
+    (let ((width (car (window-text-pixel-size (get-buffer-window) (1+ from) (point)))))
+      (put-text-property from (1+ from)
+                         'display
+                         `(space :align-to (- right-fringe (,width)))))
+    nil))
+
+(defun k-truncate-string-to-width (string pixel-width)
+  (if (> (string-pixel-width string) pixel-width)
+      (let* ((a 1) a-result
+             (b (length string)) b-result)
+        (while (> b (+ a 1))
+          (let* ((c (ceiling (+ a b) 2))
+                 (result (concat (substring string 0 c) (truncate-string-ellipsis))))
+            (if (> (string-pixel-width result) pixel-width)
+                (setq b c)
+              (setq a c a-result result))))
+        a-result)
+    string))
+(byte-compile 'k-fill-right)
+(byte-compile 'k-insert-fill-right)
+(byte-compile 'k-truncate-string-to-width)
 
 ;;; Initial config
 
@@ -105,6 +140,7 @@
                              default-frame-alist))
   (setq frame-title-format nil)
   (setq ns-use-proxy-icon nil)
+  (setq ns-use-native-fullscreen nil)
   (set-fontset-font t 'symbol "Apple Color Emoji" nil 'append))
 
 (load (setq custom-file "~/.emacs.d/custom/custom.el"))
@@ -112,16 +148,19 @@
 
 ;;; Mode line
 
-(require 'mule-util)
-
-(defun k-pad-mode-line-format (format)
+(defun k-pad-mode-line-format (format &optional right-format)
   (unless (stringp format)
     (setq format (format-mode-line format)))
+  (when right-format
+    (unless (stringp right-format)
+      (setq right-format (format-mode-line right-format)))
+    (setq format (concat format (k-fill-right right-format))))
   `(#(" " 0 1 (face default display (space :width left-fringe)))
-    ,(truncate-string-to-width
-      format
-      (window-text-width (get-buffer-window (current-buffer)))
-      nil nil (truncate-string-ellipsis))
+    ;; ,(truncate-string-to-width
+    ;;   format
+    ;;   (window-text-width (get-buffer-window (current-buffer)))
+    ;;   nil nil (truncate-string-ellipsis))
+    ,(k-truncate-string-to-width format (window-text-width (get-buffer-window) t))
     #(" " 0 1 (display (space :align-to right)))
     #(" " 0 1 (face default display (space :width right-fringe)))))
 (byte-compile 'k-pad-mode-line-format)
@@ -140,17 +179,19 @@
               '(:eval
                 (k-pad-mode-line-format
                  '(""
-                   (14 (:eval (if (k-mode-line-selected-p) #("%c" 0 2 (face mode-line-emphasis))
-                                "%c"))
-                       (#(" %l/" 0 3 (face mode-line-highlight))
-                        (:propertize (:eval (number-to-string (line-number-at-pos (point-max))))
-                                     face bold)))
-                   "  " (:propertize "%b" face mode-line-buffer-id)
+                   (:propertize "%b" face mode-line-buffer-id)
                    " \t"
                    (mode-line-process ("(" mode-name ":" mode-line-process  ")")
                                       mode-name)
-                   "  " mode-line-misc-info)))
-              tab-line-format "")
+                   "  \t"
+                   mode-line-misc-info)
+                 '("  "
+                   (:eval (if (k-mode-line-selected-p) #("%c" 0 2 (face mode-line-emphasis))
+                               "%c"))
+                   (#(" %l/" 0 3 (face mode-line-highlight))
+                    (:propertize (:eval (number-to-string (line-number-at-pos (point-max))))
+                                 face bold)))))
+              tab-line-format nil)
 
 (defvar-local k-pad-last-header-line-format nil)
 (defun k-pad-header-line-after-advice (&optional object &rest args)
@@ -158,11 +199,24 @@
          (dolist (window (window-list object 'no-minibuf))
            (k-pad-header-line-after-advice (window-buffer window))))
         ((bufferp object) (with-current-buffer object (k-pad-header-line-after-advice)))
-        (t (unless (equal header-line-format k-pad-last-header-line-format)
-             (setq-local header-line-format `(:eval (k-pad-mode-line-format ',header-line-format)))
-             (setq-local k-pad-last-header-line-format header-line-format)))))
+        (t (when header-line-format
+             (unless (equal header-line-format k-pad-last-header-line-format)
+               (setq-local header-line-format `(:eval (k-pad-mode-line-format ',header-line-format)))
+               (setq-local k-pad-last-header-line-format header-line-format))))))
+(byte-compile 'k-pad-header-line-after-advice)
 (add-hook 'Info-mode-hook #'k-pad-header-line-after-advice)
-;; (add-hook 'window-buffer-change-functions 'k-pad-header-line-after-advice)
+(add-hook 'window-buffer-change-functions 'k-pad-header-line-after-advice)
+
+(defvar-local k-inhibit-tab-line nil)
+(defun k-compute-tab-line (frame)
+  (dolist (w (window-list frame))
+    (with-current-buffer (window-buffer w)
+      (unless k-inhibit-tab-line
+        (if (< (cadr (window-edges w)) 2)
+            (setq-local tab-line-format nil)
+          (setq-local tab-line-format (propertize " " 'face '(:height 2.0))))))))
+
+(add-hook 'window-buffer-change-functions 'k-compute-tab-line)
 
 ;;; Packages
 
@@ -572,7 +626,7 @@
 
   (if dark-p
       (progn
-        (defconst blink-cursor-colors (list k-fg))
+        (defconst blink-cursor-colors (list k-fg-blue k-fg-pink k-fg-purple))
         (defconst blink-highlight-colors (list "#5D7E79" "#475E94" "#733780" "#808164"))
         (setq-default face-near-same-color-threshold 50000)
         (setq-default pdf-view-midnight-colors (cons k-fg k-bg))
@@ -580,8 +634,7 @@
         (dolist (buffer (buffer-list))
           (with-current-buffer buffer
             (when (derived-mode-p 'pdf-view-mode)
-              (pdf-view-midnight-minor-mode))))
-        (k-load-faces))
+              (pdf-view-midnight-minor-mode)))))
     (progn
       (defconst blink-cursor-colors (list k-fg-blue k-fg-pink k-fg-purple))
       (defconst blink-highlight-colors (list k-bg-blue k-bg-pink k-bg-purple))
@@ -591,6 +644,7 @@
         (with-current-buffer buffer
           (when (derived-mode-p 'pdf-view-mode)
             (pdf-view-midnight-minor-mode -1))))))
+  (k-load-faces)
   (when (get-buffer " *echo per window*")
     (kill-buffer " *echo per window*"))
 
@@ -633,7 +687,8 @@
    `(k-proper-name ((default :inherit k-quote :foreground ,k-fg)))
    `(k-string ((default :foreground ,k-dk-pink)))
    `(k-doc ((default :font ,k-serif-monospace :inherit (k-string bold))))
-   `(k-comment ((default :inherit italic :foreground ,k-fg-1)))
+   `(shadow ((default :foreground ,k-fg-1)))
+   `(k-comment ((default :inherit (italic shadow))))
    `(k-common ((default :foreground ,k-fg :inherit bold)))
    `(k-prompt ((default :inherit bold :foreground ,k-fg-pink)))
    (if k-theme-dark-p
@@ -671,7 +726,6 @@
    `(font-lock-type-face ((default :inherit k-proper-name)))
    `(font-lock-warning-face ((default :inherit warning)))
    `(error ((default :foreground ,k-fg-red :inherit bold)))
-   `(shadow ((default :foreground ,k-fg-1)))
    `(success ((default :foreground ,k-dk-blue)))
    `(warning ((default :foreground ,k-dk-pink :inherit bold)))
    `(escape-glyph ((default :foreground ,k-fg-red :distant-foreground ,k-fg-red)))
@@ -716,12 +770,15 @@
      `(mode-line ((default :background ,k-bg-blue))))
    `(mode-line-inactive ((default :inherit mode-line)))
    `(mode-line-buffer-id ((default :inherit bold)))
-   `(mode-line-emphasis ((default :foreground ,k-dk-purple :inherit bold)))
+   `(mode-line-emphasis ((default :foreground ,(if (equal k-dk-blue k-dk-purple) k-dk-pink k-dk-purple)
+                                  :inherit bold)))
    `(mode-line-highlight ((default :foreground ,k-dk-blue :inherit bold)))
    `(minibuffer-prompt ((default :inherit bold)))
    `(region ((default :background ,k-bg-blue)))
    `(secondary-selection ((default :background ,k-bg-blue)))
-   `(header-line ((default :background ,k-bg :underline (:color ,k-fg :position -10))))
+   (if k-theme-dark-p`
+       (header-line ((default :background ,k-bg :underline ,k-bg-grey-2)))
+     (header-line ((default :background ,k-bg :underline ,k-fg))))
 
    `(button ((default :underline t :foreground ,k-fg :inherit bold)))
    `(link ((default :foreground ,k-fg-1 :underline t :inherit bold)))
@@ -966,6 +1023,7 @@
    ;; `(erc-direct-msg-face ((,class (:foreground ,warning))))
    ;; `(erc-error-face ((,class (:foreground ,error))))
    ;; `(erc-header-face ((,class (:foreground ,foreground :background ,darker-bg))))
+   `(erc-default-face ((default :inherit variable-pitch)))
    `(erc-input-face ((default :slant italic)))
    `(erc-nick-default-face ((default :inherit k-keyword)))
    `(erc-current-nick-face ((default :inherit erc-nick-default-face)))
@@ -994,23 +1052,6 @@
    `(notmuch-search-unread-face ((default :inherit bold)))
    `(notmuch-tag-unread ((default :foreground ,k-dk-pink)))
    `(notmuch-tag-face ((default :inherit (shadow k-proper-name))))
-   `(gnus-group-mail-1 ((default :inherit bold)))
-   `(gnus-group-mail-1-empty ((default :foreground ,k-dk-purple)))
-   `(gnus-group-mail-2 ((default :inherit bold)))
-   `(gnus-group-mail-2-empty ((default :foreground ,k-dk-blue)))
-   `(gnus-group-mail-3 ((default :inherit bold)))
-   `(gnus-group-mail-3-empty ((default :foreground ,k-fg)))
-   `(gnus-summary-normal-ancient ((default :inherit gnus-summary-normal-read)))
-   `(gnus-summary-normal-read ((default :foreground ,k-fg)))
-   `(gnus-summary-normal-unread ((default :foreground ,k-fg)))
-   `(gnus-summary-normal-ticked ((default :inherit region)))
-   `(gnus-summary-selected ((default :inherit match :extend t)))
-   `(gnus-summary-cancelled ((default :inherit shadow)))
-   `(gnus-header-name ((default :inherit k-keyword)))
-   `(gnus-header-from ((default :inherit (shadow k-proper-name))))
-   `(gnus-header-content ((default :inherit default)))
-   `(gnus-header-subject ((default :inherit (variable-pitch bold))))
-   `(gnus-button ((default :inherit button)))
 
    ;; custom
    `(custom-variable-tag ((default :inherit k-proper-name)))
@@ -1078,6 +1119,7 @@
                              (undecorated . t))
                            default-frame-alist))
 (add-to-list 'default-frame-alist '(alpha . 100))
+(setq underline-minimum-offset -10)
 
 ;;; Echo per window
 
@@ -1085,7 +1127,7 @@
 
 (defvar-local k--top-separator-ov nil)
 
-(define-minor-mode k-echo-area-mode "Per window echo area."
+(define-minor-mode k-echo-area-mode "Minor mode for ` *echo per window*' buffer."
   :lighter nil
   (if k-echo-area-mode
       (save-excursion
@@ -1153,7 +1195,8 @@
 (defun k-message-display ()
   (with-current-buffer (get-buffer-create " *echo per window*")
     (setq-local header-line-format nil
-                tab-line-format nil)
+                tab-line-format nil
+                k-inhibit-tab-line t)
     (if k-message
         (progn
           (setq-local cursor-type nil)
@@ -1220,8 +1263,11 @@
 
 (use-package topsy
   :config
-  (setq topsy-header-line-format `(:eval (k-pad-mode-line-format (funcall topsy-fn))))
-  (add-hook 'prog-mode-hook #'topsy-mode))
+  (add-hook 'prog-mode-hook #'topsy-mode)
+  (setq topsy-header-line-format
+        `(:eval (or (funcall topsy-fn)
+                    ,(propertize "── top ──"
+                                 'face 'shadow)))))
 
 (use-package crux
   :bind (( [remap move-beginning-of-line] . crux-move-beginning-of-line)
@@ -1497,6 +1543,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
       (setq-local show-trailing-whitespace nil
                   header-line-format nil
                   tab-line-format nil
+                  k-inhibit-tab-line t
                   truncate-lines t
                   cursor-in-non-selected-windows 'box)))
   (define-advice vertico-buffer-mode
@@ -1988,6 +2035,12 @@ emms-playlist-mode and query for a playlist to open."
                       'face 'bold))
        "")))
   (add-to-list 'emms-player-mpv-parameters "--ytdl-format=best")
+  (when (eq window-system 'ns)
+    (add-to-list 'emms-player-mpv-parameters "--ontop-level=desktop")
+    (add-to-list 'emms-player-mpv-parameters "--ontop")
+    (add-to-list 'emms-player-mpv-parameters "--fullscreen")
+    (add-to-list 'emms-player-mpv-parameters "--no-native-fs")
+    (add-to-list 'emms-player-mpv-parameters "--no-focus"))
   (defun k-emms-toggle-video (&rest args)
     "TELL MPV player to switch to video/no-video mode."
     (interactive)
@@ -2037,30 +2090,12 @@ emms-playlist-mode and query for a playlist to open."
               (k-theme-switch 'dark)
               (set-frame-parameter nil 'alpha 100)))))))
 
-  (when (k-exwm-enabled-p)
-    (add-hook 'emms-player-started-hook 'k-emms-generate-theme)
-
-    ;; Rage haxxxx!!!  This relies on `exwm--update-class' being
-    ;; called right after `exwm--update-window-type' in
-    ;; `exwm-manage--manage-window', so we can overwrite
-    ;; `exwm-window-type' to let code after this think the `mpv'
-    ;; window is a desktop window.
-    (defun k-exwm-update-class ()
-      (pcase exwm-class-name
-        ("mpv"
-         (setq exwm-window-type (list xcb:Atom:_NET_WM_WINDOW_TYPE_DESKTOP))
-         (with-slots (x y width height) (exwm-workspace--get-geometry exwm--frame)
-           (exwm--set-geometry exwm--id x y width height)))))
-    (add-hook 'exwm-update-class-hook 'k-exwm-update-class)))
+  (add-hook 'emms-player-started-hook 'k-emms-generate-theme))
 
 ;;; Cute and useless visuals!
 
-(require 'highlight-tail)
-(setq highlight-tail-timer 0.1)
-(setq highlight-tail-steps 20)
 (defvar blink-cursor-colors nil)
 (defvar blink-highlight-colors nil)
-(setq highlight-tail-colors `((,(car blink-highlight-colors) . 0)))
 (setq blink-cursor-count 0)
 (blink-cursor-mode)
 (defun blink-cursor-timer-function ()
@@ -2070,73 +2105,8 @@ emms-playlist-mode and query for a playlist to open."
     (let ((color (nth blink-cursor-count blink-cursor-colors))
           (hl-color (nth blink-cursor-count blink-highlight-colors)))
       (set-cursor-color color)
-      (when nil
-        (setq highlight-tail-colors `((,hl-color . 0)))
-        (setq highlight-tail-colors-fade-list nil
-              highlight-tail-nonhtfaces-bgcolors nil
-              highlight-tail-const-overlays-list nil
-              highlight-tail-update-const-overlays-to-this-list nil
-              highlight-tail-face-max nil)
-        (let* ((background-color-name (face-background 'default))
-               (background-color-hex (highlight-tail-hex-from-colorname
-                                      background-color-name)))
-          (setq highlight-tail-default-background-color background-color-name))
-        (setq highlight-tail-colors-with-100
-              (if (= (cdr (nth (1- (length highlight-tail-colors))
-                               highlight-tail-colors))
-                     100)
-                  highlight-tail-colors
-                (append highlight-tail-colors (list '(null . 100)))))
-        (setq highlight-tail-face-max highlight-tail-steps)
-        (highlight-tail-add-colors-fade-table 'start)
-        (highlight-tail-add-colors-fade-table 'default)
-        (highlight-tail-make-faces
-         (highlight-tail-get-colors-fade-table-with-key 'default)))
       (setq blink-cursor-count (+ 1 blink-cursor-count))))
   (internal-show-cursor nil (not (internal-show-cursor-p))))
-
-;; Patch `highlight-tail' to handle non-default background correctly
-;; on GNU Emacs (it now works for inherited background)
-(defun highlight-tail-get-bgcolor-hex (point)
-  "Get the background color of point.
-
-Do not take highlight-tail's overlays into consideration.  This means
-that if there is ht's overlay at at the top then return 'default"
-  (let ((point-face (get-char-property point 'face))
-        point-face-from-cache
-        point-face-bgcolor
-        point-face-bgcolor-hex)
-    (if point-face
-        (progn
-          (when (listp point-face)
-            (setq point-face
-                  (or (cl-find-if (lambda (x) (and x (symbolp x))) point-face)
-                      'default)))
-          (setq point-face-from-cache
-                (assoc point-face highlight-tail-nonhtfaces-bgcolors))
-          (if point-face-from-cache
-              (setq point-face-bgcolor-hex (cdr point-face-from-cache))
-            (setq point-face-bgcolor (face-background point-face nil t))
-            (when (or (eq point-face-bgcolor nil)
-                      (eq point-face-bgcolor 'unspecified))
-              (setq point-face-bgcolor 'default))))
-      (setq point-face-bgcolor 'default))
-    (when (not point-face-bgcolor-hex)  ; not read from cache
-      (if (eq point-face-bgcolor 'default)
-          (setq point-face-bgcolor-hex 'default)
-        ;; else
-        (setq point-face-bgcolor-hex
-              (highlight-tail-hex-from-colorname point-face-bgcolor))
-        (setq highlight-tail-nonhtfaces-bgcolors
-              (cons (cons point-face point-face-bgcolor-hex)
-                    highlight-tail-nonhtfaces-bgcolors))
-        (highlight-tail-add-colors-fade-table point-face-bgcolor-hex)
-        (highlight-tail-make-faces
-         (highlight-tail-get-colors-fade-table-with-key
-          point-face-bgcolor-hex))))
-    ;; return value
-    point-face-bgcolor-hex))
-(byte-compile 'highlight-tail-get-bgcolor-hex)
 
 (use-package highlight-indent-guides
   :config
@@ -2500,17 +2470,38 @@ that if there is ht's overlay at at the top then return 'default"
 
 ;;; ERC
 
-(require 'erc)
-(advice-add 'erc-update-mode-line-buffer :after 'k-pad-header-line-after-advice)
-(setq-default erc-track-enable-keybindings nil
-              erc-prompt-for-password t)
-(setq erc-server "localhost"
-      erc-port 6670)
-(setq erc-hide-list '("JOIN" "PART" "QUIT"))
-(advice-add #'erc-login :before
-            (lambda ()
-              (erc-server-send "CAP REQ :znc.in/self-message")
-              (erc-server-send "CAP END")))
+(use-package erc
+  :config
+  (advice-add 'erc-update-mode-line-buffer :after 'k-pad-header-line-after-advice)
+  (setq-default erc-track-enable-keybindings nil
+                erc-prompt-for-password t
+                erc-header-line-format
+                (concat (propertize "%n" 'face 'erc-nick-default-face)
+                        " on " (propertize "%t" 'face 'mode-line-buffer-id)
+                        " (%m,%l) "
+                        (propertize "%o" 'face 'variable-pitch)))
+  (setq erc-server "localhost"
+        erc-port 6670)
+  (setq erc-hide-list '("JOIN" "PART" "QUIT"))
+  (advice-add 'erc-login :before
+              (lambda ()
+                (erc-server-send "CAP REQ :znc.in/self-message")
+                (erc-server-send "CAP END")))
+  (setq-default erc-fill-function 'ignore)
+  (add-hook 'erc-mode 'visual-line-mode)
+  (defun erc-insert-timestamp-right (string)
+    (unless (and erc-timestamp-only-if-changed-flag
+	         (string-equal string erc-timestamp-last-inserted))
+      (setq erc-timestamp-last-inserted string)
+      (goto-char (point-max))
+      (forward-char -1)                 ; before the last newline
+      (let* ((from (point)))
+        (k-insert-fill-right string)
+        (erc-put-text-property from (point) 'field 'erc-timestamp)
+        (erc-put-text-property from (point) 'rear-nonsticky t)
+        (when erc-timestamp-intangible
+	  (erc-put-text-property from (1+ (point)) 'cursor-intangible t))))))
+
 
 ;;; Email
 
@@ -2647,7 +2638,8 @@ that if there is ht's overlay at at the top then return 'default"
     (if (process-live-p (get-buffer-process (get-buffer "*notmuch-update*")))
         (unless silent (display-buffer "*notmuch-update*" '(nil (inhibit-same-window . t))))
       (k-run-helper-command "mbsync -a; notmuch new; exit" "*notmuch-update*"
-                            #'notmuch-refresh-all-buffers silent))))
+                            #'notmuch-refresh-all-buffers silent)))
+  (advice-add 'notmuch-show--build-buffer :after #'k-pad-header-line-after-advice))
 
 (use-package smtpmail
   :config
@@ -2724,7 +2716,7 @@ that if there is ht's overlay at at the top then return 'default"
 (defun vampire-time-status ()
   (let ((time (time-to-vampire-time)))
     (concat (format-seconds "%h:%.2m:%.2s" (cadr time))
-            #("  " 0 1 (display "")) ;; compensate for width of the icon
+            " "
             (let ((all-the-icons-default-faicon-adjust 0.25))
               (if (eq (car time) 'sunrise)
                   (all-the-icons-faicon "moon-o")
@@ -2749,16 +2741,14 @@ that if there is ht's overlay at at the top then return 'default"
                ((> quarter 1) (all-the-icons-faicon "battery-half"))
                ((> quarter 0) (all-the-icons-faicon "battery-quarter"))
                (t (all-the-icons-faicon "battery-empty" :face 'error)))
-         #("  " 0 1 (display "")) ;; compensate for width of the icon
+         " "
          (match-string 1 output) "%"))))
   (add-to-list 'k-status-functions 'k-battery-status))
 
 (defun vampire-time-update ()
   (let* ((msg (mapconcat #'funcall k-status-functions "  "))
          (width (string-width msg))
-         (msg (concat (propertize " " 'display
-                                  `(space :align-to (- right-fringe ,width)))
-                      msg)))
+         (msg (k-fill-right msg)))
     (with-current-buffer " *Echo Area 0*"
       (remove-overlays (point-min) (point-max))
       (overlay-put (make-overlay (point-min) (point-max) nil nil t)
@@ -2826,7 +2816,7 @@ that if there is ht's overlay at at the top then return 'default"
    telega-chat-input-markups '("org" nil)
    telega-symbol-checkmark "●"
    telega-symbol-heavy-checkmark "✓"
-   telega-chat-fill-column 90
+   telega-chat-fill-column 80
    telega-emoji-use-images nil
    telega-symbol-eye (propertize "🔎" 'face '(shadow k-monochrome-emoji))
    telega-symbol-pin (propertize "📌" 'face '(success k-monochrome-emoji))
