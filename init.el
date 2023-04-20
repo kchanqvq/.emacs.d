@@ -134,10 +134,8 @@
                   (replace-regexp-in-string "^/sudo:root@localhost:" "" default-directory))))
 
 (when (eq window-system 'ns)
-  (setq default-frame-alist (append
-                             '((ns-transparent-titlebar . t)
-                               (ns-appearance . dark))
-                             default-frame-alist))
+  (set-alist 'default-frame-alist 'ns-transparent-titlebar t)
+  (set-alist 'default-frame-alist 'ns-appearance 'dark)
   (setq frame-title-format nil)
   (setq ns-use-proxy-icon nil)
   (setq ns-use-native-fullscreen nil)
@@ -1115,14 +1113,12 @@
     ('bright (k-generate-theme 0.578 1.0 0.920 1.0 0.724 1.0 0.000 nil))
     ('dark (k-generate-theme 0.578 1.0 0.446 1.0 0.578 1.0 0.105 t))))
 
-(setq default-frame-alist (append
-                           `((left-fringe . 16)
-                             (right-fringe . 16)
-                             (right-divider-width . 32)
-                             (internal-border-width . 16)
-                             (undecorated . t))
-                           default-frame-alist))
-(add-to-list 'default-frame-alist '(alpha . 100))
+(set-alist 'default-frame-alist 'right-fringe 16)
+(set-alist 'default-frame-alist 'left-fringe 16)
+(set-alist 'default-frame-alist 'right-divider-width 32)
+(set-alist 'default-frame-alist 'internal-border-width 16)
+(set-alist 'default-frame-alist 'undecorated t)
+(set-alist 'default-frame-alist 'alpha 100)
 (setq underline-minimum-offset -10)
 
 ;;; Echo per window
@@ -1762,11 +1758,11 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                                       ("(\\(psetq\\)" 1 font-lock-keyword-face)))
  (add-to-list 'lisp-imenu-generic-expression
               (list "Section" "^;;;\\([^#].*\\)$" 1) t)
- (setq auto-mode-alist (cons '("\\.ss" . scheme-mode) auto-mode-alist))
- (setq auto-mode-alist (cons '("\\.sls" . scheme-mode) auto-mode-alist))
- (setq auto-mode-alist (cons '("\\.scm" . scheme-mode) auto-mode-alist))
- (setq auto-mode-alist (delq (assoc "\\.rkt\\'" auto-mode-alist) auto-mode-alist))
- (setq auto-mode-alist (cons '("\\.lisp" . lisp-mode) auto-mode-alist))
+ (set-alist 'auto-mode-alist "\\.ss" 'scheme-mode)
+ (set-alist 'auto-mode-alist "\\.sls" 'scheme-mode)
+ (set-alist 'auto-mode-alist "\\.scm" 'scheme-mode)
+ (set-alist 'auto-mode-alist "\\.rkt" 'racket-mode)
+ (set-alist 'auto-mode-alist "\\.lisp" 'lisp-mode)
 
  (slime-setup '(slime-company slime-fancy slime-quicklisp
                               slime-asdf slime-media slime-parse slime-mrepl))
@@ -1925,7 +1921,7 @@ Otherwise call ORIG-FUN with ARGS."
  (add-hook 'minibuffer-setup-hook 'sexp-minibuffer-hook)
 
  ;; Slime debug window non-prolifiration
- (add-to-list 'display-buffer-alist '("\\`*sldb" (display-buffer-reuse-mode-window))))
+ (set-alist 'display-buffer-alist "\\`*sldb" '((display-buffer-reuse-mode-window))))
 
 (use-package which-key
   :config
@@ -2156,7 +2152,7 @@ emms-playlist-mode and query for a playlist to open."
 (defvar blink-background-colors nil)
 (defvar k-blink-cursor-time-start nil)
 (defvar k-blink-cursor-interval 0.5)
-(defvar k-blink-cursor-flash-interval 0.04)
+(defvar k-blink-cursor-flash-interval 0.06)
 (defvar k-blink-cursor-timer (run-at-time k-blink-cursor-interval nil 'blink-cursor-timer-function))
 (setq blink-cursor-count 0)
 (defun blink-cursor-timer-function ()
