@@ -3,6 +3,13 @@
 
 ;;; Util functions
 
+(require 'nadvice)
+(require 'subr-x)
+(require 'mule-util)
+
+(defun set-alist (symbol key value)
+  (setf (alist-get key (symbol-value symbol)) value))
+
 (defmacro globalize (mode)
   "Define and enable a global minor mode from minor MODE."
   (let ((%global-mode-symbol (intern (concat "global-" (symbol-name mode)))))
@@ -17,7 +24,6 @@
 (defun delete-from-list (list-var element)
   (set list-var (delete element (symbol-value list-var))))
 
-(require 'nadvice)
 (cl-defmacro with-advice ((symbol how lambda-list &body advice) &body body)
   `(let ((k-advice (lambda ,lambda-list ,@advice)))
      (advice-add ',symbol ,how k-advice)
@@ -45,9 +51,6 @@
   (when (k-exwm-enabled-p)
     (define-key exwm-mode-map key command))
   (global-set-key key command))
-
-(require 'subr-x)
-(require 'mule-util)
 
 (defun k-fill-right (string)
   (let* ((width (string-pixel-width string)))
@@ -2142,10 +2145,19 @@ emms-playlist-mode and query for a playlist to open."
         (setq k-blink-cursor-time-start nil
               k-blink-cursor-interval 0.5))))
   (add-hook 'emms-player-started-hook 'k-emms-generate-theme)
-  (add-hook 'emms-player-started-hook 'k-emms-bpm-cursor))
+  (add-hook 'emms-player-started-hook 'k-emms-bpm-cursor)
+
+  (when (k-exwm-enabled-p)
+    (defun k-exwm-update-class ()
+      (pcase exwm-class-name
+        ("mpv"
+         (setq exwm-window-type (list xcb:Atom:_NET_WM_WINDOW_TYPE_DESKTOP))
+         (with-slots (x y width height) (exwm-workspace--get-geometry exwm--frame)
+           (exwm--set-geometry exwm--id x y width height)))))
+    (add-hook 'exwm-update-class-hook 'k-exwm-update-class)))
 
 ;;; Cute and useless visuals!
-
+(blink-cursor-mode -1)
 (defvar blink-cursor-colors nil)
 (defvar blink-background-colors nil)
 (defvar k-blink-cursor-time-start nil)
@@ -2169,7 +2181,7 @@ emms-playlist-mode and query for a playlist to open."
                    (- k-blink-cursor-interval
                       (mod (float-time (time-since k-blink-cursor-time-start)) k-blink-cursor-interval))
                  k-blink-cursor-flash-interval)
-                           nil 'blink-cursor-timer-function)))
+               nil 'blink-cursor-timer-function)))
     (internal-show-cursor nil t)
     (setq k-blink-cursor-timer (run-at-time (- k-blink-cursor-interval k-blink-cursor-flash-interval) nil 'blink-cursor-timer-function))))
 
@@ -2433,7 +2445,7 @@ emms-playlist-mode and query for a playlist to open."
                  ("\\subsubsection\{%s\}" . "\\subsubsection*\{%s\}")))
 
   (setq org-preview-latex-default-process 'dvisvgm)
-  (setf (getf org-format-latex-options :scale) 2.0)
+  (plist-put org-format-latex-options :scale 2.0)
   (setq-default org-html-with-latex 'dvisvgm)
   (setq-default org-link-descriptive t
                 org-hide-emphasis-markers t
