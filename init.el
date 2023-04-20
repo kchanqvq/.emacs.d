@@ -1612,7 +1612,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (global-set-key (kbd "C-M-h") 'backward-kill-sexp)
 
 (global-set-key (kbd "s-m") 'magit-status)
-(setq-default consult-preview-key (kbd "C-h"))
+(setq-default consult-preview-key "C-h")
 (global-set-key (kbd "s-w") 'save-buffer)
 (global-set-key (kbd "s-u") 'revert-buffer)
 (global-set-key (kbd "s-h") 'consult-imenu)
