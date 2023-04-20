@@ -626,8 +626,7 @@
   (if dark-p
       (progn
         (defconst blink-cursor-colors (list k-fg k-fg-blue k-fg-pink k-fg-purple))
-        (defconst blink-background-colors (list k-bg k-bg-blue k-bg-pink k-bg-purple))
-        (defconst blink-highlight-colors (list "#5D7E79" "#475E94" "#733780" "#808164"))
+        ;; (defconst blink-background-colors (list k-bg k-bg-blue k-bg-pink k-bg-purple))
         (setq-default face-near-same-color-threshold 50000)
         (setq-default pdf-view-midnight-colors (cons k-fg k-bg))
         (add-to-list 'pdf-tools-enabled-hook 'pdf-view-midnight-minor-mode)
@@ -637,16 +636,12 @@
               (pdf-view-midnight-minor-mode)))))
     (progn
       (defconst blink-cursor-colors (list k-fg-blue k-fg-pink k-fg-purple))
-      (defconst blink-highlight-colors (list k-bg-blue k-bg-pink k-bg-purple))
       (setq-default face-near-same-color-threshold 30000)
       (delete-from-list 'pdf-tools-enabled-hook 'pdf-view-midnight-minor-mode)
       (dolist (buffer (buffer-list))
         (with-current-buffer buffer
           (when (derived-mode-p 'pdf-view-mode)
             (pdf-view-midnight-minor-mode -1))))))
-  (k-load-faces)
-  (when (get-buffer " *echo per window*")
-    (kill-buffer " *echo per window*"))
 
   ;; (let (fix-highlight-indent-guides)
   ;;   (highlight-tail-mode 0)
@@ -1140,7 +1135,10 @@
           (overlay-put k--top-separator-ov 'face 'k-separator-overline)
           (overlay-put k--top-separator-ov 'after-string
                        (propertize " "  'display '(space :align-to right)
-                                   'face 'k-separator-overline))))))
+                                   'face 'k-separator-overline))))
+    (when k--top-separator-ov
+      (delete-overlay k--top-separator-ov)
+      (setq k--top-separator-ov nil))))
 
 (defun k-window-echo-area--map (function &optional buffer)
   (dolist (frame (frame-list))
@@ -2152,7 +2150,7 @@ emms-playlist-mode and query for a playlist to open."
 (defvar blink-background-colors nil)
 (defvar k-blink-cursor-time-start nil)
 (defvar k-blink-cursor-interval 0.5)
-(defvar k-blink-cursor-flash-interval 0.06)
+(defvar k-blink-cursor-flash-interval 0.1)
 (defvar k-blink-cursor-timer (run-at-time k-blink-cursor-interval nil 'blink-cursor-timer-function))
 (setq blink-cursor-count 0)
 (defun blink-cursor-timer-function ()
