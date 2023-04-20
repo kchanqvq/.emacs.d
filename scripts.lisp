@@ -37,8 +37,9 @@
       (clusters:run-algorithm state)
       (labels ((vector-to-hue (v)
                  (values (mod (/ (atan (aref v 1) (aref v 0)) 2 (float pi 1.0)) 1.0)
-                         (min (sqrt (+ (expt (aref v 0) 2)
-                                       (expt (aref v 1) 2)))
+                         (min (* (- 1.0 (sqrt (- 1.0 (sqrt (+ (expt (aref v 0) 2)
+                                                              (expt (aref v 1) 2))))))
+                                 1.1)
                               1.0))))
         (let ((result-alist
                 (sort (iter (for v in-vector (clusters.k-means::access-medoids state))

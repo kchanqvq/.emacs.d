@@ -176,7 +176,7 @@
               '((slime-mode (:eval (slime-mode-line)))
                 (:eval (if (eq major-mode 'emms-playlist-mode) (k-emms-mode-line) "")))
               mode-line-format
-              '(:eval
+              `(:eval
                 (k-pad-mode-line-format
                  '(""
                    (:propertize "%b" face mode-line-buffer-id)
@@ -187,11 +187,12 @@
                    mode-line-misc-info)
                  '("  "
                    (:eval (if (k-mode-line-selected-p) #("%c" 0 2 (face mode-line-emphasis))
-                               "%c"))
+                            "%c"))
                    (#(" %l/" 0 3 (face mode-line-highlight))
                     (:propertize (:eval (number-to-string (line-number-at-pos (point-max))))
                                  face bold)))))
-              tab-line-format nil)
+              tab-line-format ;; `(:eval (if (< (cadr (window-edges)) 2) " " #(" " 0 1 (face (:height 2.0)))))
+              nil)
 
 (defvar-local k-pad-last-header-line-format nil)
 (defun k-pad-header-line-after-advice (&optional object &rest args)
@@ -207,16 +208,16 @@
 (add-hook 'Info-mode-hook #'k-pad-header-line-after-advice)
 (add-hook 'window-buffer-change-functions 'k-pad-header-line-after-advice)
 
-(defvar-local k-inhibit-tab-line nil)
+(defvar k-inhibit-tab-line nil)
 (defun k-compute-tab-line (frame)
   (dolist (w (window-list frame))
     (with-current-buffer (window-buffer w)
       (unless k-inhibit-tab-line
         (if (< (cadr (window-edges w)) 2)
-            (setq-local tab-line-format nil)
-          (setq-local tab-line-format (propertize " " 'face '(:height 2.0))))))))
-
+            (set-window-parameter w 'tab-line-format nil)
+          (set-window-parameter w 'tab-line-format " "))))))
 (add-hook 'window-buffer-change-functions 'k-compute-tab-line)
+
 
 ;;; Packages
 
@@ -626,7 +627,8 @@
 
   (if dark-p
       (progn
-        (defconst blink-cursor-colors (list k-fg-blue k-fg-pink k-fg-purple))
+        (defconst blink-cursor-colors (list k-fg k-fg-blue k-fg-pink k-fg-purple))
+        (defconst blink-background-colors (list k-bg k-bg-blue k-bg-pink k-bg-purple))
         (defconst blink-highlight-colors (list "#5D7E79" "#475E94" "#733780" "#808164"))
         (setq-default face-near-same-color-threshold 50000)
         (setq-default pdf-view-midnight-colors (cons k-fg k-bg))
@@ -746,7 +748,7 @@
 
    ;; Avy
    `(avy-lead-face ((default :background ,k-dk-blue :foreground ,k-bg
-                             :font "Source Code Pro:weight=normal")))
+                             :inherit bold)))
    `(avy-lead-face-0 ((default :inherit avy-lead-face)))
    `(avy-lead-face-1 ((default :inherit avy-lead-face)))
    `(avy-lead-face-2 ((default :inherit avy-lead-face)))
@@ -763,7 +765,7 @@
    ;; `(gui-element ((,class (:background ,contrast-bg))))
    `(internal-border ((default (:background ,k-bg))))
    `(child-frame-border ((default (:background ,k-bg-blue))))
-   `(tab-line ((default :background ,k-bg)))
+   `(tab-line ((default :background ,k-bg :height 2.0)))
 
    (if k-theme-dark-p
        `(mode-line ((default :background ,k-bg-grey-1)))
@@ -776,9 +778,9 @@
    `(minibuffer-prompt ((default :inherit bold)))
    `(region ((default :background ,k-bg-blue)))
    `(secondary-selection ((default :background ,k-bg-blue)))
-   (if k-theme-dark-p`
-       (header-line ((default :background ,k-bg :underline ,k-bg-grey-2)))
-     (header-line ((default :background ,k-bg :underline ,k-fg))))
+   (if k-theme-dark-p
+       `(header-line ((default :background ,k-bg :underline ,k-bg-grey-2)))
+     `(header-line ((default :background ,k-bg :underline ,k-fg))))
 
    `(button ((default :underline t :foreground ,k-fg :inherit bold)))
    `(link ((default :foreground ,k-fg-1 :underline t :inherit bold)))
@@ -1012,7 +1014,7 @@
    ;; `(emms-browser-track-face ((,class (:inherit outline-4))))
    ;; `(emms-browser-year/genre-face ((,class (:inherit outline-1))))
    `(emms-playlist-selected-face ((default :inherit match :extend t)))
-   `(emms-playlist-track-face ((default :foreground ,k-fg)))
+   `(emms-playlist-track-face ((default :inherit default)))
 
    ;; ytel
    `(ytel-video-published-face ((default :inherit org-date)))
@@ -1051,6 +1053,7 @@
    `(notmuch-search-date ((default :inherit variable-pitch)))
    `(notmuch-search-unread-face ((default :inherit bold)))
    `(notmuch-tag-unread ((default :foreground ,k-dk-pink)))
+   `(notmuch-tag-deleted ((default :strike-through ,k-fg)))
    `(notmuch-tag-face ((default :inherit (shadow k-proper-name))))
 
    ;; custom
@@ -1080,6 +1083,7 @@
    `(telega-msg-user-title ((default :inherit (bold variable-pitch) :foreground ,k-fg)))
    `(telega-msg-self-title ((default :inherit (shadow telega-msg-user-title))))
    `(telega-username ((default :inherit telega-msg-user-title)))
+   `(telega-user-online-status ((default :foreground ,k-fg-pink)))
    `(telega-chat-prompt ((default :inherit default)))
    `(telega-entity-type-pre ((default :inherit (shadow fixed-pitch))))
    `(telega-entity-type-code ((default :inherit (shadow fixed-pitch))))
@@ -1677,7 +1681,43 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (define-key indent-rigidly-map (kbd "M-b") 'indent-rigidly-left-to-tab-stop)
 (define-key indent-rigidly-map (kbd "M-f") 'indent-rigidly-right-to-tab-stop)
 
-(ace-link-setup-default "o")
+(use-package avy
+  :config
+  (put 'avy 'priority 10))
+(use-package ace-link
+  :config
+  (ace-link-setup-default "o")
+  (defun ace-link--widget-action (pt)
+    (when (number-or-marker-p pt)
+      (goto-char pt)
+      (let ((button (get-char-property pt 'button)))
+        (when button
+	  (widget-apply-action button)))))
+  (defun ace-link--widget-collect ()
+    "Collect the positions of visible widgets in current buffer."
+    (let (candidates pt)
+      (save-excursion
+        (save-restriction
+          (narrow-to-region
+           (window-start)
+           (window-end))
+          (goto-char (point-min))
+          (setq pt (point))
+          (while (progn (widget-forward 1)
+                        (> (point) pt))
+            (setq pt (point))
+            (push (point) candidates))))
+      (nreverse candidates)))
+  (defun ace-link-widget ()
+    "Open or go to a visible widget."
+    (interactive)
+    (let ((pt (avy-with ace-link-widget
+                (avy-process
+                 (ace-link--widget-collect)
+                 (avy--style-fn avy-style)))))
+      (ace-link--widget-action pt)))
+  (add-to-list 'avy-styles-alist
+               '(ace-link-widget . pre)))
 
 (define-key emacs-lisp-mode-map (kbd "C-c C-p") #'eval-print-last-sexp)
 
@@ -2057,7 +2097,14 @@ emms-playlist-mode and query for a playlist to open."
   (defun emms-playing-time-display ()
     "Display playing time on the mode line."
     ;; (setq emms-playing-time (round (1+ emms-playing-time)))
-    (emms-player-mpv-event-playing-time-sync)
+    (emms-player-mpv-ipc-req-send '(get_property time-pos)
+                                  #'(lambda (pos err)
+                                      (unless err
+                                        (emms-playing-time-set pos)
+                                        (when k-blink-cursor-time-start
+                                          (setq k-blink-cursor-time-start
+                                                (time-add (current-time)
+                                                          (seconds-to-time (- pos))))))))
     (force-mode-line-update))
 
   (defun k-emms-player-mpv-event-function (json-data)
@@ -2086,27 +2133,51 @@ emms-playlist-mode and query for a playlist to open."
                   (message "Generate theme: %s" colors)
                   (apply #'k-generate-theme
                          (append colors '(0.0 t)))
-                  (set-frame-parameter nil 'alpha 80))
+                  (set-frame-parameter nil 'alpha 85))
               (k-theme-switch 'dark)
               (set-frame-parameter nil 'alpha 100)))))))
-
-  (add-hook 'emms-player-started-hook 'k-emms-generate-theme))
+  (defun k-emms-bpm-cursor ()
+    (let ((bpm (emms-track-get (emms-playlist-current-selected-track) 'info-bpm)))
+      (if bpm
+          (progn
+            (cancel-timer k-blink-cursor-timer)
+            (setq k-blink-cursor-interval (/ 60.0 bpm)
+                  k-blink-cursor-time-start (current-time))
+            (setq k-blink-cursor-timer
+                  (run-at-time k-blink-cursor-interval nil 'blink-cursor-timer-function)))
+        (setq k-blink-cursor-time-start nil
+              k-blink-cursor-interval 0.5))))
+  (add-hook 'emms-player-started-hook 'k-emms-generate-theme)
+  (add-hook 'emms-player-started-hook 'k-emms-bpm-cursor))
 
 ;;; Cute and useless visuals!
 
 (defvar blink-cursor-colors nil)
-(defvar blink-highlight-colors nil)
+(defvar blink-background-colors nil)
+(defvar k-blink-cursor-time-start nil)
+(defvar k-blink-cursor-interval 0.5)
+(defvar k-blink-cursor-flash-interval 0.04)
+(defvar k-blink-cursor-timer (run-at-time k-blink-cursor-interval nil 'blink-cursor-timer-function))
 (setq blink-cursor-count 0)
-(blink-cursor-mode)
 (defun blink-cursor-timer-function ()
-  (when (not (internal-show-cursor-p))
-    (when (>= blink-cursor-count (length blink-cursor-colors))
-      (setq blink-cursor-count 0))
-    (let ((color (nth blink-cursor-count blink-cursor-colors))
-          (hl-color (nth blink-cursor-count blink-highlight-colors)))
-      (set-cursor-color color)
-      (setq blink-cursor-count (+ 1 blink-cursor-count))))
-  (internal-show-cursor nil (not (internal-show-cursor-p))))
+  (if (internal-show-cursor-p)
+      (progn
+        (when (>= blink-cursor-count (length blink-cursor-colors))
+          (setq blink-cursor-count 0))
+        (let ((color (nth blink-cursor-count blink-cursor-colors))
+              (bg (nth blink-cursor-count blink-background-colors)))
+          (set-cursor-color color)
+          (setq blink-cursor-count (+ 1 blink-cursor-count))
+          (internal-show-cursor nil nil))
+        (setq k-blink-cursor-timer
+              (run-at-time
+               (if k-blink-cursor-time-start
+                   (- k-blink-cursor-interval
+                      (mod (float-time (time-since k-blink-cursor-time-start)) k-blink-cursor-interval))
+                 k-blink-cursor-flash-interval)
+                           nil 'blink-cursor-timer-function)))
+    (internal-show-cursor nil t)
+    (setq k-blink-cursor-timer (run-at-time (- k-blink-cursor-interval k-blink-cursor-flash-interval) nil 'blink-cursor-timer-function))))
 
 (use-package highlight-indent-guides
   :config
@@ -2575,7 +2646,9 @@ emms-playlist-mode and query for a playlist to open."
 (use-package notmuch
   :defer t
   :bind ( :map notmuch-common-keymap
-          ("G" . k-update-notmuch))
+          ("G" . k-update-notmuch)
+          :map notmuch-hello-mode-map
+          ("o" . ace-link-widget))
   :config
   (setq-default notmuch-search-oldest-first nil
                 notmuch-show-logo nil
@@ -2759,17 +2832,9 @@ emms-playlist-mode and query for a playlist to open."
     ;; (when-let (buffer (get-buffer " *Vampire Time Screensaver*"))
     ;;   (with-current-buffer buffer
     ;;     (delete-region (point-min) (point-max))
-    ;;     (let ((l1 (propertize (concat " " (format-seconds "%h:%.2m:%.2s" (cadr time)))
-    ;;                           'face '(:height 10.0 :weight normal)))
-    ;;           (l2 (propertize (format "till %s" (car time))
-    ;;                           'face '(:height 4.0 :weight normal))))
-    ;;       (insert l1 (propertize " \n" 'face '(:height 10.0 :weight normal)))
-    ;;       (insert (propertize " "
-    ;;                           'display `(space :width (,(- (shr-string-pixel-width l1)
-    ;;                                                        (shr-string-pixel-width l2)))))
-    ;;               l2)))
+    ;;     (insert msg))
     ;;   (posframe-show buffer :poshandler 'posframe-poshandler-frame-center
-    ;;                  :internal-border-width 3))
+    ;;                  :border-width 1))
     ))
 (add-hook 'post-command-hook 'vampire-time-update)
 (defvar vampire-time-timer (run-at-time t 1 'vampire-time-update))
@@ -2784,7 +2849,13 @@ emms-playlist-mode and query for a playlist to open."
 
 (add-to-list 'load-path "~/.emacs.d/lisp/insecure-lock")
 (require 'insecure-lock)
-(setq insecure-lock-mode-hook '(vampire-time-screensaver insecure-lock-blank-screen))
+(defun insecure-lock-hide ()
+  (if insecure-lock-mode
+      (progn
+        (set-frame-parameter nil 'insecure-lock--saved-alpha (frame-parameter nil 'alpha))
+        (set-frame-parameter nil 'alpha 0.0))
+    (set-frame-parameter nil 'alpha (frame-parameter nil 'insecure-lock--saved-alpha))))
+(setq insecure-lock-mode-hook '(insecure-lock-hide insecure-lock-blank-screen insecure-lock-posframe))
 
 ;;; telega
 
