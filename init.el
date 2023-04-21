@@ -625,7 +625,7 @@
                         (+ hue-1 0.1)
                       (- hue-1 0.1))
                     0.20 0.53))))
-
+  (k-load-faces)
   (if dark-p
       (progn
         (defconst blink-cursor-colors (list k-fg k-fg-blue k-fg-pink k-fg-purple))
@@ -658,7 +658,7 @@
   ;;     (with-current-buffer buffer
   ;;       (highlight-indent-guides-mode)))
   ;;   (highlight-tail-mode))
-  (k-load-faces))
+  )
 
 (defface k-quote nil "Base face for quote.")
 (defface k-keyword nil "Base face for keyword.")
@@ -680,6 +680,15 @@
 
   (custom-theme-set-faces
    'k
+   `(default ((default :font ,k-light-monospace :background ,k-bg :foreground ,k-fg :distant-foreground ,k-bg
+                       :weight light)))
+   `(fixed-pitch ((default :family ,k-monospace :weight light)))
+   `(fixed-pitch-serif ((default :family "Courier" :weight light)))
+   `(variable-pitch ((default :family "Noto Sans" :weight light)))
+   `(bold ((default :weight normal)))
+   '(bold-italic ((default :inherit (bold italic))))
+   '(underline ((default :underline t)))
+   '(italic ((default :slant italic)))
    `(k-quote ((default :inherit (fixed-pitch-serif bold))))
    `(k-keyword ((default :foreground ,k-fg-1 :inherit bold)))
    `(k-proper-name ((default :inherit k-quote :foreground ,k-fg)))
@@ -696,15 +705,6 @@
        `(k-separator-overline ((default :overline ,k-bg-grey-2)))
      `(k-separator-overline ((default :overline ,k-fg))))
    `(k-monochrome-emoji ((default :font ,(font-spec :family "Noto Emoji" :size 16))))
-   `(default ((default :font ,k-light-monospace :background ,k-bg :foreground ,k-fg :distant-foreground ,k-bg
-                       :weight light)))
-   `(fixed-pitch ((default :family ,k-monospace :weight light)))
-   `(fixed-pitch-serif ((default :family "Courier" :weight light)))
-   `(variable-pitch ((default :family "Noto Sans" :weight light)))
-   `(bold ((default :weight normal)))
-   '(bold-italic ((default :inherit (bold italic))))
-   '(underline ((default :underline t)))
-   '(italic ((default :slant italic)))
    '(font-lock-builtin-face ((default :inherit k-keyword)))
    `(font-lock-comment-face ((default :inherit k-comment)))
    '(font-lock-comment-delimiter-face ((default :inherit k-comment)))
@@ -1637,6 +1637,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (global-set-key (kbd "s-SPC") 'fixup-whitespace)
 
 (k-global-set-key (kbd "s-g") 'eww-new-buffer)
+(k-global-set-key (kbd "s-a") 'emms)
 
 (when (k-exwm-enabled-p)
   (setq exwm-input-global-keys
@@ -1994,8 +1995,7 @@ Otherwise call ORIG-FUN with ARGS."
 
 (use-package emms
   :bind
-  ( ("s-a" . k-emms)
-    :map emms-playlist-mode-map
+  ( :map emms-playlist-mode-map
     ("p" . emms-pause)
     ("n" . l)
     ("M-p" . emms-previous)
@@ -2128,9 +2128,9 @@ emms-playlist-mode and query for a playlist to open."
             (if colors
                 (let ((inhibit-message t))
                   (message "Generate theme: %s" colors)
+                  (set-frame-parameter nil 'alpha 85)
                   (apply #'k-generate-theme
-                         (append colors '(0.0 t)))
-                  (set-frame-parameter nil 'alpha 85))
+                         (append colors '(0.0 t))))
               (k-theme-switch 'dark)
               (set-frame-parameter nil 'alpha 100)))))))
   (defun k-emms-bpm-cursor ()
@@ -2158,7 +2158,7 @@ emms-playlist-mode and query for a playlist to open."
 
 ;;; Cute and useless visuals!
 (blink-cursor-mode -1)
-(defvar blink-cursor-colors nil)
+(defvar blink-cursor-colors (list "#000"))
 (defvar blink-background-colors nil)
 (defvar k-blink-cursor-time-start nil)
 (defvar k-blink-cursor-interval 0.5)
@@ -2276,9 +2276,9 @@ emms-playlist-mode and query for a playlist to open."
     (start-process "chromium" " *chromium*" "chromium"
                    (concat "--app=" url)))
   (setq-default browse-url-secondary-browser-function 'k-browse-url-chromium)
-  (add-hook 'exwm-update-title-hook
-            (lambda ()
-              (exwm-workspace-rename-buffer (concat "EXWM: " exwm-title))))
+  (defun k-exwm-update-title ()
+    (exwm-workspace-rename-buffer (concat exwm-class-name ": " exwm-title)))
+  (add-hook 'exwm-update-title-hook 'k-exwm-update-title)
   (defun k-eww-reload-in-chromium ()
     (interactive)
     (k-browse-url-chromium (plist-get eww-data :url)))
@@ -2286,6 +2286,7 @@ emms-playlist-mode and query for a playlist to open."
 
 (use-package pdf-tools
   :config
+  (setq pdf-view-midnight-invert nil)
   (pdf-tools-install))
 
 (k-theme-switch 'bright)
