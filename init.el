@@ -2172,7 +2172,16 @@ emms-playlist-mode and query for a playlist to open."
                            nil 'blink-cursor-timer-function)))
     (internal-show-cursor nil t)
     (setq k-blink-cursor-timer (run-at-time (- k-blink-cursor-interval k-blink-cursor-flash-interval) nil 'blink-cursor-timer-function))))
-
+(defun k-rhythm-hit-result ()
+  (when k-blink-cursor-time-start
+    (let* ((time (float-time (time-since k-blink-cursor-time-start)))
+           (err (abs (- time (* k-blink-cursor-interval (round time k-blink-cursor-interval)))))
+           (inhibit-message t))
+      (cond ((< err 0.06) (message "Perfect"))
+            ((< err 0.12) (message "Ok"))
+            ((< err 0.18) (message "Meh"))
+            (t (message "Miss"))))))
+;; (add-hook 'pre-command-hook 'k-rhythm-hit-result)
 (use-package highlight-indent-guides
   :config
   (setq highlight-indent-guides-method 'character)
