@@ -3,6 +3,13 @@
 
 ;;; Util functions
 
+(require 'nadvice)
+(require 'subr-x)
+(require 'mule-util)
+
+(defun set-alist (symbol key value)
+  (setf (alist-get key (symbol-value symbol)) value))
+
 (defmacro globalize (mode)
   "Define and enable a global minor mode from minor MODE."
   (let ((%global-mode-symbol (intern (concat "global-" (symbol-name mode)))))
@@ -17,7 +24,6 @@
 (defun delete-from-list (list-var element)
   (set list-var (delete element (symbol-value list-var))))
 
-(require 'nadvice)
 (cl-defmacro with-advice ((symbol how lambda-list &body advice) &body body)
   `(let ((k-advice (lambda ,lambda-list ,@advice)))
      (advice-add ',symbol ,how k-advice)
@@ -45,9 +51,6 @@
   (when (k-exwm-enabled-p)
     (define-key exwm-mode-map key command))
   (global-set-key key command))
-
-(require 'subr-x)
-(require 'mule-util)
 
 (defun k-fill-right (string)
   (let* ((width (string-pixel-width string)))
@@ -622,7 +625,7 @@
                         (+ hue-1 0.1)
                       (- hue-1 0.1))
                     0.20 0.53))))
-
+  (k-load-faces)
   (if dark-p
       (progn
         (defconst blink-cursor-colors (list k-fg k-fg-blue k-fg-pink k-fg-purple))
@@ -655,7 +658,7 @@
   ;;     (with-current-buffer buffer
   ;;       (highlight-indent-guides-mode)))
   ;;   (highlight-tail-mode))
-  (k-load-faces))
+  )
 
 (defface k-quote nil "Base face for quote.")
 (defface k-keyword nil "Base face for keyword.")
@@ -677,6 +680,15 @@
 
   (custom-theme-set-faces
    'k
+   `(default ((default :font ,k-light-monospace :background ,k-bg :foreground ,k-fg :distant-foreground ,k-bg
+                       :weight light)))
+   `(fixed-pitch ((default :family ,k-monospace :weight light)))
+   `(fixed-pitch-serif ((default :family "Courier" :weight light)))
+   `(variable-pitch ((default :family "Noto Sans" :weight light)))
+   `(bold ((default :weight normal)))
+   '(bold-italic ((default :inherit (bold italic))))
+   '(underline ((default :underline t)))
+   '(italic ((default :slant italic)))
    `(k-quote ((default :inherit (fixed-pitch-serif bold))))
    `(k-keyword ((default :foreground ,k-fg-1 :inherit bold)))
    `(k-proper-name ((default :inherit k-quote :foreground ,k-fg)))
@@ -693,15 +705,6 @@
        `(k-separator-overline ((default :overline ,k-bg-grey-2)))
      `(k-separator-overline ((default :overline ,k-fg))))
    `(k-monochrome-emoji ((default :font ,(font-spec :family "Noto Emoji" :size 16))))
-   `(default ((default :font ,k-light-monospace :background ,k-bg :foreground ,k-fg :distant-foreground ,k-bg
-                       :weight light)))
-   `(fixed-pitch ((default :family ,k-monospace :weight light)))
-   `(fixed-pitch-serif ((default :family "Courier" :weight light)))
-   `(variable-pitch ((default :family "Noto Sans" :weight light)))
-   `(bold ((default :weight normal)))
-   '(bold-italic ((default :inherit (bold italic))))
-   '(underline ((default :underline t)))
-   '(italic ((default :slant italic)))
    '(font-lock-builtin-face ((default :inherit k-keyword)))
    `(font-lock-comment-face ((default :inherit k-comment)))
    '(font-lock-comment-delimiter-face ((default :inherit k-comment)))
@@ -1612,7 +1615,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (global-set-key (kbd "C-M-h") 'backward-kill-sexp)
 
 (global-set-key (kbd "s-m") 'magit-status)
-(setq-default consult-preview-key (kbd "C-h"))
+(setq-default consult-preview-key "C-h")
 (global-set-key (kbd "s-w") 'save-buffer)
 (global-set-key (kbd "s-u") 'revert-buffer)
 (global-set-key (kbd "s-h") 'consult-imenu)
@@ -1634,6 +1637,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (global-set-key (kbd "s-SPC") 'fixup-whitespace)
 
 (k-global-set-key (kbd "s-g") 'eww-new-buffer)
+(k-global-set-key (kbd "s-a") 'emms)
 
 (when (k-exwm-enabled-p)
   (setq exwm-input-global-keys
@@ -1991,8 +1995,7 @@ Otherwise call ORIG-FUN with ARGS."
 
 (use-package emms
   :bind
-  ( ("s-a" . k-emms)
-    :map emms-playlist-mode-map
+  ( :map emms-playlist-mode-map
     ("p" . emms-pause)
     ("n" . l)
     ("M-p" . emms-previous)
@@ -2125,9 +2128,9 @@ emms-playlist-mode and query for a playlist to open."
             (if colors
                 (let ((inhibit-message t))
                   (message "Generate theme: %s" colors)
+                  (set-frame-parameter nil 'alpha 85)
                   (apply #'k-generate-theme
-                         (append colors '(0.0 t)))
-                  (set-frame-parameter nil 'alpha 85))
+                         (append colors '(0.0 t))))
               (k-theme-switch 'dark)
               (set-frame-parameter nil 'alpha 100)))))))
   (defun k-emms-bpm-cursor ()
@@ -2142,11 +2145,20 @@ emms-playlist-mode and query for a playlist to open."
         (setq k-blink-cursor-time-start nil
               k-blink-cursor-interval 0.5))))
   (add-hook 'emms-player-started-hook 'k-emms-generate-theme)
-  (add-hook 'emms-player-started-hook 'k-emms-bpm-cursor))
+  (add-hook 'emms-player-started-hook 'k-emms-bpm-cursor)
+
+  (when (k-exwm-enabled-p)
+    (defun k-exwm-update-class ()
+      (pcase exwm-class-name
+        ("mpv"
+         (setq exwm-window-type (list xcb:Atom:_NET_WM_WINDOW_TYPE_DESKTOP))
+         (with-slots (x y width height) (exwm-workspace--get-geometry exwm--frame)
+           (exwm--set-geometry exwm--id x y width height)))))
+    (add-hook 'exwm-update-class-hook 'k-exwm-update-class)))
 
 ;;; Cute and useless visuals!
-
-(defvar blink-cursor-colors nil)
+(blink-cursor-mode -1)
+(defvar blink-cursor-colors (list "#000"))
 (defvar blink-background-colors nil)
 (defvar k-blink-cursor-time-start nil)
 (defvar k-blink-cursor-interval 0.5)
@@ -2169,7 +2181,7 @@ emms-playlist-mode and query for a playlist to open."
                    (- k-blink-cursor-interval
                       (mod (float-time (time-since k-blink-cursor-time-start)) k-blink-cursor-interval))
                  k-blink-cursor-flash-interval)
-                           nil 'blink-cursor-timer-function)))
+               nil 'blink-cursor-timer-function)))
     (internal-show-cursor nil t)
     (setq k-blink-cursor-timer (run-at-time (- k-blink-cursor-interval k-blink-cursor-flash-interval) nil 'blink-cursor-timer-function))))
 (defun k-rhythm-hit-result ()
@@ -2273,9 +2285,9 @@ emms-playlist-mode and query for a playlist to open."
     (start-process "chromium" " *chromium*" "chromium"
                    (concat "--app=" url)))
   (setq-default browse-url-secondary-browser-function 'k-browse-url-chromium)
-  (add-hook 'exwm-update-title-hook
-            (lambda ()
-              (exwm-workspace-rename-buffer (concat "EXWM: " exwm-title))))
+  (defun k-exwm-update-title ()
+    (exwm-workspace-rename-buffer (concat exwm-class-name ": " exwm-title)))
+  (add-hook 'exwm-update-title-hook 'k-exwm-update-title)
   (defun k-eww-reload-in-chromium ()
     (interactive)
     (k-browse-url-chromium (plist-get eww-data :url)))
@@ -2283,6 +2295,7 @@ emms-playlist-mode and query for a playlist to open."
 
 (use-package pdf-tools
   :config
+  (setq pdf-view-midnight-invert nil)
   (pdf-tools-install))
 
 (k-theme-switch 'bright)
@@ -2442,7 +2455,7 @@ emms-playlist-mode and query for a playlist to open."
                  ("\\subsubsection\{%s\}" . "\\subsubsection*\{%s\}")))
 
   (setq org-preview-latex-default-process 'dvisvgm)
-  (setf (getf org-format-latex-options :scale) 2.0)
+  (plist-put org-format-latex-options :scale 2.0)
   (setq-default org-html-with-latex 'dvisvgm)
   (setq-default org-link-descriptive t
                 org-hide-emphasis-markers t
