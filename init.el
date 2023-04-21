@@ -6,9 +6,22 @@
 (require 'nadvice)
 (require 'subr-x)
 (require 'mule-util)
+(require 'package)
 
-(defun set-alist (symbol key value)
-  (setf (alist-get key (symbol-value symbol)) value))
+(add-to-list 'package-archives
+             '("melpa-stable" . "https://stable.melpa.org/packages/"))
+(add-to-list 'package-archives
+             '("melpa" . "https://melpa.org/packages/"))
+(add-to-list 'package-archives '("org" . "http://orgmode.org/elpa/") t)
+(package-initialize)
+(when (not package-archive-contents)
+  (package-refresh-contents))
+
+(let ((package-check-signature nil))
+  (use-package gnu-elpa-keyring-update))
+
+(use-package alist :ensure apel)
+(use-package s)
 
 (defmacro globalize (mode)
   "Define and enable a global minor mode from minor MODE."
@@ -85,17 +98,6 @@
 (byte-compile 'k-truncate-string-to-width)
 
 ;;; Initial config
-
-(require 'package)
-
-(add-to-list 'package-archives
-             '("melpa-stable" . "https://stable.melpa.org/packages/"))
-(add-to-list 'package-archives
-             '("melpa" . "https://melpa.org/packages/"))
-(add-to-list 'package-archives '("org" . "http://orgmode.org/elpa/") t)
-(package-initialize)
-(when (not package-archive-contents)
-  (package-refresh-contents))
 
 (add-to-list 'load-path "~/.emacs.d/lisp")
 (add-to-list 'load-path "~/.emacs.d/custom")
@@ -1120,8 +1122,6 @@
 (setq underline-minimum-offset -10)
 
 ;;; Echo per window
-
-(use-package s)
 
 (defvar-local k--top-separator-ov nil)
 
@@ -2193,7 +2193,7 @@ emms-playlist-mode and query for a playlist to open."
             ((< err 0.12) (message "Ok"))
             ((< err 0.18) (message "Meh"))
             (t (message "Miss"))))))
-;; (add-hook 'pre-command-hook 'k-rhythm-hit-result)
+(add-hook 'pre-command-hook 'k-rhythm-hit-result)
 (use-package highlight-indent-guides
   :config
   (setq highlight-indent-guides-method 'character)
