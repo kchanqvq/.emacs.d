@@ -1637,7 +1637,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (global-set-key (kbd "s-SPC") 'fixup-whitespace)
 
 (k-global-set-key (kbd "s-g") 'eww-new-buffer)
-(k-global-set-key (kbd "s-a") 'emms)
+(k-global-set-key (kbd "s-a") 'k-emms)
 
 (when (k-exwm-enabled-p)
   (setq exwm-input-global-keys
@@ -1994,6 +1994,7 @@ Otherwise call ORIG-FUN with ARGS."
   :bind ("s-e" . goto-last-change))
 
 (use-package emms
+  :commands k-emms
   :bind
   ( :map emms-playlist-mode-map
     ("p" . emms-pause)
