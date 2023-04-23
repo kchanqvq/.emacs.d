@@ -1301,7 +1301,7 @@
 (use-package lsp-mode
   :bind ( :map lsp-mode-map
           ("s-d" . lsp-execute-code-action))
-  :config
+  :init
   (setq-default lsp-headerline-breadcrumb-enable nil
                 lsp-keymap-prefix "<f2>"))
 (use-package lsp-ltex
@@ -1597,13 +1597,39 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
   (marginalia-mode))
 
-(use-package consult)
+(use-package consult
+  :init
+  (setq-default consult-preview-key "C-h")
+  :bind
+  (("s-h" . consult-imenu)
+   ("s-;" . consult-goto-line)
+   ("C-c C-SPC" . consult-mark)
+   ("s-s" . consult-line))
+  :config
+  (setq-default consult-grep-args
+                '("zgrep" (consult--grep-exclude-args) "--null --line-buffered --color=never --ignore-case --line-number -I -r .")))
 (use-package embark
+  :bind
+  (("C-z" . embark-act)
+   :map embark-file-map
+   ("g" . k-grep-in)
+   :map vertico-map
+   ("C-s" .
+    (lambda ()
+      (interactive)
+      (embark--act 'k-grep-in (car (embark--targets)) embark-quit-after-action))))
   :config
   (setq embark-prompter #'embark-completing-read-prompter)
   (setq embark-indicators
         '( embark--vertico-indicator embark-minimal-indicator
-           embark-highlight-indicator embark-isearch-highlight-indicator)))
+           embark-highlight-indicator embark-isearch-highlight-indicator))
+  (defun k-grep-in (filename)
+    "Grep in FILENAME."
+    (if (file-directory-p filename)
+        (consult-grep filename)
+      (let ((buffer (find-file-noselect filename)))
+        (with-current-buffer buffer
+          (consult-line))))))
 ;(use-package embark-consult)
 
 ;;; Misc key bindings
@@ -1611,20 +1637,14 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (define-key key-translation-map (kbd "<f1>") (kbd "C-h"))
 (global-set-key "c" 'describe-char)
 (global-set-key "a" 'describe-face)
+(global-set-key [f2] nil)
 
 (global-set-key (kbd "C-M-h") 'backward-kill-sexp)
 
 (global-set-key (kbd "s-m") 'magit-status)
-(setq-default consult-preview-key "C-h")
 (global-set-key (kbd "s-w") 'save-buffer)
 (global-set-key (kbd "s-u") 'revert-buffer)
-(global-set-key (kbd "s-h") 'consult-imenu)
-(global-set-key (kbd "s-;") 'consult-goto-line)
-(global-set-key (kbd "C-c C-SPC") 'consult-mark)
-(global-set-key (kbd "C-c C-c C-SPC") 'consult-global-mark)
-(global-set-key (kbd "s-s") 'consult-line)
-(global-set-key (kbd "C-z") 'embark-act)
-
+(k-global-set-key (kbd "C-c C-c C-SPC") 'consult-global-mark)
 (k-global-set-key (kbd "s-0") 'delete-window)
 (k-global-set-key (kbd "s-1") 'zygospore-toggle-delete-other-windows)
 (k-global-set-key (kbd "C-x 1") 'zygospore-toggle-delete-other-windows)
@@ -1656,23 +1676,9 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
           ([?\C-k] . [S-end delete])
           ([?\C-w] . [?\C-x])
           ([?\M-w] . [?\C-c])
-          ([?\C-y] . [?\C-v]))))
-
-(setq-default consult-grep-args
-              '("zgrep" (consult--grep-exclude-args) "--null --line-buffered --color=never --ignore-case --line-number -I -r ."))
-
-(defun k-grep-in (filename)
-  "Grep in FILENAME."
-  (if (file-directory-p filename)
-      (consult-grep filename)
-    (let ((buffer (find-file-noselect filename)))
-      (with-current-buffer buffer
-        (consult-line)))))
-(define-key embark-file-map (kbd "g") 'k-grep-in)
-(define-key vertico-map (kbd "C-s")
-            (lambda ()
-              (interactive)
-              (embark--act 'k-grep-in (car (embark--targets)) embark-quit-after-action)))
+          ([?\C-y] . [?\C-v])))
+  (define-key exwm-mode-map (kbd "C-q") 'exwm-input-send-next-key)
+  (define-key exwm-mode-map (kbd "C-c C-q") nil))
 
 (define-key indent-rigidly-map (kbd "C-b") 'indent-rigidly-left)
 (define-key indent-rigidly-map (kbd "C-f") 'indent-rigidly-right)
@@ -1725,205 +1731,249 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
          ("C-x )" . nil)))
 
 ;;; Lisp development
-(progn
- ;; General mode setup
- (require 'slime)
- (require 'slime-repl)
- (mapc (lambda (h)
-         (add-hook h #'paredit-mode)
-         (add-hook h (lambda () (setq outline-regexp "(section-start")))
-         (add-hook h #'highlight-indent-guides-mode))
-       '(emacs-lisp-mode-hook
-         lisp-mode-hook
-         scheme-mode-hook
-         clojure-mode-hook))
- (mapc (lambda (h)
-         (add-hook h #'paredit-mode))
-       '(slime-repl-mode-hook
-         geiser-repl-mode-hook
-         cider-repl-mode-hook))
- (add-hook 'emacs-lisp-mode-hook #'rainbow-mode)
- (add-hook 'scheme-mode-hook #'paredit-mode)
- (add-hook 'slime-repl-mode-hook #'paredit-mode)
- (add-hook 'slime-repl-mode-hook #'k-pad-header-line-after-advice)
- (add-hook 'lisp-mode-hook #'slime-mode)
- (add-hook 'lisp-mode-hook #'slime-editing-mode)
- (add-hook 'lisp-mode-hook 'ensure-slime)
+(mapc (lambda (h)
+        (add-hook h 'paredit-mode)
+        (add-hook h (lambda () (setq outline-regexp "(section-start")))
+        (add-hook h 'highlight-indent-guides-mode))
+      '(emacs-lisp-mode-hook
+        lisp-mode-hook
+        scheme-mode-hook
+        clojure-mode-hook))
 
- (remove-hook 'lisp-mode-hook 'sly-editing-mode)
- (mapc (lambda (h)
-         (add-hook h (lambda () (setq-local lisp-indent-function 'common-lisp-indent-function))))
-       '(lisp-mode-hook slime-repl-mode-hook))
- (font-lock-add-keywords 'lisp-mode '(("(\\(setf\\)" 1 font-lock-keyword-face)
-                                      ("(\\(setq\\)" 1 font-lock-keyword-face)
-                                      ("(\\(psetf\\)" 1 font-lock-keyword-face)
-                                      ("(\\(psetq\\)" 1 font-lock-keyword-face)))
- (add-to-list 'lisp-imenu-generic-expression
-              (list "Section" "^;;;\\([^#].*\\)$" 1) t)
- (set-alist 'auto-mode-alist "\\.ss" 'scheme-mode)
- (set-alist 'auto-mode-alist "\\.sls" 'scheme-mode)
- (set-alist 'auto-mode-alist "\\.scm" 'scheme-mode)
- (set-alist 'auto-mode-alist "\\.rkt" 'racket-mode)
- (set-alist 'auto-mode-alist "\\.lisp" 'lisp-mode)
+(use-package paredit
+  :defer nil
+  :bind ( :map paredit-mode-map
+          ("C-j")
+          ("M-;" . comment-or-uncomment-sexp)
+          ("C-M-;" . structured-comment-defun)
+          ("M-c" . paredit-convolute-sexp))
+  :config
+  (mapc (lambda (h)
+          (add-hook h 'paredit-mode))
+        '(slime-repl-mode-hook
+          geiser-repl-mode-hook
+          cider-repl-mode-hook
+          scheme-mode-hook))
 
- (slime-setup '(slime-company slime-fancy slime-quicklisp
-                              slime-asdf slime-media slime-parse slime-mrepl))
- (define-advice slime-load-contribs
+  ;; #+nil structural comment for Common Lisp
+
+  (defmacro advance-save-excursion (&rest body)
+    `(let ((marker (point-marker)))
+       (set-marker-insertion-type marker t)
+       (unwind-protect
+           (progn ,@body)
+         (goto-char marker))))
+  (defmacro structured-comment-maybe (thing string)
+    `(advance-save-excursion
+      (let ((floating (not (ignore-errors (beginning-of-thing ,thing)))))
+        (when floating (skip-chars-forward "^("))
+        (or (when (looking-at "#\\+nil")
+              (let ((start (point)))
+                (forward-char 5)
+                (skip-chars-forward "\r\n[:blank:]")
+                (delete-region start (point))
+                t))
+            (save-excursion
+              (let ((end (point)))
+                (skip-chars-backward "\r\n[:blank:]")
+                (backward-char 5)
+                (when (looking-at-p "#\\+nil")
+                  (delete-region (point) end)
+                  t)))
+            (progn
+              (when floating (goto-char marker))
+              (insert ,string))))))
+  (defun structured-comment-advice (orig-fun &optional n)
+    (if lisp-mode
+        (structured-comment-maybe 'sexp "#+nil ")
+      (funcall orig-fun n)))
+  (advice-add 'comment-or-uncomment-sexp :around 'structured-comment-advice)
+  (defun structured-comment-defun ()
+    "Use #+nil to comment a top-level form for Common Lisp."
+    (interactive)
+    (if lisp-mode
+        (structured-comment-maybe 'defun "#+nil
+")
+      (save-excursion
+        (beginning-of-line)
+        (if (eq (char-after) ?\;)
+            (comment-or-uncomment-sexp)
+          (beginning-of-defun)
+          (comment-or-uncomment-sexp))))))
+
+(use-package paxedit
+  :defer nil
+  :bind ( :map paxedit-mode-map
+          ("C-w" . paxedit-kill-1)
+          ("M-w" . paxedit-copy-1)
+          ("M-j" . paxedit-compress))
+  :config
+  (defun paxedit-copy-1 (expression-p)
+    (interactive "P")
+    (cond (mark-active (call-interactively #'kill-ring-save))
+          (expression-p (paxedit-copy))
+          (t (paxedit-symbol-copy))))
+  (defun paxedit-kill-1 (expression-p)
+    (interactive "P")
+    (cond (mark-active (kill-region 0 0 'region))
+          (expression-p (paxedit-kill))
+          (t (paxedit-symbol-kill)))))
+;; (add-hook 'slime-repl-mode-hook #'k-pad-header-line-after-advice)
+
+(add-hook 'emacs-lisp-mode-hook 'rainbow-mode)
+(add-hook 'lisp-mode-hook 'ensure-slime)
+(font-lock-add-keywords 'lisp-mode '(("(\\(setf\\)" 1 font-lock-keyword-face)
+                                     ("(\\(setq\\)" 1 font-lock-keyword-face)
+                                     ("(\\(psetf\\)" 1 font-lock-keyword-face)
+                                     ("(\\(psetq\\)" 1 font-lock-keyword-face)))
+(add-to-list 'lisp-imenu-generic-expression
+             (list "Section" "^;;;\\([^#].*\\)$" 1) t)
+(set-alist 'auto-mode-alist "\\.ss" 'scheme-mode)
+(set-alist 'auto-mode-alist "\\.sls" 'scheme-mode)
+(set-alist 'auto-mode-alist "\\.scm" 'scheme-mode)
+(set-alist 'auto-mode-alist "\\.rkt" 'racket-mode)
+(set-alist 'auto-mode-alist "\\.lisp" 'lisp-mode)
+
+(use-package slime
+  :defer nil
+  :bind ( :map slime-mode-map
+          ("s-x" . slime-repl-sync)
+          ("C-M-g" . slime-undefine)
+          ("C-c C-s")
+          :map slime-editing-map
+          ("C-c C-r")
+          ("<f2> v" . slime-inspect)
+          ("<f2> c" . slime-inspect-presentation-at-point)
+          ("<f2> o" . slime-describe-symbol)
+          ("<f2> i" . slime-documentation-lookup))
+  :config
+  (slime-setup '( slime-company slime-fancy slime-quicklisp
+                  slime-asdf slime-media slime-parse slime-mrepl))
+  (define-advice slime-load-contribs
       (:after (&rest args) k)
     (slime-load-file "~/.emacs.d/scripts.lisp"))
- (require 'slime-company)
- (setq-default slime-company-completion 'fuzzy)
- (setq slime-lisp-implementations
-       `((sbcl (,inferior-lisp-program "--dynamic-space-size" "4096"))
-         (mega-sbcl (,inferior-lisp-program "--dynamic-space-size" "16384" "--control-stack-size" "2"))
-         (ccl ("/opt/local/bin/ccl64"))))
- ;; mrepl
- (require 'slime-mrepl)
- (add-hook 'slime-mrepl-mode-hook #'paredit-mode)
- (add-to-list 'slime-company-major-modes 'slime-mrepl-mode)
- (add-hook 'slime-mrepl-mode-hook #'slime-company-maybe-enable)
- (add-hook 'slime-mrepl-mode-hook #'slime-autodoc-mode)
+  (setq slime-lisp-implementations
+        `((sbcl (,inferior-lisp-program "--dynamic-space-size" "4096"))
+          (mega-sbcl (,inferior-lisp-program "--dynamic-space-size" "16384" "--control-stack-size" "2"))
+          (ccl ("/opt/local/bin/ccl64"))))
 
- ;; Handy slime commands and key bindings
- (defun ensure-slime ()
-   (unless slime-default-connection
-     (slime)))
- (ensure-slime)
+  ;; Handy slime commands and key bindings
+  (defun ensure-slime ()
+    (unless slime-default-connection
+      (slime)))
+  (ensure-slime)
 
- (defun slime-repl-sync ()
-   "Switch to Slime REPL and synchronize package/directory."
-   (interactive)
-   (slime-sync-package-and-default-directory)
-   (slime-repl))
- (define-key slime-mode-map (kbd "s-x") 'slime-repl-sync)
- (define-key slime-repl-mode-map (kbd "M-r") nil)
- (define-key slime-editing-map (kbd "<f2>")
-             (define-keymap
-               "v" #'slime-inspect
-               "o" #'slime-describe-symbol
-               "i" #'slime-documentation-lookup))
- (defun slime-undefine ()
-   "Undefine toplevel definition at point."
-   (interactive)
-   (cl-flet
-       ((run-with (f p symbol)
-          (message "%s %s => %s" f symbol
-                   (slime-eval
-                    `(cl:let ((symbol (cl:find-symbol ,(upcase (symbol-name symbol)))))
-                             (cl:cond ((cl:null symbol) "No such symbol")
-                                      ((cl:not (,p symbol)) (cl:unintern symbol) "Uninterned")
-                                      (t (,f symbol))))))))
-     (slime-dcase
-         (slime-parse-toplevel-form)
-       (((:defun :defgeneric :defmacro) name) (run-with 'cl:fmakunbound 'cl:fboundp name))
-       (((:defvar :defparameter) name) (run-with 'cl:makunbound 'cl:boundp name))
-       (((:defconstant) name) (run-with 'cl:unintern 'cl:identity name))
-       (((:defstruct :defclass) name) (run-with 'cl:make-instances-obsolete 'cl:find-class name)))))
- (define-key slime-mode-map (kbd "C-M-g") 'slime-undefine)
+  (defun slime-repl-sync ()
+    "Switch to Slime REPL and synchronize package/directory."
+    (interactive)
+    (slime-sync-package-and-default-directory)
+    (slime-repl))
 
- ;; #+nil structural comment for Common Lisp
- (require 'paredit)
- (define-key paredit-mode-map (kbd "C-j") nil) ;; Don't clash with `eval-print-last-sexp'
- (defmacro advance-save-excursion (&rest body)
-   `(let ((marker (point-marker)))
-      (set-marker-insertion-type marker t)
-      (unwind-protect
-          (progn ,@body)
-        (goto-char marker))))
- (defmacro structured-comment-maybe (thing string)
-   `(advance-save-excursion
-     (let ((floating (not (ignore-errors (beginning-of-thing ,thing)))))
-       (when floating (skip-chars-forward "^("))
-       (or (when (looking-at "#\\+nil")
-             (let ((start (point)))
-               (forward-char 5)
-               (skip-chars-forward "\r\n[:blank:]")
-               (delete-region start (point))
-               t))
-           (save-excursion
-             (let ((end (point)))
-               (skip-chars-backward "\r\n[:blank:]")
-               (backward-char 5)
-               (when (looking-at-p "#\\+nil")
-                 (delete-region (point) end)
-                 t)))
-           (progn
-             (when floating (goto-char marker))
-             (insert ,string))))))
- (defun structured-comment-advice (orig-fun &optional n)
-   (if slime-mode
-       (structured-comment-maybe 'sexp "#+nil ")
-     (funcall orig-fun n)))
- (advice-add 'comment-or-uncomment-sexp :around 'structured-comment-advice)
- (define-key paredit-mode-map (kbd "M-;") #'comment-or-uncomment-sexp)
- (defun structured-comment-defun ()
-   "Use #+nil to comment a top-level form for Common Lisp."
-   (interactive)
-   (if slime-mode
-       (structured-comment-maybe 'defun "#+nil
-")
-     (save-excursion
-       (beginning-of-line)
-       (if (eq (char-after) ?\;)
-           (comment-or-uncomment-sexp)
-         (beginning-of-defun)
-         (comment-or-uncomment-sexp)))))
- (define-key paredit-mode-map (kbd "C-M-;") #'structured-comment-defun)
+  (defun slime-undefine ()
+    "Undefine toplevel definition at point."
+    (interactive)
+    (cl-flet
+        ((run-with (f p symbol)
+           (message "%s %s => %s" f symbol
+                    (slime-eval
+                     `(cl:let ((symbol (cl:find-symbol ,(upcase (symbol-name symbol)))))
+                              (cl:cond ((cl:null symbol) "No such symbol")
+                                       ((cl:not (,p symbol)) (cl:unintern symbol) "Uninterned")
+                                       (t (,f symbol))))))))
+      (slime-dcase
+          (slime-parse-toplevel-form)
+        (((:defun :defgeneric :defmacro) name) (run-with 'cl:fmakunbound 'cl:fboundp name))
+        (((:defvar :defparameter) name) (run-with 'cl:makunbound 'cl:boundp name))
+        (((:defconstant) name) (run-with 'cl:unintern 'cl:identity name))
+        (((:defstruct :defclass) name) (run-with 'cl:make-instances-obsolete 'cl:find-class name)))))
 
- ;; *slime-scratch*
- (defun switch-to-scratch ()
-   "Switch to scratch buffer."
-   (interactive)
-   (if slime-editing-mode
-       (slime-scratch)
-     (switch-to-buffer-other-window "*scratch*")))
- (global-set-key (kbd "s-o") 'switch-to-scratch)
+  ;; *slime-scratch*
+  (defun switch-to-scratch ()
+    "Switch to scratch buffer."
+    (interactive)
+    (if slime-editing-mode
+        (slime-scratch)
+      (switch-to-buffer-other-window "*scratch*")))
+  (global-set-key (kbd "s-o") 'switch-to-scratch)
 
- ;; Slime mode line
- (defun slime-mode-line ()
-   (concat (slime-connection-name) " "
-           (propertize (downcase (string-trim (slime-current-package) "#?:\\|\"" "\""))
-                       'face 'k-proper-name)))
+  ;; Slime mode line
+  (defun slime-mode-line ()
+    (concat (slime-connection-name) " "
+            (propertize (downcase (string-trim (slime-current-package) "#?:\\|\"" "\""))
+                        'face 'k-proper-name)))
 
- ;; Hacks to make slime-autodoc works better
- (setq auto-save-no-message t) ;; Slime auto-saves like crazy for some reason...
- (setq eldoc-idle-delay 0)
+  ;; Hacks to make slime-autodoc works better
+  (setq auto-save-no-message t) ;; Slime auto-saves like crazy for some reason...
+  (setq eldoc-idle-delay 0)
 
- ;; Paredit enhancements
+  ;; Enable Paredit and Company in Lisp related minibuffers
+  (defun k-slime-command-p (symbol)
+    (let ((name (symbol-name symbol)))
+      (or (string-prefix-p "sldb" name)
+          (string-prefix-p "slime" name))))
+  (byte-compile 'k-slime-command-p)
+  (defun sexp-minibuffer-hook ()
+    (when (and (symbolp this-command)
+               (or (eq this-command 'eval-expression)
+                   (k-slime-command-p this-command)))
+      (paredit-mode)
+      (company-mode)))
+  (add-hook 'minibuffer-setup-hook 'sexp-minibuffer-hook)
 
- (define-key paredit-mode-map (kbd "M-c") #'paredit-convolute-sexp)
- (require 'paxedit)
- (define-key paxedit-mode-map (kbd "M-q") nil)
- (defun paxedit-copy-1 ()
-   (interactive)
-   (if mark-active (call-interactively #'kill-ring-save) (paxedit-copy)))
- (define-key paxedit-mode-map (kbd "C-w") #'paxedit-kill)
- (define-key paxedit-mode-map (kbd "M-w") #'paxedit-copy-1)
- (define-key paxedit-mode-map (kbd "s-f") #'paxedit-transpose-forward)
- (define-key paxedit-mode-map (kbd "s-b") #'paxedit-transpose-backward)
- (defun k--paxedit-kill-advice (orig-fun &rest args)
-   "Call KILL-REGION instead if mark is active.
-Otherwise call ORIG-FUN with ARGS."
-   (if mark-active
-       (kill-region 0 0 'region)
-     (apply orig-fun args)))
- (advice-add 'paxedit-kill :around #'k--paxedit-kill-advice)
- (add-hook 'paredit-mode-hook #'paxedit-mode)
- (define-key paxedit-mode-map (kbd "M-j") #'paxedit-compress)
- (define-key paxedit-mode-map (kbd "M-k") #'paxedit-format-1)
+  ;; Slime debug window non-prolifiration
+  (set-alist 'display-buffer-alist "\\`*sldb" '((display-buffer-reuse-mode-window))))
+(use-package slime-repl :ensure slime
+  :bind ( :map slime-repl-mode-map
+          ("M-r" . nil)
+          ("C-c C-s" . slime-repl-next-matching-input)
+          ("C-c C-r" . slime-repl-previous-matching-input)))
+(use-package slime-company :ensure slime
+  :defer nil
+  :config
+  (setq-default slime-company-completion 'fuzzy)
 
- ;; Enable Paredit and Company in Lisp related minibuffers
- (defun sexp-minibuffer-hook ()
-   (when (and (symbolp this-command)
-              (or (eq this-command 'eval-expression)
-                  (string-prefix-p "sldb" (symbol-name this-command))
-                  (string-prefix-p "slime" (symbol-name this-command))))
-     (paredit-mode)
-     (company-mode)))
- (add-hook 'minibuffer-setup-hook 'sexp-minibuffer-hook)
-
- ;; Slime debug window non-prolifiration
- (set-alist 'display-buffer-alist "\\`*sldb" '((display-buffer-reuse-mode-window))))
+  (defun company-slime (command &optional arg &rest ignored)
+    "Company mode backend for slime."
+    (let ((candidate (and arg (substring-no-properties arg))))
+      (cl-case command
+        (init
+         (slime-company-active-p))
+        (prefix
+         (when (and ;; OUR CHANGE
+                (or (slime-company-active-p)
+                    (k-slime-command-p current-minibuffer-command))
+                (slime-connected-p)
+                (or slime-company-complete-in-comments-and-strings
+                    (null (slime-company--in-string-or-comment))))
+           (company-grab-symbol)))
+        (candidates
+         (slime-company--fetch-candidates-async candidate))
+        (meta
+         (let ((*slime-company--meta-request* t))
+           (slime-company--arglist candidate)))
+        (annotation
+         (concat (when slime-company-display-arglist
+                   (slime-company--arglist-only candidate))
+                 (when slime-company-display-flags
+                   (concat " " (get-text-property 0 'flags arg)))))
+        (doc-buffer
+         (unless *slime-company--meta-request*
+           (slime-company--doc-buffer candidate)))
+        (quickhelp-string
+         (unless *slime-company--meta-request*
+           (slime-company--quickhelp-string candidate)))
+        (location
+         (slime-company--location candidate))
+        (post-completion
+         (slime-company--post-completion candidate))
+        (sorted
+         (eq slime-company-completion 'fuzzy))))))
+(use-package slime-mrepl :ensure slime
+  :config
+  (add-hook 'slime-mrepl-mode-hook #'paredit-mode)
+  (add-to-list 'slime-company-major-modes 'slime-mrepl-mode)
+  (add-hook 'slime-mrepl-mode-hook #'slime-company-maybe-enable)
+  (add-hook 'slime-mrepl-mode-hook #'slime-autodoc-mode))
 
 (use-package which-key
   :config
@@ -2233,7 +2283,8 @@ emms-playlist-mode and query for a playlist to open."
   :bind ( :map vterm-mode-map
           ("C-c C-t" . nil)
           ("C-c C-j" . vterm-copy-mode)
-          ("C-c C-o" . vterm-clear)
+          ("C-c M-o" . vterm-clear)
+          ("C-q" . vterm-send-next-key)
           ("C-d" . (lambda () (interactive) (vterm-send-key "d" nil nil t)))
           ("s-x" . multi-vterm)
           ("s-f" . multi-vterm-next)
