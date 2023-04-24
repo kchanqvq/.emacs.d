@@ -102,6 +102,10 @@
 (byte-compile 'k-insert-fill-right)
 (byte-compile 'k-truncate-string-to-width)
 
+(defun k-ensure-prefix-map (keymap key)
+  (or (keymap-lookup keymap key)
+      (keymap-set keymap key (make-sparse-keymap))))
+
 ;;; Initial config
 
 (add-to-list 'load-path "~/.emacs.d/lisp")
@@ -1637,8 +1641,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (global-set-key "a" 'describe-face)
 (global-set-key [f2] nil)
 
-(global-set-key (kbd "C-M-h") 'backward-kill-sexp)
-
 (global-set-key (kbd "s-m") 'magit-status)
 (global-set-key (kbd "s-w") 'save-buffer)
 (global-set-key (kbd "s-u") 'revert-buffer)
@@ -1728,14 +1730,22 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 ;;; Lisp development
 
-(define-key emacs-lisp-mode-map (kbd "C-c C-p") #'eval-print-last-sexp)
+(use-package emacs
+  :bind ( :map emacs-lisp-mode-map
+          ("C-c C-p" . eval-print-last-sexp)
+          :map lisp-interaction-mode-map
+          ("C-j")
+          ("C-c C-p" . eval-print-last-sexp))
+  :config
+  (setq-default eval-expression-print-level nil
+                eval-expression-print-length nil))
+
 (use-package macrostep
   :bind ( :map emacs-lisp-mode-map
           ("C-c M-e" . macrostep-expand)))
 
 (mapc (lambda (h)
         (add-hook h 'paredit-mode)
-        (add-hook h (lambda () (setq outline-regexp "(section-start")))
         (add-hook h 'highlight-indent-guides-mode))
       '(emacs-lisp-mode-hook
         lisp-mode-hook
@@ -1787,14 +1797,14 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
               (when floating (goto-char marker))
               (insert ,string))))))
   (defun structured-comment-advice (orig-fun &optional n)
-    (if lisp-mode
+    (if (derived-mode-p 'lisp-mode)
         (structured-comment-maybe 'sexp "#+nil ")
       (funcall orig-fun n)))
   (advice-add 'comment-or-uncomment-sexp :around 'structured-comment-advice)
   (defun structured-comment-defun ()
     "Use #+nil to comment a top-level form for Common Lisp."
     (interactive)
-    (if lisp-mode
+    (if (derived-mode-p 'lisp-mode)
         (structured-comment-maybe 'defun "#+nil
 ")
       (save-excursion
@@ -2978,16 +2988,19 @@ normally have their errors suppressed."
 (defvar k-telega-extra-xheight 10)
 (use-package telega
   :defer t
+  :bind ( :map telega-chat-mode-map
+          ("<f2>")
+          ("C-c C-e" . k-telega-chatbuf-attach-sticker)
+          :map telega-root-mode-map
+          ("<f2>"))
   :config
-  (map-keymap
-   (lambda (kbd f)
-     (define-key telega-chat-mode-map (concat "" (string kbd)) f)
-     (define-key telega-root-mode-map (concat "" (string kbd)) f))
-   telega-prefix-map)
-  (define-key telega-chat-mode-map [f2] nil)
-  (define-key telega-root-mode-map [f2] nil)
-  (define-key telega-chat-mode-map ""
-              '(lambda (all) (interactive "P") (telega-chatbuf-attach-sticker (not all))))
+  (defun k-telega-chatbuf-attach-sticker (all)
+    (interactive "P")
+    (telega-chatbuf-attach-sticker (not all)))
+  (set-keymap-parent (k-ensure-prefix-map telega-chat-mode-map "C-c")
+                     telega-prefix-map)
+  (set-keymap-parent (k-ensure-prefix-map telega-root-mode-map "C-c")
+                     telega-prefix-map)
   (setq-default
    telega-filters-custom
    '(("Main" not (folder "Politics"))
