@@ -1110,7 +1110,7 @@
   (set-alist 'default-frame-alist 'internal-border-width gap))
 (set-alist 'default-frame-alist 'undecorated t)
 (set-alist 'default-frame-alist 'alpha 100)
-(setq underline-minimum-offset -10)
+(setq-default underline-minimum-offset 10)
 
 ;;; Echo per window
 
