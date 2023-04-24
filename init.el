@@ -1346,7 +1346,7 @@
 ;;; Completion
 
 ;; (pkg-info-version-info 'vertico)
-;; "0.27"
+;; "1.2"
 
 (defvar-local vertico--buffer-window nil)
 
@@ -1503,22 +1503,22 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     (apply orig-func message args))
   (advice-add 'minibuffer-message :around #'k-minibuffer-message-advice)
 
-  (defun vertico-buffer--setup ()
+  (cl-defmethod vertico--setup :after (&context (vertico-buffer-mode (eql t)))
     "Setup buffer display."
     (setq k-message nil)
     (add-hook 'pre-redisplay-functions 'vertico-buffer--redisplay nil 'local)
     (setq-local overline-margin 0
                 fringe-indicator-alist '((truncation nil nil)))
-    (let* (win (buf (current-buffer))
-               (_ (unwind-protect
-                      (setf
-                       win (with-minibuffer-selected-window
-                             (k-window-echo-area-display buf))
-                       vertico--buffer-window win)))
-               (sym (make-symbol "vertico-buffer--destroy"))
-               (depth (recursion-depth))
-               (now (window-parameter win 'no-other-window))
-               (ndow (window-parameter win 'no-delete-other-windows)))
+    (let* ((buf (current-buffer)) win
+           (_ (unwind-protect
+                  (setf
+                   win (with-minibuffer-selected-window
+                         (k-window-echo-area-display buf))
+                   vertico--buffer-window win)))
+           (sym (make-symbol "vertico-buffer--destroy"))
+           (depth (recursion-depth))
+           (now (window-parameter win 'no-other-window))
+           (ndow (window-parameter win 'no-delete-other-windows)))
       (fset sym (lambda ()
                   (k-window-echo-area-clear buf)
                   (when (= depth (recursion-depth))
@@ -1535,6 +1535,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
       (add-hook 'minibuffer-exit-hook sym)
       (set-window-parameter win 'no-other-window t)
       (set-window-parameter win 'no-delete-other-windows t)
+      (set-window-dedicated-p win t)
       (overlay-put vertico--candidates-ov 'window win)
       (when (and vertico-buffer-hide-prompt vertico--count-ov)
         (overlay-put vertico--count-ov 'window win))
@@ -1543,7 +1544,9 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                   tab-line-format nil
                   k-inhibit-tab-line t
                   truncate-lines t
-                  cursor-in-non-selected-windows 'box)))
+                  face-remapping-alist
+                  (copy-tree `((mode-line-inactive mode-line)
+                               ,@face-remapping-alist)))))
   (define-advice vertico-buffer-mode
       (:after (&optional arg) k)
     (when vertico-buffer-mode
