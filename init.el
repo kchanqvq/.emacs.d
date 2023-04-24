@@ -1,6 +1,8 @@
 ;;; -*- lexical-binding: t -*-
 ;;; Code:
 
+(setq gc-cons-threshold (* 1024 1024 1024) gc-cons-percentage 1.0)
+
 ;;; Util functions
 
 (require 'nadvice)
@@ -35,7 +37,7 @@
   (member 'exwm--server-stop kill-emacs-hook))
 
 (defun delete-from-list (list-var element)
-  (set list-var (delete element (symbol-value list-var))))
+  (set list-var (delete element (when (boundp list-var) (symbol-value list-var)))))
 
 (cl-defmacro with-advice ((symbol how lambda-list &body advice) &body body)
   `(let ((k-advice (lambda ,lambda-list ,@advice)))
@@ -109,7 +111,6 @@
 (scroll-bar-mode -1)
 (setq-default visual-line-fringe-indicators '(left-curly-arrow right-curly-arrow))
 
-(setq gc-cons-threshold 8000000 gc-cons-percentage 0.25)
 (setq-default garbage-collection-messages nil)
 (setq-default inhibit-startup-message t)
 
@@ -184,18 +185,17 @@
                  '(""
                    (:propertize "%b" face mode-line-buffer-id)
                    " \t"
-                   (mode-line-process ("(" mode-name ":" mode-line-process  ")")
-                                      mode-name)
-                   "  \t"
+
                    mode-line-misc-info)
-                 '("  "
+                 '(" "
+                   mode-name mode-line-process
+                   "  "
                    (:eval (if (k-mode-line-selected-p) #("%c" 0 2 (face mode-line-emphasis))
                             "%c"))
                    (#(" %l/" 0 3 (face mode-line-highlight))
                     (:propertize (:eval (number-to-string (line-number-at-pos (point-max))))
                                  face bold)))))
-              tab-line-format ;; `(:eval (if (< (cadr (window-edges)) 2) " " #(" " 0 1 (face (:height 2.0)))))
-              nil)
+              tab-line-format nil)
 
 (defvar-local k-pad-last-header-line-format nil)
 (defun k-pad-header-line-after-advice (&optional object &rest args)
@@ -541,6 +541,7 @@
         (dolist (s spec)
           (set-fontset-font t script s nil t))
       (set-fontset-font t script spec))))
+
 (k-set-fonts '(han kana cjk-misc)
              (font-spec :family "PingFang SC"))
 ;; (k-set-fonts '(cyrillic phonetic)
@@ -646,21 +647,7 @@
       (dolist (buffer (buffer-list))
         (with-current-buffer buffer
           (when (derived-mode-p 'pdf-view-mode)
-            (pdf-view-midnight-minor-mode -1))))))
-
-  ;; (let (fix-highlight-indent-guides)
-  ;;   (highlight-tail-mode 0)
-  ;;   (dolist (buffer (buffer-list))
-  ;;     (with-current-buffer buffer
-  ;;       (when highlight-indent-guides-mode
-  ;;         (highlight-indent-guides-mode 0)
-  ;;         (push buffer fix-highlight-indent-guides))))
-  ;;   (k-load-faces)
-  ;;   (dolist (buffer fix-highlight-indent-guides)
-  ;;     (with-current-buffer buffer
-  ;;       (highlight-indent-guides-mode)))
-  ;;   (highlight-tail-mode))
-  )
+            (pdf-view-midnight-minor-mode -1)))))))
 
 (defface k-quote nil "Base face for quote.")
 (defface k-keyword nil "Base face for keyword.")
@@ -1113,10 +1100,11 @@
     ('bright (k-generate-theme 0.578 1.0 0.920 1.0 0.724 1.0 0.000 nil))
     ('dark (k-generate-theme 0.578 1.0 0.446 1.0 0.578 1.0 0.105 t))))
 
-(set-alist 'default-frame-alist 'right-fringe 16)
-(set-alist 'default-frame-alist 'left-fringe 16)
-(set-alist 'default-frame-alist 'right-divider-width 32)
-(set-alist 'default-frame-alist 'internal-border-width 16)
+(let ((gap (string-pixel-width "o")))
+  (set-alist 'default-frame-alist 'right-fringe gap)
+  (set-alist 'default-frame-alist 'left-fringe gap)
+  (set-alist 'default-frame-alist 'right-divider-width (* gap 2))
+  (set-alist 'default-frame-alist 'internal-border-width gap))
 (set-alist 'default-frame-alist 'undecorated t)
 (set-alist 'default-frame-alist 'alpha 100)
 (setq underline-minimum-offset -10)
@@ -1304,6 +1292,7 @@
   :init
   (setq-default lsp-headerline-breadcrumb-enable nil
                 lsp-keymap-prefix "<f2>"))
+
 (use-package lsp-ltex
   :defer t
   :config
@@ -1312,6 +1301,7 @@
         lsp-ltex-latex-commands '(("\\lstset{}" . "ignore"))))
 
 (use-package tex
+  :defer t
   :ensure auctex
   :config
   ;; to use pdfview with auctex
@@ -1598,16 +1588,21 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (marginalia-mode))
 
 (use-package consult
+  :defer nil
   :init
-  (setq-default consult-preview-key "C-h")
+  (setq-default consult-preview-key "<f2>")
   :bind
   (("s-h" . consult-imenu)
    ("s-;" . consult-goto-line)
    ("C-c C-SPC" . consult-mark)
-   ("s-s" . consult-line))
+   ("s-s" . consult-line)
+   :map minibuffer-local-map
+   ("C-s" . consult-history)
+   ("C-r" . consult-history))
   :config
   (setq-default consult-grep-args
                 '("zgrep" (consult--grep-exclude-args) "--null --line-buffered --color=never --ignore-case --line-number -I -r .")))
+
 (use-package embark
   :bind
   (("C-z" . embark-act)
@@ -1650,6 +1645,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (k-global-set-key (kbd "C-x 1") 'zygospore-toggle-delete-other-windows)
 (k-global-set-key (kbd "s-2") 'split-window-below)
 (k-global-set-key (kbd "s-3") 'split-window-right)
+(k-global-set-key (kbd "s-=") 'balance-windows)
 (k-global-set-key (kbd "s-k") 'bury-buffer)
 (k-global-set-key (kbd "s-i") 'find-file)
 (k-global-set-key (kbd "s-q") 'consult-buffer)
@@ -1661,8 +1657,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 (when (k-exwm-enabled-p)
   (setq exwm-input-global-keys
-        `((,(kbd "s-<escape>") . exwm-reset)
-          (,(kbd "s-s") . exwm-background/exwm-background-window)))
+        `((,(kbd "s-<escape>") . exwm-reset)))
   (setq exwm-input-simulation-keys
         '(([?\C-b] . [left])
           ([?\C-f] . [right])
@@ -1821,18 +1816,12 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 ;; (add-hook 'slime-repl-mode-hook #'k-pad-header-line-after-advice)
 
 (add-hook 'emacs-lisp-mode-hook 'rainbow-mode)
-(add-hook 'lisp-mode-hook 'ensure-slime)
 (font-lock-add-keywords 'lisp-mode '(("(\\(setf\\)" 1 font-lock-keyword-face)
                                      ("(\\(setq\\)" 1 font-lock-keyword-face)
                                      ("(\\(psetf\\)" 1 font-lock-keyword-face)
                                      ("(\\(psetq\\)" 1 font-lock-keyword-face)))
 (add-to-list 'lisp-imenu-generic-expression
              (list "Section" "^;;;\\([^#].*\\)$" 1) t)
-(set-alist 'auto-mode-alist "\\.ss" 'scheme-mode)
-(set-alist 'auto-mode-alist "\\.sls" 'scheme-mode)
-(set-alist 'auto-mode-alist "\\.scm" 'scheme-mode)
-(set-alist 'auto-mode-alist "\\.rkt" 'racket-mode)
-(set-alist 'auto-mode-alist "\\.lisp" 'lisp-mode)
 
 (use-package slime
   :defer nil
@@ -1922,11 +1911,15 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
   ;; Slime debug window non-prolifiration
   (set-alist 'display-buffer-alist "\\`*sldb" '((display-buffer-reuse-mode-window))))
+
 (use-package slime-repl :ensure slime
   :bind ( :map slime-repl-mode-map
           ("M-r" . nil)
-          ("C-c C-s" . slime-repl-next-matching-input)
-          ("C-c C-r" . slime-repl-previous-matching-input)))
+          ("C-c C-s" . consult-history)
+          ("C-c C-r" . consult-history))
+  :config
+  (set-alist 'consult-mode-histories 'slime-repl-mode 'slime-repl-input-history))
+
 (use-package slime-company :ensure slime
   :defer nil
   :config
@@ -1968,6 +1961,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
          (slime-company--post-completion candidate))
         (sorted
          (eq slime-company-completion 'fuzzy))))))
+
 (use-package slime-mrepl :ensure slime
   :config
   (add-hook 'slime-mrepl-mode-hook #'paredit-mode)
@@ -2195,8 +2189,15 @@ emms-playlist-mode and query for a playlist to open."
                   (run-at-time k-blink-cursor-interval nil 'blink-cursor-timer-function)))
         (setq k-blink-cursor-time-start nil
               k-blink-cursor-interval 0.5))))
+  (defun k-emms-bpm-cursor-stop-hook ()
+    (if (or emms-player-paused-p emms-player-stopped-p)
+        (setq k-blink-cursor-time-start nil
+              k-blink-cursor-interval 0.5)
+      (k-emms-bpm-cursor)))
   (add-hook 'emms-player-started-hook 'k-emms-generate-theme)
   (add-hook 'emms-player-started-hook 'k-emms-bpm-cursor)
+  (add-hook 'emms-player-paused-hook 'k-emms-bpm-cursor-stop-hook)
+  (add-hook 'emms-player-stopped-hook 'k-emms-bpm-cursor-stop-hook)
 
   (when (k-exwm-enabled-p)
     (defun k-exwm-update-class ()
@@ -2302,50 +2303,52 @@ emms-playlist-mode and query for a playlist to open."
 
 ;;; Web browsing
 
-(require 'eww)
-(setq-default browse-url-browser-function 'eww-browse-url
-              eww-search-prefix "https://google.com/search?q=")
-(add-hook 'eww-after-render-hook 'k-pad-header-line-after-advice)
-(defvar k-eww-history (make-hash-table :test 'equal)
-  "Global history for eww. A EQUAL hash that maps title strings to URL.")
-(defun k-eww-after-render-hook ()
-  "Update EWW buffer title and save `k-eww-history'."
-  (let ((title (plist-get eww-data :title))
-        (url (plist-get eww-data :url)))
-    (rename-buffer (format "*eww: %s*" title) t)
-    (unless (> (length title) 0) (setq title "<no title>"))
-    (puthash (concat (truncate-string-to-width title 40 nil nil (truncate-string-ellipsis))
-                     #(" " 0 1 (display (space :align-to center)))
-                     (propertize url 'face 'completions-annotations))
-             url k-eww-history)))
-(add-hook 'eww-after-render-hook 'k-eww-after-render-hook)
-(defun k-eww-read-url ()
-  (let* ((cand
-          (completing-read "Enter URL or keywords: " k-eww-history)))
-    (or (gethash cand k-eww-history) cand)))
-(defun eww-new-buffer (url)
-  (interactive (list (k-eww-read-url)))
-  (with-temp-buffer
-    (if current-prefix-arg
-        (let ((eww-search-prefix "https://scholar.google.com/scholar?q="))
-          (eww url))
-      (eww url))))
-(define-key eww-mode-map (kbd "G") 'eww-new-buffer)
-
+(setq-default browse-url-browser-function 'eww-browse-url)
 (when (k-exwm-enabled-p)
+  (setq-default browse-url-secondary-browser-function 'k-browse-url-chromium)
   (defun k-browse-url-chromium (url &rest args)
     (start-process "chromium" " *chromium*" "chromium"
-                   (concat "--app=" url)))
-  (setq-default browse-url-secondary-browser-function 'k-browse-url-chromium)
-  (defun k-exwm-update-title ()
-    (exwm-workspace-rename-buffer (concat exwm-class-name ": " exwm-title)))
-  (add-hook 'exwm-update-title-hook 'k-exwm-update-title)
-  (defun k-eww-reload-in-chromium ()
-    (interactive)
-    (k-browse-url-chromium (plist-get eww-data :url)))
-  (define-key eww-mode-map (kbd "f") 'k-eww-reload-in-chromium))
+                   (concat "--app=" url))))
+
+(use-package eww
+  :defer t
+  :config
+  (setq-default browse-url-browser-function 'eww-browse-url)
+  (add-hook 'eww-after-render-hook 'k-pad-header-line-after-advice)
+  (defvar k-eww-history (make-hash-table :test 'equal)
+    "Global history for eww. A EQUAL hash that maps title strings to URL.")
+  (defun k-eww-after-render-hook ()
+    "Update EWW buffer title and save `k-eww-history'."
+    (let ((title (plist-get eww-data :title))
+          (url (plist-get eww-data :url)))
+      (rename-buffer (format "*eww: %s*" title) t)
+      (unless (> (length title) 0) (setq title "<no title>"))
+      (puthash (concat (truncate-string-to-width title 40 nil nil (truncate-string-ellipsis))
+                       #(" " 0 1 (display (space :align-to center)))
+                       (propertize url 'face 'completions-annotations))
+               url k-eww-history)))
+  (add-hook 'eww-after-render-hook 'k-eww-after-render-hook)
+  (defun k-eww-read-url ()
+    (let* ((cand
+            (completing-read "Enter URL or keywords: " k-eww-history)))
+      (or (gethash cand k-eww-history) cand)))
+  (defun eww-new-buffer (url)
+    (interactive (list (k-eww-read-url)))
+    (with-temp-buffer
+      (if current-prefix-arg
+          (let ((eww-search-prefix "https://scholar.google.com/scholar?q="))
+            (eww url))
+        (eww url))))
+  (define-key eww-mode-map (kbd "G") 'eww-new-buffer)
+
+  (when (k-exwm-enabled-p)
+    (defun k-eww-reload-in-chromium ()
+      (interactive)
+      (k-browse-url-chromium (plist-get eww-data :url)))
+    (define-key eww-mode-map (kbd "f") 'k-eww-reload-in-chromium)))
 
 (use-package pdf-tools
+  :defer t
   :config
   (setq pdf-view-midnight-invert nil)
   (pdf-tools-install))
@@ -2447,10 +2450,11 @@ emms-playlist-mode and query for a playlist to open."
     (cl-check-type volume number)
     (unless (= 0 (call-process-shell-command (format "amixer set Master %s%%" volume)))
       (error "Failed to set volume"))))
+
 (when (k-exwm-enabled-p)
-  (use-package hydra)
-  (add-to-list 'load-path "~/.emacs.d/lisp/exwm-background")
-  (require 'exwm-background))
+  (defun k-exwm-update-title ()
+    (exwm-workspace-rename-buffer (concat exwm-class-name ": " exwm-title)))
+  (add-hook 'exwm-update-title-hook 'k-exwm-update-title))
 
 (when (executable-find "xrandr")
   (defun jw/xrandr-output-list ()
@@ -2482,6 +2486,7 @@ emms-playlist-mode and query for a playlist to open."
   (start-process "picom" "*picom*" "picom"))
 
 (use-package org
+  :defer t
   :config
   (require 'tex-mode)
   (modify-syntax-entry ?< "w" org-mode-syntax-table)
@@ -2531,6 +2536,7 @@ emms-playlist-mode and query for a playlist to open."
   (add-hook 'org-mode-hook #'k-org-mode-hook))
 
 (use-package org-superstar
+  :defer t
   :config
   (setq-default org-superstar-item-bullet-alist
                 '((?* . ?•)
@@ -2543,6 +2549,7 @@ emms-playlist-mode and query for a playlist to open."
                   ?▷)))
 
 (use-package poly-org
+  :defer t
   :config
   (define-polymode poly-org-mode
     :hostmode 'poly-org-hostmode
@@ -2560,6 +2567,7 @@ emms-playlist-mode and query for a playlist to open."
     (setq-local polymode-run-these-after-change-functions-in-other-buffers
                 (append '(org-element--cache-after-change)
                         polymode-run-these-after-change-functions-in-other-buffers))))
+
 (defun k-polymode-init-inner-hook ()
   (oset pm/chunkmode adjust-face 'org-block)
   (topsy-mode -1))
@@ -2707,9 +2715,11 @@ emms-playlist-mode and query for a playlist to open."
 	  (setq my-format (cdr (car templist)))))
     (format-time-string (eval my-format t) messy-date)))
 
-(require 'message)
-(setq-default message-signature "Best,\nQiantan"
-              message-fill-column nil)
+(use-package message :ensure gnus
+  :defer t
+  :config
+  (setq-default message-signature "Best,\nQiantan"
+                message-fill-column nil))
 
 (use-package notmuch
   :defer t
@@ -2835,7 +2845,7 @@ emms-playlist-mode and query for a playlist to open."
        (when (funcall accused-p symbol)
          (makunbound symbol)
          (fmakunbound symbol)
-         (unintern symbol obarray))))))
+         (setf (symbol-plist symbol) nil))))))
 
 
 ;; Vampire timezone
@@ -3063,6 +3073,8 @@ emms-playlist-mode and query for a playlist to open."
                 undo-tree-auto-save-history nil ;; Too fucking slow!
                 undo-tree-visualizer-timestamps t))
 (global-undo-tree-mode)
+
+(setq gc-cons-threshold 8000000 gc-cons-percentage 0.25)
 
 (provide 'init)
 ;;; init.el ends here
