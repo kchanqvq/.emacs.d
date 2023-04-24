@@ -1412,16 +1412,16 @@ PROMPT is a string to prompt with."
   (defcustom k-vertico-multiline-max-lines 10
     "Maximum number of lines displayed for a multi-line candidate."
     :type 'number :group 'vertico)
-  (defun vertico--truncate-multiline (cand _max-width)
-    "Truncate multiline CAND.
-Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
-    (let ((lines (string-lines cand)))
-      (when (> (length lines) k-vertico-multiline-max-lines)
-        (let ((tail (nthcdr (1- k-vertico-multiline-max-lines) lines)))
-          (setcdr tail nil)
-          (setcar tail (concat (car tail) (truncate-string-ellipsis))))
-        (setq cand (mapconcat #'identity lines "\n"))))
-    cand)
+  ;; (defun vertico--truncate-multiline (cand _max-width)
+;;     "Truncate multiline CAND.
+;; Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
+;;     (let ((lines (string-lines cand)))
+;;       (when (> (length lines) k-vertico-multiline-max-lines)
+;;         (let ((tail (nthcdr (1- k-vertico-multiline-max-lines) lines)))
+;;           (setcdr tail nil)
+;;           (setcar tail (concat (car tail) (truncate-string-ellipsis))))
+;;         (setq cand (mapconcat #'identity lines "\n"))))
+;;     cand)
   (byte-compile 'vertico--truncate-multiline)
 
   (defun k-string-pixel-height (string)
@@ -1440,8 +1440,8 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
               t nil)))))
   (byte-compile 'k-string-pixel-height)
 
-  ;; Patch `vertico--update-scroll'
-  (defun vertico--update-scroll ()
+  ;; Patch `vertico--compute-scroll'
+  (defun vertico--compute-scroll ()
     "Update scroll position."
     (let* ((max-scroll (max vertico--index 0))
            (min-scroll max-scroll)
@@ -1472,7 +1472,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
   (require 'vertico-buffer)
 
-  (defun k-vertico-buffer-resize-window (height)
+  (cl-defmethod vertico--resize-window (height &context (vertico-buffer-mode (eql t)))
     ;; we use `fit-window-to-buffer' instead and ignore HEIGHT
     (when k--top-separator-ov
       (overlay-put k--top-separator-ov 'after-string nil))
@@ -1492,7 +1492,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
      (format "%-6s "
              (format #("%s/%s" 0 2 (face success))
                      (cond ((>= vertico--index 0) (1+ vertico--index))
-                           ((vertico--allow-prompt-selection-p) "*")
+                           (vertico--allow-prompt "*")
                            (t "!"))
                      vertico--total))))
 
@@ -1547,11 +1547,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                   face-remapping-alist
                   (copy-tree `((mode-line-inactive mode-line)
                                ,@face-remapping-alist)))))
-  (define-advice vertico-buffer-mode
-      (:after (&optional arg) k)
-    (when vertico-buffer-mode
-      (advice-remove 'vertico--resize-window #'ignore)
-      (advice-add 'vertico--resize-window :override #'k-vertico-buffer-resize-window)))
   (vertico-buffer-mode))
 
 ;; (pkg-info-version-info 'marginalia)
@@ -1562,18 +1557,18 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (setq-default marginalia-field-width 48)
   (defun marginalia--affixate (metadata annotator cands)
     "Affixate CANDS given METADATA and Marginalia ANNOTATOR."
-    ;; reset `marginalia--candw-max'
+    ;; reset `marginalia--cand-width-max'
     (let* ((width (cl-loop for win in (get-buffer-window-list) minimize (window-width win)))
            ;; estimate width
            (marginalia-field-width
             (max (- (floor (* width 0.8))
                     (let ((max (cl-loop for cand in cands
                                         maximize (string-width cand))))
-                      (* (ceiling (or max 0) marginalia--candw-step) marginalia--candw-step)))
+                      (* (ceiling (or max 0) marginalia--cand-width-step) marginalia--cand-width-step)))
                  ;; minimum value for safety
                  2))
            (marginalia--metadata metadata))
-      (setq-local marginalia--candw-max (default-value 'marginalia--candw-max))
+      (setq-local marginalia--cand-width-max (default-value 'marginalia--cand-width-max))
       (marginalia--align
        (with-selected-window (or (minibuffer-selected-window) (selected-window))
          (cl-loop for cand in cands collect
@@ -1644,7 +1639,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (global-set-key "a" 'describe-face)
 (global-set-key [f2] nil)
 
-(global-set-key (kbd "s-m") 'magit-status)
 (global-set-key (kbd "s-w") 'save-buffer)
 (global-set-key (kbd "s-u") 'revert-buffer)
 (k-global-set-key (kbd "C-c C-c C-SPC") 'consult-global-mark)
@@ -1859,6 +1853,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
           ("<f2> o" . slime-describe-symbol)
           ("<f2> i" . slime-documentation-lookup))
   :config
+  (require 'slime)
   (slime-setup '( slime-company slime-fancy slime-quicklisp
                   slime-asdf slime-media slime-parse slime-mrepl))
   (define-advice slime-load-contribs
@@ -2004,6 +1999,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 (use-package magit
   :defer t
+  :bind ( "s-m" . magit-status)
   :config
   (defun cloc-magit-root ()
     "Run Count Line Of Code for current Git repo."
