@@ -2402,27 +2402,8 @@ emms-playlist-mode and query for a playlist to open."
   (require 'exwm-background))
 
 (when (executable-find "xrandr")
-  (defun jw/xrandr-output-list ()
-    "Return list of connected X11 screens, according to xrandr."
-    (interactive)
-    (let* ((xrandr-output-regexp "\n\\([^ ]+\\) connected ")
-           (find-outputs
-            (lambda ()
-              (let (output-list)
-                (call-process "xrandr" nil t nil)
-                (goto-char (point-min))
-                (while (re-search-forward xrandr-output-regexp nil 'noerror)
-                  (setq output-list (cons (match-string 1) output-list))
-                  (forward-line))
-                (reverse output-list))))
-           (output-list (with-temp-buffer
-                          (funcall find-outputs))))
-      output-list))
   (defun k-auto-xrandr ()
-    (let* ((output-list (jw/xrandr-output-list)))
-      (apply #'call-process "xrandr" nil nil nil
-             (mapcan (lambda (output) (list "--output" output "--auto"))
-                     output-list))))
+    (call-process "xrandr" nil nil nil "--auto"))
   (add-hook 'exwm-randr-screen-change-hook 'k-auto-xrandr)
   (when (k-exwm-enabled-p)
     (k-auto-xrandr)))
