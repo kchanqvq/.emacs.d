@@ -1,6 +1,8 @@
 ;;; -*- lexical-binding: t -*-
 ;;; Code:
 
+(setq gc-cons-threshold (* 1024 1024 1024) gc-cons-percentage 1.0)
+
 ;;; Util functions
 
 (require 'nadvice)
@@ -35,7 +37,7 @@
   (member 'exwm--server-stop kill-emacs-hook))
 
 (defun delete-from-list (list-var element)
-  (set list-var (delete element (symbol-value list-var))))
+  (set list-var (delete element (when (boundp list-var) (symbol-value list-var)))))
 
 (cl-defmacro with-advice ((symbol how lambda-list &body advice) &body body)
   `(let ((k-advice (lambda ,lambda-list ,@advice)))
@@ -75,10 +77,13 @@
   ;; buffer settings (e.g. invisibility spec)
   (let ((from (point)))
     (insert " " string)
-    (let ((width (car (window-text-pixel-size (get-buffer-window) (1+ from) (point)))))
-      (put-text-property from (1+ from)
-                         'display
-                         `(space :align-to (- right-fringe (,width)))))
+    (save-restriction
+      (narrow-to-region (1+ from) (point))
+      (let ((width (car (buffer-text-pixel-size))))
+        (widen)
+        (put-text-property from (1+ from)
+                           'display
+                           `(space :align-to (- right-fringe (,width))))))
     nil))
 
 (defun k-truncate-string-to-width (string pixel-width)
@@ -109,7 +114,6 @@
 (scroll-bar-mode -1)
 (setq-default visual-line-fringe-indicators '(left-curly-arrow right-curly-arrow))
 
-(setq gc-cons-threshold 8000000 gc-cons-percentage 0.25)
 (setq-default garbage-collection-messages nil)
 (setq-default inhibit-startup-message t)
 
@@ -184,18 +188,17 @@
                  '(""
                    (:propertize "%b" face mode-line-buffer-id)
                    " \t"
-                   (mode-line-process ("(" mode-name ":" mode-line-process  ")")
-                                      mode-name)
-                   "  \t"
+
                    mode-line-misc-info)
-                 '("  "
+                 '(" "
+                   mode-name mode-line-process
+                   "  "
                    (:eval (if (k-mode-line-selected-p) #("%c" 0 2 (face mode-line-emphasis))
                             "%c"))
                    (#(" %l/" 0 3 (face mode-line-highlight))
                     (:propertize (:eval (number-to-string (line-number-at-pos (point-max))))
                                  face bold)))))
-              tab-line-format ;; `(:eval (if (< (cadr (window-edges)) 2) " " #(" " 0 1 (face (:height 2.0)))))
-              nil)
+              tab-line-format nil)
 
 (defvar-local k-pad-last-header-line-format nil)
 (defun k-pad-header-line-after-advice (&optional object &rest args)
@@ -541,6 +544,7 @@
         (dolist (s spec)
           (set-fontset-font t script s nil t))
       (set-fontset-font t script spec))))
+
 (k-set-fonts '(han kana cjk-misc)
              (font-spec :family "PingFang SC"))
 ;; (k-set-fonts '(cyrillic phonetic)
@@ -646,21 +650,7 @@
       (dolist (buffer (buffer-list))
         (with-current-buffer buffer
           (when (derived-mode-p 'pdf-view-mode)
-            (pdf-view-midnight-minor-mode -1))))))
-
-  ;; (let (fix-highlight-indent-guides)
-  ;;   (highlight-tail-mode 0)
-  ;;   (dolist (buffer (buffer-list))
-  ;;     (with-current-buffer buffer
-  ;;       (when highlight-indent-guides-mode
-  ;;         (highlight-indent-guides-mode 0)
-  ;;         (push buffer fix-highlight-indent-guides))))
-  ;;   (k-load-faces)
-  ;;   (dolist (buffer fix-highlight-indent-guides)
-  ;;     (with-current-buffer buffer
-  ;;       (highlight-indent-guides-mode)))
-  ;;   (highlight-tail-mode))
-  )
+            (pdf-view-midnight-minor-mode -1)))))))
 
 (defface k-quote nil "Base face for quote.")
 (defface k-keyword nil "Base face for keyword.")
@@ -1113,10 +1103,11 @@
     ('bright (k-generate-theme 0.578 1.0 0.920 1.0 0.724 1.0 0.000 nil))
     ('dark (k-generate-theme 0.578 1.0 0.446 1.0 0.578 1.0 0.105 t))))
 
-(set-alist 'default-frame-alist 'right-fringe 16)
-(set-alist 'default-frame-alist 'left-fringe 16)
-(set-alist 'default-frame-alist 'right-divider-width 32)
-(set-alist 'default-frame-alist 'internal-border-width 16)
+(let ((gap (string-pixel-width "o")))
+  (set-alist 'default-frame-alist 'right-fringe gap)
+  (set-alist 'default-frame-alist 'left-fringe gap)
+  (set-alist 'default-frame-alist 'right-divider-width (* gap 2))
+  (set-alist 'default-frame-alist 'internal-border-width gap))
 (set-alist 'default-frame-alist 'undecorated t)
 (set-alist 'default-frame-alist 'alpha 100)
 (setq underline-minimum-offset -10)
@@ -1301,9 +1292,10 @@
 (use-package lsp-mode
   :bind ( :map lsp-mode-map
           ("s-d" . lsp-execute-code-action))
-  :config
+  :init
   (setq-default lsp-headerline-breadcrumb-enable nil
                 lsp-keymap-prefix "<f2>"))
+
 (use-package lsp-ltex
   :defer t
   :config
@@ -1312,6 +1304,7 @@
         lsp-ltex-latex-commands '(("\\lstset{}" . "ignore"))))
 
 (use-package tex
+  :defer t
   :ensure auctex
   :config
   ;; to use pdfview with auctex
@@ -1597,13 +1590,44 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
   (marginalia-mode))
 
-(use-package consult)
+(use-package consult
+  :defer nil
+  :init
+  (setq-default consult-preview-key "<f2>")
+  :bind
+  (("s-h" . consult-imenu)
+   ("s-;" . consult-goto-line)
+   ("C-c C-SPC" . consult-mark)
+   ("s-s" . consult-line)
+   :map minibuffer-local-map
+   ("C-s" . consult-history)
+   ("C-r" . consult-history))
+  :config
+  (setq-default consult-grep-args
+                '("zgrep" (consult--grep-exclude-args) "--null --line-buffered --color=never --ignore-case --line-number -I -r .")))
+
 (use-package embark
+  :bind
+  (("C-z" . embark-act)
+   :map embark-file-map
+   ("g" . k-grep-in)
+   :map vertico-map
+   ("C-s" .
+    (lambda ()
+      (interactive)
+      (embark--act 'k-grep-in (car (embark--targets)) embark-quit-after-action))))
   :config
   (setq embark-prompter #'embark-completing-read-prompter)
   (setq embark-indicators
         '( embark--vertico-indicator embark-minimal-indicator
-           embark-highlight-indicator embark-isearch-highlight-indicator)))
+           embark-highlight-indicator embark-isearch-highlight-indicator))
+  (defun k-grep-in (filename)
+    "Grep in FILENAME."
+    (if (file-directory-p filename)
+        (consult-grep filename)
+      (let ((buffer (find-file-noselect filename)))
+        (with-current-buffer buffer
+          (consult-line))))))
 ;(use-package embark-consult)
 
 ;;; Misc key bindings
@@ -1611,25 +1635,20 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (define-key key-translation-map (kbd "<f1>") (kbd "C-h"))
 (global-set-key "c" 'describe-char)
 (global-set-key "a" 'describe-face)
+(global-set-key [f2] nil)
 
 (global-set-key (kbd "C-M-h") 'backward-kill-sexp)
 
 (global-set-key (kbd "s-m") 'magit-status)
-(setq-default consult-preview-key "C-h")
 (global-set-key (kbd "s-w") 'save-buffer)
 (global-set-key (kbd "s-u") 'revert-buffer)
-(global-set-key (kbd "s-h") 'consult-imenu)
-(global-set-key (kbd "s-;") 'consult-goto-line)
-(global-set-key (kbd "C-c C-SPC") 'consult-mark)
-(global-set-key (kbd "C-c C-c C-SPC") 'consult-global-mark)
-(global-set-key (kbd "s-s") 'consult-line)
-(global-set-key (kbd "C-z") 'embark-act)
-
+(k-global-set-key (kbd "C-c C-c C-SPC") 'consult-global-mark)
 (k-global-set-key (kbd "s-0") 'delete-window)
 (k-global-set-key (kbd "s-1") 'zygospore-toggle-delete-other-windows)
 (k-global-set-key (kbd "C-x 1") 'zygospore-toggle-delete-other-windows)
 (k-global-set-key (kbd "s-2") 'split-window-below)
 (k-global-set-key (kbd "s-3") 'split-window-right)
+(k-global-set-key (kbd "s-=") 'balance-windows)
 (k-global-set-key (kbd "s-k") 'bury-buffer)
 (k-global-set-key (kbd "s-i") 'find-file)
 (k-global-set-key (kbd "s-q") 'consult-buffer)
@@ -1641,8 +1660,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 (when (k-exwm-enabled-p)
   (setq exwm-input-global-keys
-        `((,(kbd "s-<escape>") . exwm-reset)
-          (,(kbd "s-s") . exwm-background/exwm-background-window)))
+        `((,(kbd "s-<escape>") . exwm-reset)))
   (setq exwm-input-simulation-keys
         '(([?\C-b] . [left])
           ([?\C-f] . [right])
@@ -1656,23 +1674,9 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
           ([?\C-k] . [S-end delete])
           ([?\C-w] . [?\C-x])
           ([?\M-w] . [?\C-c])
-          ([?\C-y] . [?\C-v]))))
-
-(setq-default consult-grep-args
-              '("zgrep" (consult--grep-exclude-args) "--null --line-buffered --color=never --ignore-case --line-number -I -r ."))
-
-(defun k-grep-in (filename)
-  "Grep in FILENAME."
-  (if (file-directory-p filename)
-      (consult-grep filename)
-    (let ((buffer (find-file-noselect filename)))
-      (with-current-buffer buffer
-        (consult-line)))))
-(define-key embark-file-map (kbd "g") 'k-grep-in)
-(define-key vertico-map (kbd "C-s")
-            (lambda ()
-              (interactive)
-              (embark--act 'k-grep-in (car (embark--targets)) embark-quit-after-action)))
+          ([?\C-y] . [?\C-v])))
+  (define-key exwm-mode-map (kbd "C-q") 'exwm-input-send-next-key)
+  (define-key exwm-mode-map (kbd "C-c C-q") nil))
 
 (define-key indent-rigidly-map (kbd "C-b") 'indent-rigidly-left)
 (define-key indent-rigidly-map (kbd "C-f") 'indent-rigidly-right)
@@ -1717,213 +1721,268 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (add-to-list 'avy-styles-alist
                '(ace-link-widget . pre)))
 
-(define-key emacs-lisp-mode-map (kbd "C-c C-p") #'eval-print-last-sexp)
-
 (use-package kmacro
   :bind (("C-x (" . kmacro-start-macro-or-insert-counter)
          ("C-x e" . kmacro-end-or-call-macro)
          ("C-x )" . nil)))
 
 ;;; Lisp development
-(progn
- ;; General mode setup
- (require 'slime)
- (require 'slime-repl)
- (mapc (lambda (h)
-         (add-hook h #'paredit-mode)
-         (add-hook h (lambda () (setq outline-regexp "(section-start")))
-         (add-hook h #'highlight-indent-guides-mode))
-       '(emacs-lisp-mode-hook
-         lisp-mode-hook
-         scheme-mode-hook
-         clojure-mode-hook))
- (mapc (lambda (h)
-         (add-hook h #'paredit-mode))
-       '(slime-repl-mode-hook
-         geiser-repl-mode-hook
-         cider-repl-mode-hook))
- (add-hook 'emacs-lisp-mode-hook #'rainbow-mode)
- (add-hook 'scheme-mode-hook #'paredit-mode)
- (add-hook 'slime-repl-mode-hook #'paredit-mode)
- (add-hook 'slime-repl-mode-hook #'k-pad-header-line-after-advice)
- (add-hook 'lisp-mode-hook #'slime-mode)
- (add-hook 'lisp-mode-hook #'slime-editing-mode)
- (add-hook 'lisp-mode-hook 'ensure-slime)
 
- (remove-hook 'lisp-mode-hook 'sly-editing-mode)
- (mapc (lambda (h)
-         (add-hook h (lambda () (setq-local lisp-indent-function 'common-lisp-indent-function))))
-       '(lisp-mode-hook slime-repl-mode-hook))
- (font-lock-add-keywords 'lisp-mode '(("(\\(setf\\)" 1 font-lock-keyword-face)
-                                      ("(\\(setq\\)" 1 font-lock-keyword-face)
-                                      ("(\\(psetf\\)" 1 font-lock-keyword-face)
-                                      ("(\\(psetq\\)" 1 font-lock-keyword-face)))
- (add-to-list 'lisp-imenu-generic-expression
-              (list "Section" "^;;;\\([^#].*\\)$" 1) t)
- (set-alist 'auto-mode-alist "\\.ss" 'scheme-mode)
- (set-alist 'auto-mode-alist "\\.sls" 'scheme-mode)
- (set-alist 'auto-mode-alist "\\.scm" 'scheme-mode)
- (set-alist 'auto-mode-alist "\\.rkt" 'racket-mode)
- (set-alist 'auto-mode-alist "\\.lisp" 'lisp-mode)
+(define-key emacs-lisp-mode-map (kbd "C-c C-p") #'eval-print-last-sexp)
+(use-package macrostep
+  :bind ( :map emacs-lisp-mode-map
+          ("C-c M-e" . macrostep-expand)))
 
- (slime-setup '(slime-company slime-fancy slime-quicklisp
-                              slime-asdf slime-media slime-parse slime-mrepl))
- (define-advice slime-load-contribs
+(mapc (lambda (h)
+        (add-hook h 'paredit-mode)
+        (add-hook h (lambda () (setq outline-regexp "(section-start")))
+        (add-hook h 'highlight-indent-guides-mode))
+      '(emacs-lisp-mode-hook
+        lisp-mode-hook
+        scheme-mode-hook
+        clojure-mode-hook))
+
+(use-package paredit
+  :defer nil
+  :bind ( :map paredit-mode-map
+          ("C-j")
+          ("RET")
+          ("M-;" . comment-or-uncomment-sexp)
+          ("C-M-;" . structured-comment-defun)
+          ("M-c" . paredit-convolute-sexp))
+  :config
+  (mapc (lambda (h)
+          (add-hook h 'paredit-mode))
+        '(slime-repl-mode-hook
+          geiser-repl-mode-hook
+          cider-repl-mode-hook
+          scheme-mode-hook))
+
+  ;; #+nil structural comment for Common Lisp
+
+  (defmacro advance-save-excursion (&rest body)
+    `(let ((marker (point-marker)))
+       (set-marker-insertion-type marker t)
+       (unwind-protect
+           (progn ,@body)
+         (goto-char marker))))
+  (defmacro structured-comment-maybe (thing string)
+    `(advance-save-excursion
+      (let ((floating (not (ignore-errors (beginning-of-thing ,thing)))))
+        (when floating (skip-chars-forward "^("))
+        (or (when (looking-at "#\\+nil")
+              (let ((start (point)))
+                (forward-char 5)
+                (skip-chars-forward "\r\n[:blank:]")
+                (delete-region start (point))
+                t))
+            (save-excursion
+              (let ((end (point)))
+                (skip-chars-backward "\r\n[:blank:]")
+                (backward-char 5)
+                (when (looking-at-p "#\\+nil")
+                  (delete-region (point) end)
+                  t)))
+            (progn
+              (when floating (goto-char marker))
+              (insert ,string))))))
+  (defun structured-comment-advice (orig-fun &optional n)
+    (if lisp-mode
+        (structured-comment-maybe 'sexp "#+nil ")
+      (funcall orig-fun n)))
+  (advice-add 'comment-or-uncomment-sexp :around 'structured-comment-advice)
+  (defun structured-comment-defun ()
+    "Use #+nil to comment a top-level form for Common Lisp."
+    (interactive)
+    (if lisp-mode
+        (structured-comment-maybe 'defun "#+nil
+")
+      (save-excursion
+        (beginning-of-line)
+        (if (eq (char-after) ?\;)
+            (comment-or-uncomment-sexp)
+          (beginning-of-defun)
+          (comment-or-uncomment-sexp))))))
+
+(use-package paxedit
+  :defer nil
+  :bind ( :map paxedit-mode-map
+          ("C-w" . paxedit-kill-1)
+          ("M-w" . paxedit-copy-1)
+          ("M-j" . paxedit-compress))
+  :config
+  (defun paxedit-copy-1 (expression-p)
+    (interactive "P")
+    (cond (mark-active (call-interactively #'kill-ring-save))
+          (expression-p (paxedit-copy))
+          (t (paxedit-symbol-copy))))
+  (defun paxedit-kill-1 (expression-p)
+    (interactive "P")
+    (cond (mark-active (kill-region 0 0 'region))
+          (expression-p (paxedit-kill))
+          (t (paxedit-symbol-kill)))))
+;; (add-hook 'slime-repl-mode-hook #'k-pad-header-line-after-advice)
+
+(add-hook 'emacs-lisp-mode-hook 'rainbow-mode)
+(font-lock-add-keywords 'lisp-mode '(("(\\(setf\\)" 1 font-lock-keyword-face)
+                                     ("(\\(setq\\)" 1 font-lock-keyword-face)
+                                     ("(\\(psetf\\)" 1 font-lock-keyword-face)
+                                     ("(\\(psetq\\)" 1 font-lock-keyword-face)))
+(add-to-list 'lisp-imenu-generic-expression
+             (list "Section" "^;;;\\([^#].*\\)$" 1) t)
+(define-advice eval-last-sexp (:around (orig-func &rest args) k)
+  (if mark-active (call-interactively #'eval-region)
+    (apply orig-func args)))
+(use-package slime
+  :defer nil
+  :bind ( :map slime-mode-map
+          ("s-x" . slime-repl-sync)
+          ("C-M-g" . slime-undefine)
+          ("C-c C-s")
+          :map slime-editing-map
+          ("C-c C-r")
+          ("<f2> v" . slime-inspect)
+          ("<f2> c" . slime-inspect-presentation-at-point)
+          ("<f2> o" . slime-describe-symbol)
+          ("<f2> i" . slime-documentation-lookup))
+  :config
+  (slime-setup '( slime-company slime-fancy slime-quicklisp
+                  slime-asdf slime-media slime-parse slime-mrepl))
+  (define-advice slime-load-contribs
       (:after (&rest args) k)
     (slime-load-file "~/.emacs.d/scripts.lisp"))
- (require 'slime-company)
- (setq-default slime-company-completion 'fuzzy)
- (setq slime-lisp-implementations
-       `((sbcl (,inferior-lisp-program "--dynamic-space-size" "4096"))
-         (mega-sbcl (,inferior-lisp-program "--dynamic-space-size" "16384" "--control-stack-size" "2"))
-         (ccl ("/opt/local/bin/ccl64"))))
- ;; mrepl
- (require 'slime-mrepl)
- (add-hook 'slime-mrepl-mode-hook #'paredit-mode)
- (add-to-list 'slime-company-major-modes 'slime-mrepl-mode)
- (add-hook 'slime-mrepl-mode-hook #'slime-company-maybe-enable)
- (add-hook 'slime-mrepl-mode-hook #'slime-autodoc-mode)
+  (define-advice slime-eval-last-expression (:around (orig-func &rest args) k)
+    (if mark-active (call-interactively #'slime-eval-region)
+      (apply orig-func args)))
+  (setq-default
+   slime-lisp-implementations
+   `((sbcl (,inferior-lisp-program "--dynamic-space-size" "4096"))
+     (mega-sbcl (,inferior-lisp-program "--dynamic-space-size" "16384" "--control-stack-size" "2"))
+     (ccl ("/opt/local/bin/ccl64")))
+   slime-repl-banner-function #'ignore)
 
- ;; Handy slime commands and key bindings
- (defun ensure-slime ()
-   (unless slime-default-connection
-     (slime)))
- (ensure-slime)
+  ;; Handy slime commands and key bindings
+  (defun ensure-slime ()
+    (unless slime-default-connection
+      (slime)))
+  (ensure-slime)
 
- (defun slime-repl-sync ()
-   "Switch to Slime REPL and synchronize package/directory."
-   (interactive)
-   (slime-sync-package-and-default-directory)
-   (slime-repl))
- (define-key slime-mode-map (kbd "s-x") 'slime-repl-sync)
- (define-key slime-repl-mode-map (kbd "M-r") nil)
- (define-key slime-editing-map (kbd "<f2>")
-             (define-keymap
-               "v" #'slime-inspect
-               "o" #'slime-describe-symbol
-               "i" #'slime-documentation-lookup))
- (defun slime-undefine ()
-   "Undefine toplevel definition at point."
-   (interactive)
-   (cl-flet
-       ((run-with (f p symbol)
-          (message "%s %s => %s" f symbol
-                   (slime-eval
-                    `(cl:let ((symbol (cl:find-symbol ,(upcase (symbol-name symbol)))))
-                             (cl:cond ((cl:null symbol) "No such symbol")
-                                      ((cl:not (,p symbol)) (cl:unintern symbol) "Uninterned")
-                                      (t (,f symbol))))))))
-     (slime-dcase
-         (slime-parse-toplevel-form)
-       (((:defun :defgeneric :defmacro) name) (run-with 'cl:fmakunbound 'cl:fboundp name))
-       (((:defvar :defparameter) name) (run-with 'cl:makunbound 'cl:boundp name))
-       (((:defconstant) name) (run-with 'cl:unintern 'cl:identity name))
-       (((:defstruct :defclass) name) (run-with 'cl:make-instances-obsolete 'cl:find-class name)))))
- (define-key slime-mode-map (kbd "C-M-g") 'slime-undefine)
+  (defun slime-repl-sync ()
+    "Switch to Slime REPL and synchronize package/directory."
+    (interactive)
+    (slime-sync-package-and-default-directory)
+    (slime-repl))
 
- ;; #+nil structural comment for Common Lisp
- (require 'paredit)
- (define-key paredit-mode-map (kbd "C-j") nil) ;; Don't clash with `eval-print-last-sexp'
- (defmacro advance-save-excursion (&rest body)
-   `(let ((marker (point-marker)))
-      (set-marker-insertion-type marker t)
-      (unwind-protect
-          (progn ,@body)
-        (goto-char marker))))
- (defmacro structured-comment-maybe (thing string)
-   `(advance-save-excursion
-     (let ((floating (not (ignore-errors (beginning-of-thing ,thing)))))
-       (when floating (skip-chars-forward "^("))
-       (or (when (looking-at "#\\+nil")
-             (let ((start (point)))
-               (forward-char 5)
-               (skip-chars-forward "\r\n[:blank:]")
-               (delete-region start (point))
-               t))
-           (save-excursion
-             (let ((end (point)))
-               (skip-chars-backward "\r\n[:blank:]")
-               (backward-char 5)
-               (when (looking-at-p "#\\+nil")
-                 (delete-region (point) end)
-                 t)))
-           (progn
-             (when floating (goto-char marker))
-             (insert ,string))))))
- (defun structured-comment-advice (orig-fun &optional n)
-   (if slime-mode
-       (structured-comment-maybe 'sexp "#+nil ")
-     (funcall orig-fun n)))
- (advice-add 'comment-or-uncomment-sexp :around 'structured-comment-advice)
- (define-key paredit-mode-map (kbd "M-;") #'comment-or-uncomment-sexp)
- (defun structured-comment-defun ()
-   "Use #+nil to comment a top-level form for Common Lisp."
-   (interactive)
-   (if slime-mode
-       (structured-comment-maybe 'defun "#+nil
-")
-     (save-excursion
-       (beginning-of-line)
-       (if (eq (char-after) ?\;)
-           (comment-or-uncomment-sexp)
-         (beginning-of-defun)
-         (comment-or-uncomment-sexp)))))
- (define-key paredit-mode-map (kbd "C-M-;") #'structured-comment-defun)
+  (defun slime-undefine ()
+    "Undefine toplevel definition at point."
+    (interactive)
+    (cl-flet
+        ((run-with (f p symbol)
+           (message "%s %s => %s" f symbol
+                    (slime-eval
+                     `(cl:let ((symbol (cl:find-symbol ,(upcase (symbol-name symbol)))))
+                              (cl:cond ((cl:null symbol) "No such symbol")
+                                       ((cl:not (,p symbol)) (cl:unintern symbol) "Uninterned")
+                                       (t (,f symbol))))))))
+      (slime-dcase
+          (slime-parse-toplevel-form)
+        (((:defun :defgeneric :defmacro) name) (run-with 'cl:fmakunbound 'cl:fboundp name))
+        (((:defvar :defparameter) name) (run-with 'cl:makunbound 'cl:boundp name))
+        (((:defconstant) name) (run-with 'cl:unintern 'cl:identity name))
+        (((:defstruct :defclass) name) (run-with 'cl:make-instances-obsolete 'cl:find-class name)))))
 
- ;; *slime-scratch*
- (defun switch-to-scratch ()
-   "Switch to scratch buffer."
-   (interactive)
-   (if slime-editing-mode
-       (slime-scratch)
-     (switch-to-buffer-other-window "*scratch*")))
- (global-set-key (kbd "s-o") 'switch-to-scratch)
+  ;; *slime-scratch*
+  (defun switch-to-scratch ()
+    "Switch to scratch buffer."
+    (interactive)
+    (if slime-editing-mode
+        (slime-scratch)
+      (switch-to-buffer-other-window "*scratch*")))
+  (global-set-key (kbd "s-o") 'switch-to-scratch)
 
- ;; Slime mode line
- (defun slime-mode-line ()
-   (concat (slime-connection-name) " "
-           (propertize (downcase (string-trim (slime-current-package) "#?:\\|\"" "\""))
-                       'face 'k-proper-name)))
+  ;; Slime mode line
+  (defun slime-mode-line ()
+    (concat (slime-connection-name) " "
+            (propertize (downcase (string-trim (slime-current-package) "#?:\\|\"" "\""))
+                        'face 'k-proper-name)))
 
- ;; Hacks to make slime-autodoc works better
- (setq auto-save-no-message t) ;; Slime auto-saves like crazy for some reason...
- (setq eldoc-idle-delay 0)
+  ;; Hacks to make slime-autodoc works better
+  (setq auto-save-no-message t) ;; Slime auto-saves like crazy for some reason...
+  (setq eldoc-idle-delay 0)
 
- ;; Paredit enhancements
+  ;; Enable Paredit and Company in Lisp related minibuffers
+  (defun k-slime-command-p (symbol)
+    (let ((name (symbol-name symbol)))
+      (or (string-prefix-p "sldb" name)
+          (string-prefix-p "slime" name))))
+  (byte-compile 'k-slime-command-p)
+  (defun sexp-minibuffer-hook ()
+    (when (and (symbolp this-command)
+               (or (eq this-command 'eval-expression)
+                   (k-slime-command-p this-command)))
+      (paredit-mode)
+      (company-mode)))
+  (add-hook 'minibuffer-setup-hook 'sexp-minibuffer-hook)
 
- (define-key paredit-mode-map (kbd "M-c") #'paredit-convolute-sexp)
- (require 'paxedit)
- (define-key paxedit-mode-map (kbd "M-q") nil)
- (defun paxedit-copy-1 ()
-   (interactive)
-   (if mark-active (call-interactively #'kill-ring-save) (paxedit-copy)))
- (define-key paxedit-mode-map (kbd "C-w") #'paxedit-kill)
- (define-key paxedit-mode-map (kbd "M-w") #'paxedit-copy-1)
- (define-key paxedit-mode-map (kbd "s-f") #'paxedit-transpose-forward)
- (define-key paxedit-mode-map (kbd "s-b") #'paxedit-transpose-backward)
- (defun k--paxedit-kill-advice (orig-fun &rest args)
-   "Call KILL-REGION instead if mark is active.
-Otherwise call ORIG-FUN with ARGS."
-   (if mark-active
-       (kill-region 0 0 'region)
-     (apply orig-fun args)))
- (advice-add 'paxedit-kill :around #'k--paxedit-kill-advice)
- (add-hook 'paredit-mode-hook #'paxedit-mode)
- (define-key paxedit-mode-map (kbd "M-j") #'paxedit-compress)
- (define-key paxedit-mode-map (kbd "M-k") #'paxedit-format-1)
+  ;; Slime debug window non-prolifiration
+  (set-alist 'display-buffer-alist "\\`*sldb" '((display-buffer-reuse-mode-window))))
 
- ;; Enable Paredit and Company in Lisp related minibuffers
- (defun sexp-minibuffer-hook ()
-   (when (and (symbolp this-command)
-              (or (eq this-command 'eval-expression)
-                  (string-prefix-p "sldb" (symbol-name this-command))
-                  (string-prefix-p "slime" (symbol-name this-command))))
-     (paredit-mode)
-     (company-mode)))
- (add-hook 'minibuffer-setup-hook 'sexp-minibuffer-hook)
+(use-package slime-repl :ensure slime
+  :bind ( :map slime-repl-mode-map
+          ("M-r" . nil)
+          ("C-c C-s" . consult-history)
+          ("C-c C-r" . consult-history))
+  :config
+  (set-alist 'consult-mode-histories 'slime-repl-mode 'slime-repl-input-history))
 
- ;; Slime debug window non-prolifiration
- (set-alist 'display-buffer-alist "\\`*sldb" '((display-buffer-reuse-mode-window))))
+(use-package slime-company :ensure slime
+  :defer nil
+  :config
+  (setq-default slime-company-completion 'fuzzy)
+
+  (defun company-slime (command &optional arg &rest ignored)
+    "Company mode backend for slime."
+    (let ((candidate (and arg (substring-no-properties arg))))
+      (cl-case command
+        (init
+         (slime-company-active-p))
+        (prefix
+         (when (and ;; OUR CHANGE
+                (or (slime-company-active-p)
+                    (k-slime-command-p current-minibuffer-command))
+                (slime-connected-p)
+                (or slime-company-complete-in-comments-and-strings
+                    (null (slime-company--in-string-or-comment))))
+           (company-grab-symbol)))
+        (candidates
+         (slime-company--fetch-candidates-async candidate))
+        (meta
+         (let ((*slime-company--meta-request* t))
+           (slime-company--arglist candidate)))
+        (annotation
+         (concat (when slime-company-display-arglist
+                   (slime-company--arglist-only candidate))
+                 (when slime-company-display-flags
+                   (concat " " (get-text-property 0 'flags arg)))))
+        (doc-buffer
+         (unless *slime-company--meta-request*
+           (slime-company--doc-buffer candidate)))
+        (quickhelp-string
+         (unless *slime-company--meta-request*
+           (slime-company--quickhelp-string candidate)))
+        (location
+         (slime-company--location candidate))
+        (post-completion
+         (slime-company--post-completion candidate))
+        (sorted
+         (eq slime-company-completion 'fuzzy))))))
+
+(use-package slime-mrepl :ensure slime
+  :config
+  (add-hook 'slime-mrepl-mode-hook #'paredit-mode)
+  (add-to-list 'slime-company-major-modes 'slime-mrepl-mode)
+  (add-hook 'slime-mrepl-mode-hook #'slime-company-maybe-enable)
+  (add-hook 'slime-mrepl-mode-hook #'slime-autodoc-mode))
 
 (use-package which-key
   :config
@@ -2143,10 +2202,18 @@ emms-playlist-mode and query for a playlist to open."
                   k-blink-cursor-time-start (current-time))
             (setq k-blink-cursor-timer
                   (run-at-time k-blink-cursor-interval nil 'blink-cursor-timer-function)))
+        (message "No BPM data for: %s" (emms-track-get (emms-playlist-current-selected-track) 'info-title))
         (setq k-blink-cursor-time-start nil
               k-blink-cursor-interval 0.5))))
+  (defun k-emms-bpm-cursor-stop-hook ()
+    (if (or emms-player-paused-p emms-player-stopped-p)
+        (setq k-blink-cursor-time-start nil
+              k-blink-cursor-interval 0.5)
+      (k-emms-bpm-cursor)))
   (add-hook 'emms-player-started-hook 'k-emms-generate-theme)
   (add-hook 'emms-player-started-hook 'k-emms-bpm-cursor)
+  (add-hook 'emms-player-paused-hook 'k-emms-bpm-cursor-stop-hook)
+  (add-hook 'emms-player-stopped-hook 'k-emms-bpm-cursor-stop-hook)
 
   (when (k-exwm-enabled-p)
     (defun k-exwm-update-class ()
@@ -2194,7 +2261,7 @@ emms-playlist-mode and query for a playlist to open."
             ((< err 0.12) (message "Ok"))
             ((< err 0.18) (message "Meh"))
             (t (message "Miss"))))))
-(add-hook 'pre-command-hook 'k-rhythm-hit-result)
+;; (add-hook 'pre-command-hook 'k-rhythm-hit-result)
 (use-package highlight-indent-guides
   :config
   (setq highlight-indent-guides-method 'character)
@@ -2233,7 +2300,8 @@ emms-playlist-mode and query for a playlist to open."
   :bind ( :map vterm-mode-map
           ("C-c C-t" . nil)
           ("C-c C-j" . vterm-copy-mode)
-          ("C-c C-o" . vterm-clear)
+          ("C-c M-o" . vterm-clear)
+          ("C-q" . vterm-send-next-key)
           ("C-d" . (lambda () (interactive) (vterm-send-key "d" nil nil t)))
           ("s-x" . multi-vterm)
           ("s-f" . multi-vterm-next)
@@ -2251,50 +2319,52 @@ emms-playlist-mode and query for a playlist to open."
 
 ;;; Web browsing
 
-(require 'eww)
-(setq-default browse-url-browser-function 'eww-browse-url
-              eww-search-prefix "https://google.com/search?q=")
-(add-hook 'eww-after-render-hook 'k-pad-header-line-after-advice)
-(defvar k-eww-history (make-hash-table :test 'equal)
-  "Global history for eww. A EQUAL hash that maps title strings to URL.")
-(defun k-eww-after-render-hook ()
-  "Update EWW buffer title and save `k-eww-history'."
-  (let ((title (plist-get eww-data :title))
-        (url (plist-get eww-data :url)))
-    (rename-buffer (format "*eww: %s*" title) t)
-    (unless (> (length title) 0) (setq title "<no title>"))
-    (puthash (concat (truncate-string-to-width title 40 nil nil (truncate-string-ellipsis))
-                     #(" " 0 1 (display (space :align-to center)))
-                     (propertize url 'face 'completions-annotations))
-             url k-eww-history)))
-(add-hook 'eww-after-render-hook 'k-eww-after-render-hook)
-(defun k-eww-read-url ()
-  (let* ((cand
-          (completing-read "Enter URL or keywords: " k-eww-history)))
-    (or (gethash cand k-eww-history) cand)))
-(defun eww-new-buffer (url)
-  (interactive (list (k-eww-read-url)))
-  (with-temp-buffer
-    (if current-prefix-arg
-        (let ((eww-search-prefix "https://scholar.google.com/scholar?q="))
-          (eww url))
-      (eww url))))
-(define-key eww-mode-map (kbd "G") 'eww-new-buffer)
-
+(setq-default browse-url-browser-function 'eww-browse-url)
 (when (k-exwm-enabled-p)
+  (setq-default browse-url-secondary-browser-function 'k-browse-url-chromium)
   (defun k-browse-url-chromium (url &rest args)
     (start-process "chromium" " *chromium*" "chromium"
-                   (concat "--app=" url)))
-  (setq-default browse-url-secondary-browser-function 'k-browse-url-chromium)
-  (defun k-exwm-update-title ()
-    (exwm-workspace-rename-buffer (concat exwm-class-name ": " exwm-title)))
-  (add-hook 'exwm-update-title-hook 'k-exwm-update-title)
-  (defun k-eww-reload-in-chromium ()
-    (interactive)
-    (k-browse-url-chromium (plist-get eww-data :url)))
-  (define-key eww-mode-map (kbd "f") 'k-eww-reload-in-chromium))
+                   (concat "--app=" url))))
+
+(use-package eww
+  :defer t
+  :config
+  (setq-default browse-url-browser-function 'eww-browse-url)
+  (add-hook 'eww-after-render-hook 'k-pad-header-line-after-advice)
+  (defvar k-eww-history (make-hash-table :test 'equal)
+    "Global history for eww. A EQUAL hash that maps title strings to URL.")
+  (defun k-eww-after-render-hook ()
+    "Update EWW buffer title and save `k-eww-history'."
+    (let ((title (plist-get eww-data :title))
+          (url (plist-get eww-data :url)))
+      (rename-buffer (format "*eww: %s*" title) t)
+      (unless (> (length title) 0) (setq title "<no title>"))
+      (puthash (concat (truncate-string-to-width title 40 nil nil (truncate-string-ellipsis))
+                       #(" " 0 1 (display (space :align-to center)))
+                       (propertize url 'face 'completions-annotations))
+               url k-eww-history)))
+  (add-hook 'eww-after-render-hook 'k-eww-after-render-hook)
+  (defun k-eww-read-url ()
+    (let* ((cand
+            (completing-read "Enter URL or keywords: " k-eww-history)))
+      (or (gethash cand k-eww-history) cand)))
+  (defun eww-new-buffer (url)
+    (interactive (list (k-eww-read-url)))
+    (with-temp-buffer
+      (if current-prefix-arg
+          (let ((eww-search-prefix "https://scholar.google.com/scholar?q="))
+            (eww url))
+        (eww url))))
+  (define-key eww-mode-map (kbd "G") 'eww-new-buffer)
+
+  (when (k-exwm-enabled-p)
+    (defun k-eww-reload-in-chromium ()
+      (interactive)
+      (k-browse-url-chromium (plist-get eww-data :url)))
+    (define-key eww-mode-map (kbd "f") 'k-eww-reload-in-chromium)))
 
 (use-package pdf-tools
+  :defer t
   :config
   (setq pdf-view-midnight-invert nil)
   (pdf-tools-install))
@@ -2396,10 +2466,11 @@ emms-playlist-mode and query for a playlist to open."
     (cl-check-type volume number)
     (unless (= 0 (call-process-shell-command (format "amixer set Master %s%%" volume)))
       (error "Failed to set volume"))))
+
 (when (k-exwm-enabled-p)
-  (use-package hydra)
-  (add-to-list 'load-path "~/.emacs.d/lisp/exwm-background")
-  (require 'exwm-background))
+  (defun k-exwm-update-title ()
+    (exwm-workspace-rename-buffer (concat exwm-class-name ": " exwm-title)))
+  (add-hook 'exwm-update-title-hook 'k-exwm-update-title))
 
 (when (executable-find "xrandr")
   (defun k-auto-xrandr ()
@@ -2412,6 +2483,7 @@ emms-playlist-mode and query for a playlist to open."
   (start-process "picom" "*picom*" "picom"))
 
 (use-package org
+  :defer t
   :config
   (require 'tex-mode)
   (modify-syntax-entry ?< "w" org-mode-syntax-table)
@@ -2461,6 +2533,7 @@ emms-playlist-mode and query for a playlist to open."
   (add-hook 'org-mode-hook #'k-org-mode-hook))
 
 (use-package org-superstar
+  :defer t
   :config
   (setq-default org-superstar-item-bullet-alist
                 '((?* . ?•)
@@ -2473,6 +2546,7 @@ emms-playlist-mode and query for a playlist to open."
                   ?▷)))
 
 (use-package poly-org
+  :defer t
   :config
   (define-polymode poly-org-mode
     :hostmode 'poly-org-hostmode
@@ -2490,6 +2564,7 @@ emms-playlist-mode and query for a playlist to open."
     (setq-local polymode-run-these-after-change-functions-in-other-buffers
                 (append '(org-element--cache-after-change)
                         polymode-run-these-after-change-functions-in-other-buffers))))
+
 (defun k-polymode-init-inner-hook ()
   (oset pm/chunkmode adjust-face 'org-block)
   (topsy-mode -1))
@@ -2557,7 +2632,9 @@ emms-playlist-mode and query for a playlist to open."
                 (erc-server-send "CAP REQ :znc.in/self-message")
                 (erc-server-send "CAP END")))
   (setq-default erc-fill-function 'ignore)
-  (add-hook 'erc-mode 'visual-line-mode)
+  (add-hook 'erc-mode-hook 'visual-line-mode)
+
+  (require 'erc-stamp)
   (defun erc-insert-timestamp-right (string)
     (unless (and erc-timestamp-only-if-changed-flag
 	         (string-equal string erc-timestamp-last-inserted))
@@ -2637,9 +2714,11 @@ emms-playlist-mode and query for a playlist to open."
 	  (setq my-format (cdr (car templist)))))
     (format-time-string (eval my-format t) messy-date)))
 
-(require 'message)
-(setq-default message-signature "Best,\nQiantan"
-              message-fill-column nil)
+(use-package message :ensure gnus
+  :defer t
+  :config
+  (setq-default message-signature "Best,\nQiantan"
+                message-fill-column nil))
 
 (use-package notmuch
   :defer t
@@ -2765,7 +2844,27 @@ emms-playlist-mode and query for a playlist to open."
        (when (funcall accused-p symbol)
          (makunbound symbol)
          (fmakunbound symbol)
-         (unintern symbol obarray))))))
+         (setf (symbol-plist symbol) nil))))))
+
+;; https://gist.github.com/jdtsmith/1fbcacfe677d74bbe510aec80ac0050c
+(defun k-reraise-error (func &rest args)
+  "Call function FUNC with ARGS and re-raise any error which occurs.
+Useful for debugging post-command hooks and filter functions, which
+normally have their errors suppressed."
+  (condition-case err
+      (apply func args)
+    ((debug error) (signal (car err) (cdr err)))))
+
+(defun toggle-debug-on-hidden-errors (func)
+  "Toggle hidden error debugging for function FUNC."
+  (interactive "a")
+  (cond
+   ((advice-member-p #'k-reraise-error func)
+    (advice-remove func #'k-reraise-error)
+    (message "Debug on hidden errors disabled for %s" func))
+   (t
+    (advice-add func :around #'k-reraise-error)
+    (message "Debug on hidden errors enabled for %s" func))))
 
 
 ;; Vampire timezone
@@ -2993,6 +3092,8 @@ emms-playlist-mode and query for a playlist to open."
                 undo-tree-auto-save-history nil ;; Too fucking slow!
                 undo-tree-visualizer-timestamps t))
 (global-undo-tree-mode)
+
+(setq gc-cons-threshold 8000000 gc-cons-percentage 0.25)
 
 (provide 'init)
 ;;; init.el ends here
