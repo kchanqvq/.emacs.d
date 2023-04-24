@@ -46,7 +46,7 @@
                         (for c in-vector (clusters.k-means::read-clusters state))
                         (collect (cons (length c) v)))
                       #'> :key #'car)))
-          (format t "Computed hue vectors: ~a~%" result-alist)
+          #+nil (format t "Computed hue vectors: ~a~%" result-alist)
           (bind (((:values hue-1 sat-1) (vector-to-hue (cdr (nth 0 result-alist))))
                  ((:values hue-2 sat-2) (vector-to-hue (cdr (nth 1 result-alist))))
                  ((:values hue-3 sat-3) (vector-to-hue (cdr (nth 2 result-alist))))

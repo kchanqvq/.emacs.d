@@ -77,10 +77,13 @@
   ;; buffer settings (e.g. invisibility spec)
   (let ((from (point)))
     (insert " " string)
-    (let ((width (car (window-text-pixel-size (get-buffer-window) (1+ from) (point)))))
-      (put-text-property from (1+ from)
-                         'display
-                         `(space :align-to (- right-fringe (,width)))))
+    (save-restriction
+      (narrow-to-region (1+ from) (point))
+      (let ((width (car (buffer-text-pixel-size))))
+        (widen)
+        (put-text-property from (1+ from)
+                           'display
+                           `(space :align-to (- right-fringe (,width))))))
     nil))
 
 (defun k-truncate-string-to-width (string pixel-width)
@@ -1718,14 +1721,18 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (add-to-list 'avy-styles-alist
                '(ace-link-widget . pre)))
 
-(define-key emacs-lisp-mode-map (kbd "C-c C-p") #'eval-print-last-sexp)
-
 (use-package kmacro
   :bind (("C-x (" . kmacro-start-macro-or-insert-counter)
          ("C-x e" . kmacro-end-or-call-macro)
          ("C-x )" . nil)))
 
 ;;; Lisp development
+
+(define-key emacs-lisp-mode-map (kbd "C-c C-p") #'eval-print-last-sexp)
+(use-package macrostep
+  :bind ( :map emacs-lisp-mode-map
+          ("C-c M-e" . macrostep-expand)))
+
 (mapc (lambda (h)
         (add-hook h 'paredit-mode)
         (add-hook h (lambda () (setq outline-regexp "(section-start")))
@@ -1739,6 +1746,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   :defer nil
   :bind ( :map paredit-mode-map
           ("C-j")
+          ("RET")
           ("M-;" . comment-or-uncomment-sexp)
           ("C-M-;" . structured-comment-defun)
           ("M-c" . paredit-convolute-sexp))
@@ -1822,7 +1830,9 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                                      ("(\\(psetq\\)" 1 font-lock-keyword-face)))
 (add-to-list 'lisp-imenu-generic-expression
              (list "Section" "^;;;\\([^#].*\\)$" 1) t)
-
+(define-advice eval-last-sexp (:around (orig-func &rest args) k)
+  (if mark-active (call-interactively #'eval-region)
+    (apply orig-func args)))
 (use-package slime
   :defer nil
   :bind ( :map slime-mode-map
@@ -1841,10 +1851,15 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (define-advice slime-load-contribs
       (:after (&rest args) k)
     (slime-load-file "~/.emacs.d/scripts.lisp"))
-  (setq slime-lisp-implementations
-        `((sbcl (,inferior-lisp-program "--dynamic-space-size" "4096"))
-          (mega-sbcl (,inferior-lisp-program "--dynamic-space-size" "16384" "--control-stack-size" "2"))
-          (ccl ("/opt/local/bin/ccl64"))))
+  (define-advice slime-eval-last-expression (:around (orig-func &rest args) k)
+    (if mark-active (call-interactively #'slime-eval-region)
+      (apply orig-func args)))
+  (setq-default
+   slime-lisp-implementations
+   `((sbcl (,inferior-lisp-program "--dynamic-space-size" "4096"))
+     (mega-sbcl (,inferior-lisp-program "--dynamic-space-size" "16384" "--control-stack-size" "2"))
+     (ccl ("/opt/local/bin/ccl64")))
+   slime-repl-banner-function #'ignore)
 
   ;; Handy slime commands and key bindings
   (defun ensure-slime ()
@@ -2187,6 +2202,7 @@ emms-playlist-mode and query for a playlist to open."
                   k-blink-cursor-time-start (current-time))
             (setq k-blink-cursor-timer
                   (run-at-time k-blink-cursor-interval nil 'blink-cursor-timer-function)))
+        (message "No BPM data for: %s" (emms-track-get (emms-playlist-current-selected-track) 'info-title))
         (setq k-blink-cursor-time-start nil
               k-blink-cursor-interval 0.5))))
   (defun k-emms-bpm-cursor-stop-hook ()
@@ -2245,7 +2261,7 @@ emms-playlist-mode and query for a playlist to open."
             ((< err 0.12) (message "Ok"))
             ((< err 0.18) (message "Meh"))
             (t (message "Miss"))))))
-(add-hook 'pre-command-hook 'k-rhythm-hit-result)
+;; (add-hook 'pre-command-hook 'k-rhythm-hit-result)
 (use-package highlight-indent-guides
   :config
   (setq highlight-indent-guides-method 'character)
@@ -2635,7 +2651,9 @@ emms-playlist-mode and query for a playlist to open."
                 (erc-server-send "CAP REQ :znc.in/self-message")
                 (erc-server-send "CAP END")))
   (setq-default erc-fill-function 'ignore)
-  (add-hook 'erc-mode 'visual-line-mode)
+  (add-hook 'erc-mode-hook 'visual-line-mode)
+
+  (require 'erc-stamp)
   (defun erc-insert-timestamp-right (string)
     (unless (and erc-timestamp-only-if-changed-flag
 	         (string-equal string erc-timestamp-last-inserted))
@@ -2846,6 +2864,26 @@ emms-playlist-mode and query for a playlist to open."
          (makunbound symbol)
          (fmakunbound symbol)
          (setf (symbol-plist symbol) nil))))))
+
+;; https://gist.github.com/jdtsmith/1fbcacfe677d74bbe510aec80ac0050c
+(defun k-reraise-error (func &rest args)
+  "Call function FUNC with ARGS and re-raise any error which occurs.
+Useful for debugging post-command hooks and filter functions, which
+normally have their errors suppressed."
+  (condition-case err
+      (apply func args)
+    ((debug error) (signal (car err) (cdr err)))))
+
+(defun toggle-debug-on-hidden-errors (func)
+  "Toggle hidden error debugging for function FUNC."
+  (interactive "a")
+  (cond
+   ((advice-member-p #'k-reraise-error func)
+    (advice-remove func #'k-reraise-error)
+    (message "Debug on hidden errors disabled for %s" func))
+   (t
+    (advice-add func :around #'k-reraise-error)
+    (message "Debug on hidden errors enabled for %s" func))))
 
 
 ;; Vampire timezone
