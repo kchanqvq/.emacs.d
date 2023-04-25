@@ -1087,14 +1087,14 @@
    `(pulse-highlight-start-face ((default :background ,k-bg-blue :extend t)))
    ;; ansi-term
    `(term ((default (:inherit default))))
-   `(term-color-black   ((default (:foreground ,k-bg))))
-   `(term-color-error     ((default (:foreground ,k-fg-red))))
-   `(term-color-green   ((default (:foreground ,k-dk-purple))))
-   `(term-color-warning  ((default (:foreground ,k-dk-pink))))
+   `(ansi-color-black   ((default (:foreground ,k-bg))))
+   `(ansi-color-red     ((default (:foreground ,k-fg-red))))
+   `(ansi-color-green   ((default (:foreground ,k-dk-purple))))
+   `(ansi-color-yellow  ((default (:foreground ,k-dk-pink))))
    `(term-color-blue    ((default (:foreground ,k-dk-blue))))
    `(term-color-magenta ((default :foreground ,k-dk-purple)))
    `(term-color-cyan    ((default :foreground ,k-dk-blue)))
-   `(term-color-white   ((default (:inherit default))))
+   `(term-color-white   ((default (:foreground ,k-bg :background ,k-fg))))
 
    `(pyim-page ((default :background ,k-bg)))
    `(pyim-page-selection ((default :inherit match)))))
@@ -1228,17 +1228,15 @@
   (clean-aindent-mode))
 
 (use-package dtrt-indent
+  :hook prog-mode
   :config
-  (add-hook 'prog-mode-hook 'dtrt-indent-mode)
   (setq dtrt-indent-verbosity 0))
 
 (use-package ws-butler
-  :config
-  (add-hook 'prog-mode-hook 'ws-butler-mode)
-  (add-hook 'text-mode 'ws-butler-mode)
-  (add-hook 'fundamental-mode 'ws-butler-mode))
+  :hook (prog-mode text-mode))
 
-(global-set-key (kbd "M-;") 'comment-dwim-2) ;; TODO
+(use-package comment-dwim-2
+  :bind (("M-;" . comment-dwim-2)))
 
 (use-package outline
   :bind ( :map outline-minor-mode-map
@@ -1258,8 +1256,8 @@
   (globalize highlight-parentheses-mode))
 
 (use-package topsy
+  :hook (prog-mode)
   :config
-  (add-hook 'prog-mode-hook #'topsy-mode)
   (setq topsy-header-line-format
         `(:eval (or (funcall topsy-fn)
                     ,(propertize "── top ──"
@@ -1609,6 +1607,7 @@ PROMPT is a string to prompt with."
                 '("zgrep" (consult--grep-exclude-args) "--null --line-buffered --color=never --ignore-case --line-number -I -r .")))
 
 (use-package embark
+  :defer nil
   :bind
   (("C-z" . embark-act)
    :map embark-file-map
@@ -1741,16 +1740,11 @@ PROMPT is a string to prompt with."
   :bind ( :map emacs-lisp-mode-map
           ("C-c M-e" . macrostep-expand)))
 
-(mapc (lambda (h)
-        (add-hook h 'paredit-mode)
-        (add-hook h 'highlight-indent-guides-mode))
-      '(emacs-lisp-mode-hook
-        lisp-mode-hook
-        scheme-mode-hook
-        clojure-mode-hook))
-
 (use-package paredit
   :defer nil
+  :hook ( emacs-lisp-mode lisp-mode scheme-mode clojure-mode
+          slime-repl-mode-hook geiser-repl-mode-hook cider-repl-mode-hook
+          slime-mrepl-mode-hook)
   :bind ( :map paredit-mode-map
           ("C-j")
           ("RET")
@@ -1758,15 +1752,8 @@ PROMPT is a string to prompt with."
           ("C-M-;" . structured-comment-defun)
           ("M-c" . paredit-convolute-sexp))
   :config
-  (mapc (lambda (h)
-          (add-hook h 'paredit-mode))
-        '(slime-repl-mode-hook
-          geiser-repl-mode-hook
-          cider-repl-mode-hook
-          scheme-mode-hook))
 
   ;; #+nil structural comment for Common Lisp
-
   (defmacro advance-save-excursion (&rest body)
     `(let ((marker (point-marker)))
        (set-marker-insertion-type marker t)
@@ -1853,7 +1840,6 @@ PROMPT is a string to prompt with."
           ("<f2> o" . slime-describe-symbol)
           ("<f2> i" . slime-documentation-lookup))
   :config
-  (require 'slime)
   (slime-setup '( slime-company slime-fancy slime-quicklisp
                   slime-asdf slime-media slime-parse slime-mrepl))
   (define-advice slime-load-contribs
@@ -1987,7 +1973,6 @@ PROMPT is a string to prompt with."
 
 (use-package slime-mrepl :ensure slime
   :config
-  (add-hook 'slime-mrepl-mode-hook #'paredit-mode)
   (add-to-list 'slime-company-major-modes 'slime-mrepl-mode)
   (add-hook 'slime-mrepl-mode-hook #'slime-company-maybe-enable)
   (add-hook 'slime-mrepl-mode-hook #'slime-autodoc-mode))
@@ -2113,9 +2098,6 @@ emms-playlist-mode and query for a playlist to open."
                          'priority 1))))))
 
   ;; Eye candies
-  (add-hook 'emms-playlist-mode 'stripes-mode)
-  (add-hook 'emms-playlist-mode 'hl-line-mode)
-
   (require 'emms-player-mpv)
 
   (setq emms-player-list '(emms-player-mpv))
@@ -2146,7 +2128,7 @@ emms-playlist-mode and query for a playlist to open."
     (add-to-list 'emms-player-mpv-parameters "--ontop")
     (add-to-list 'emms-player-mpv-parameters "--fullscreen")
     (add-to-list 'emms-player-mpv-parameters "--no-native-fs")
-    (add-to-list 'emms-player-mpv-parameters "--no-focus"))
+    (add-to-list 'emms-player-mpv-parameters "--no-focus-on-open"))
   (defun k-emms-toggle-video (&rest args)
     "TELL MPV player to switch to video/no-video mode."
     (interactive)
@@ -2272,6 +2254,7 @@ emms-playlist-mode and query for a playlist to open."
             (t (message "Miss"))))))
 ;; (add-hook 'pre-command-hook 'k-rhythm-hit-result)
 (use-package highlight-indent-guides
+  :hook (emacs-lisp-mode lisp-mode scheme-mode clojure-mode)
   :config
   (setq highlight-indent-guides-method 'character)
   (setq highlight-indent-guides-responsive nil)
