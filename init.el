@@ -8,21 +8,24 @@
 (require 'nadvice)
 (require 'subr-x)
 (require 'mule-util)
-(require 'package)
 
-(add-to-list 'package-archives
-             '("melpa-stable" . "https://stable.melpa.org/packages/"))
-(add-to-list 'package-archives
-             '("melpa" . "https://melpa.org/packages/"))
-(add-to-list 'package-archives '("org" . "http://orgmode.org/elpa/") t)
-(package-initialize)
-(when (not package-archive-contents)
-  (package-refresh-contents))
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
+      (bootstrap-version 6))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
+(setq-default straight-use-package-by-default t)
+(straight-use-package 'use-package)
 
-(let ((package-check-signature nil))
-  (use-package gnu-elpa-keyring-update))
+(use-package alist :straight apel)
 
-(use-package alist :ensure apel)
 (use-package s)
 
 (defmacro globalize (mode)
@@ -540,27 +543,6 @@
 ;; (defvar k-courier-height 200)
 ;; (defvar k-noto-sans-height 200)
 ;; (set-frame-font k-light-monospace nil t)
-
-(defun k-set-fonts (scripts spec)
-  (dolist (script scripts)
-    (set-fontset-font t script nil)
-    (if (listp spec)
-        (dolist (s spec)
-          (set-fontset-font t script s nil t))
-      (set-fontset-font t script spec))))
-
-(k-set-fonts '(han kana cjk-misc)
-             (font-spec :family "PingFang SC"))
-;; (k-set-fonts '(cyrillic phonetic)
-;;   (font-spec :family "Noto Sans" :size 18))
-;; (k-set-fonts  '(hebrew)
-;;               (font-spec :family "Arial Hebrew" :size 16))
-(k-set-fonts '(emoji symbol)
-             (list (font-spec :family "Hiragino Sans" :size 16)
-                   (font-spec :family "Noto Emoji" :size 16)
-                   (cond ((member "Apple Color Emoji"(font-family-list))
-                          (font-spec :family "Apple Color Emoji" :size 16))
-                         (t (font-spec :family "Noto Color Emoji")))))
 
 (defvar k-bg-blue)
 (defvar k-fg-blue)
@@ -1307,7 +1289,7 @@
 
 (use-package tex
   :defer t
-  :ensure auctex
+  :straight auctex
   :config
   ;; to use pdfview with auctex
   (setq TeX-view-program-selection '((output-pdf "PDF Tools"))
@@ -1410,16 +1392,16 @@ PROMPT is a string to prompt with."
   (defcustom k-vertico-multiline-max-lines 10
     "Maximum number of lines displayed for a multi-line candidate."
     :type 'number :group 'vertico)
-  ;; (defun vertico--truncate-multiline (cand _max-width)
-;;     "Truncate multiline CAND.
-;; Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
-;;     (let ((lines (string-lines cand)))
-;;       (when (> (length lines) k-vertico-multiline-max-lines)
-;;         (let ((tail (nthcdr (1- k-vertico-multiline-max-lines) lines)))
-;;           (setcdr tail nil)
-;;           (setcar tail (concat (car tail) (truncate-string-ellipsis))))
-;;         (setq cand (mapconcat #'identity lines "\n"))))
-;;     cand)
+  (defun vertico--truncate-multiline (cand _max-width)
+    "Truncate multiline CAND.
+Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
+    (let ((lines (string-lines cand)))
+      (when (> (length lines) k-vertico-multiline-max-lines)
+        (let ((tail (nthcdr (1- k-vertico-multiline-max-lines) lines)))
+          (setcdr tail nil)
+          (setcar tail (concat (car tail) (truncate-string-ellipsis))))
+        (setq cand (mapconcat #'identity lines "\n"))))
+    cand)
   (byte-compile 'vertico--truncate-multiline)
 
   (defun k-string-pixel-height (string)
@@ -1463,13 +1445,16 @@ PROMPT is a string to prompt with."
     (overlay-put vertico--candidates-ov 'after-string
                  (apply #'concat #(" " 0 1 (cursor t)) (and lines "\n") lines))
     (vertico--resize-window vertico-count))
-  (byte-compile 'vertico--update-scroll)
+  (byte-compile 'vertico--compute-scroll)
   (byte-compile 'vertico--display-candidate)
 
-  (vertico-mode)
+  (vertico-mode))
 
-  (require 'vertico-buffer)
-
+(use-package vertico-buffer
+  :straight nil
+  :after vertico
+  :load-path "straight/repos/vertico/extensions/"
+  :config
   (cl-defmethod vertico--resize-window (height &context (vertico-buffer-mode (eql t)))
     ;; we use `fit-window-to-buffer' instead and ignore HEIGHT
     (when k--top-separator-ov
@@ -1642,8 +1627,7 @@ PROMPT is a string to prompt with."
 (global-set-key (kbd "s-u") 'revert-buffer)
 (k-global-set-key (kbd "C-c C-c C-SPC") 'consult-global-mark)
 (k-global-set-key (kbd "s-0") 'delete-window)
-(k-global-set-key (kbd "s-1") 'zygospore-toggle-delete-other-windows)
-(k-global-set-key (kbd "C-x 1") 'zygospore-toggle-delete-other-windows)
+(k-global-set-key (kbd "s-1") 'delete-other-windows)
 (k-global-set-key (kbd "s-2") 'split-window-below)
 (k-global-set-key (kbd "s-3") 'split-window-right)
 (k-global-set-key (kbd "s-=") 'balance-windows)
@@ -1743,8 +1727,8 @@ PROMPT is a string to prompt with."
 (use-package paredit
   :defer nil
   :hook ( emacs-lisp-mode lisp-mode scheme-mode clojure-mode
-          slime-repl-mode-hook geiser-repl-mode-hook cider-repl-mode-hook
-          slime-mrepl-mode-hook)
+          slime-repl-mode geiser-repl-mode cider-repl-mode
+          slime-mrepl-mode)
   :bind ( :map paredit-mode-map
           ("C-j")
           ("RET")
@@ -1817,7 +1801,9 @@ PROMPT is a string to prompt with."
           (t (paxedit-symbol-kill)))))
 ;; (add-hook 'slime-repl-mode-hook #'k-pad-header-line-after-advice)
 
-(add-hook 'emacs-lisp-mode-hook 'rainbow-mode)
+(use-package rainbow-mode
+  :hook emacs-lisp-mode)
+
 (font-lock-add-keywords 'lisp-mode '(("(\\(setf\\)" 1 font-lock-keyword-face)
                                      ("(\\(setq\\)" 1 font-lock-keyword-face)
                                      ("(\\(psetf\\)" 1 font-lock-keyword-face)
@@ -1830,7 +1816,6 @@ PROMPT is a string to prompt with."
 (use-package slime
   :defer nil
   :bind ( :map slime-mode-map
-          ("s-x" . slime-repl-sync)
           ("C-M-g" . slime-undefine)
           ("C-c C-s")
           :map slime-editing-map
@@ -1840,8 +1825,6 @@ PROMPT is a string to prompt with."
           ("<f2> o" . slime-describe-symbol)
           ("<f2> i" . slime-documentation-lookup))
   :config
-  (slime-setup '( slime-company slime-fancy slime-quicklisp
-                  slime-asdf slime-media slime-parse slime-mrepl))
   (define-advice slime-load-contribs
       (:after (&rest args) k)
     (slime-load-file "~/.emacs.d/scripts.lisp"))
@@ -1857,15 +1840,11 @@ PROMPT is a string to prompt with."
 
   ;; Handy slime commands and key bindings
   (defun ensure-slime ()
+    (slime-setup '( slime-company slime-fancy slime-quicklisp
+                    slime-asdf slime-media slime-parse slime-mrepl))
     (unless slime-default-connection
       (slime)))
-  (ensure-slime)
-
-  (defun slime-repl-sync ()
-    "Switch to Slime REPL and synchronize package/directory."
-    (interactive)
-    (slime-sync-package-and-default-directory)
-    (slime-repl))
+  (add-hook 'after-init-hook 'ensure-slime)
 
   (defun slime-undefine ()
     "Undefine toplevel definition at point."
@@ -1921,18 +1900,26 @@ PROMPT is a string to prompt with."
   ;; Slime debug window non-prolifiration
   (set-alist 'display-buffer-alist "\\`*sldb" '((display-buffer-reuse-mode-window))))
 
-(use-package slime-repl :ensure slime
-  :bind ( :map slime-repl-mode-map
+(use-package slime-repl :straight slime
+  :bind ( :map slime-mode-map
+          ("s-x" . slime-repl-sync)
+          :map slime-repl-mode-map
           ("M-r" . nil)
           ("C-c C-s" . consult-history)
           ("C-c C-r" . consult-history))
   :config
-  (set-alist 'consult-mode-histories 'slime-repl-mode 'slime-repl-input-history))
+  (set-alist 'consult-mode-histories 'slime-repl-mode 'slime-repl-input-history)
 
-(use-package slime-company :ensure slime
-  :defer nil
+  (defun slime-repl-sync ()
+    "Switch to Slime REPL and synchronize package/directory."
+    (interactive)
+    (slime-sync-package-and-default-directory)
+    (slime-repl)))
+
+(use-package slime-company
   :config
   (setq-default slime-company-completion 'fuzzy)
+  (add-to-list 'company-backends 'company-slime)
 
   (defun company-slime (command &optional arg &rest ignored)
     "Company mode backend for slime."
@@ -1971,7 +1958,7 @@ PROMPT is a string to prompt with."
         (sorted
          (eq slime-company-completion 'fuzzy))))))
 
-(use-package slime-mrepl :ensure slime
+(use-package slime-mrepl :straight slime
   :config
   (add-to-list 'slime-company-major-modes 'slime-mrepl-mode)
   (add-hook 'slime-mrepl-mode-hook #'slime-company-maybe-enable)
@@ -2706,7 +2693,7 @@ emms-playlist-mode and query for a playlist to open."
 	  (setq my-format (cdr (car templist)))))
     (format-time-string (eval my-format t) messy-date)))
 
-(use-package message :ensure gnus
+(use-package message :straight gnus
   :defer t
   :config
   (setq-default message-signature "Best,\nQiantan"
