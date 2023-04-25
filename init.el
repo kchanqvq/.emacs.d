@@ -1592,7 +1592,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                 '("zgrep" (consult--grep-exclude-args) "--null --line-buffered --color=never --ignore-case --line-number -I -r .")))
 
 (use-package embark
-  :defer nil
   :bind
   (("C-z" . embark-act)
    :map embark-file-map
@@ -1603,6 +1602,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
       (interactive)
       (embark--act 'k-grep-in (car (embark--targets)) embark-quit-after-action))))
   :config
+  (require 'embark)
   (setq embark-prompter #'embark-completing-read-prompter)
   (setq embark-indicators
         '( embark--vertico-indicator embark-minimal-indicator
@@ -2500,9 +2500,6 @@ emms-playlist-mode and query for a playlist to open."
 
   (require 'org-inlinetask)
 
-  (require 'ox-extra)
-  (ox-extras-activate '(ignore-headlines))
-
   (defun k-org-mode-hook ()
     (visual-line-mode)
     (org-variable-pitch-minor-mode)
@@ -2510,6 +2507,11 @@ emms-playlist-mode and query for a playlist to open."
     (org-superstar-mode)
     (org-indent-mode))
   (add-hook 'org-mode-hook #'k-org-mode-hook))
+
+(use-package org-contrib
+  :config
+  (require 'ox-extra)
+  (ox-extras-activate '(ignore-headlines)))
 
 (use-package org-superstar
   :defer t

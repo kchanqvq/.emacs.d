@@ -47,6 +47,7 @@
  ("notmuch" . "1b878877d928a5279c3c0003d067d8b875f7e42a")
  ("orderless" . "e6784026717a8a6a7dcd0bf31fd3414f148c542e")
  ("org" . "e065b53a4aaba0f5a358194ad7fd14b2f10fb373")
+ ("org-contrib" . "223390ea2c2f728ca4bfd1c4a33cac25d003693a")
  ("org-superstar-mode" . "54c81c27dde2a6dc461bb064e79a8b2089093a2e")
  ("paredit" . "9a2c4b37fc8c1c7bdbb1f86fdec874c0d0652e64")
  ("paxedit" . "09f3d5aeb108937a801e77ef413e29eaa4ecc4be")
