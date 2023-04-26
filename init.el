@@ -1952,6 +1952,8 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
           ("<f2> c" . slime-inspect-presentation-at-point)
           ("<f2> o" . slime-describe-symbol)
           ("<f2> i" . slime-documentation-lookup))
+  :autoload ensure-slime
+  :init (add-hook 'emacs-startup-hook 'ensure-slime)
   :config
   (let ((async-shell-command-buffer 'new-buffer))
     (system-packages-ensure "sbcl"))
@@ -1976,7 +1978,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                     slime-asdf slime-media slime-parse slime-mrepl))
     (unless slime-default-connection
       (slime)))
-  (add-hook 'emacs-startup-hook 'ensure-slime)
 
   (defun slime-undefine ()
     "Undefine toplevel definition at point."
