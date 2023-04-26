@@ -1,15 +1,21 @@
-;;; -*- lexical-binding: t -*-
+;;; init.el --- kchan's emacs config -*- lexical-binding: t -*-
+;;; Commentary:
+;;; TODO
 ;;; Code:
 
+;; Turn off GC during startup
 (setq gc-cons-threshold (* 1024 1024 1024) gc-cons-percentage 1.0)
 
-;;; Util functions
-
+;; Misc libraries
 (require 'nadvice)
 (require 'subr-x)
 (require 'mule-util)
+(require 'color)
+
+;;; Bootstrap straight.el
 
 (setq straight-check-for-modifications '(check-on-save find-when-checking))
+
 (defvar bootstrap-version)
 (let ((bootstrap-file
        (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
@@ -22,15 +28,15 @@
       (goto-char (point-max))
       (eval-print-last-sexp)))
   (load bootstrap-file nil 'nomessage))
+
 (setq-default straight-use-package-by-default t
               use-package-always-defer t)
+
 (straight-use-package 'use-package)
 
-(use-package alist :straight apel :demand t)
+;;; Util functions
 
-(use-package package
-  :config
-  (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t))
+(use-package alist :straight apel :demand t)
 
 (use-package s :demand t)
 
@@ -60,6 +66,7 @@
   "Run helper shell COMMAND in buffer with NAME.
 Run CONTINUATION once the shell process exited.
 If SILENT is non-nil, do not display the NAME buffer."
+  (require 'comint)
   (with-current-buffer
       (let ((display-comint-buffer-action
              (if silent
@@ -68,7 +75,7 @@ If SILENT is non-nil, do not display the NAME buffer."
         (save-selected-window
           (shell name)))
     (set-process-sentinel (get-buffer-process (current-buffer))
-			  (lambda (proc status)
+			  (lambda (_proc _status)
                             (when continuation
                               (funcall continuation))))
     (goto-char (point-max))
@@ -111,7 +118,7 @@ e.g. invisibility spec."
 Use binary search."
   (if (> (string-pixel-width string) pixel-width)
       (let* ((a 1) a-result
-             (b (length string)) b-result)
+             (b (length string)))
         (while (> b (+ a 1))
           (let* ((c (ceiling (+ a b) 2))
                  (result (concat (substring string 0 c) (truncate-string-ellipsis))))
@@ -126,11 +133,10 @@ Use binary search."
   (or (keymap-lookup keymap key)
       (keymap-set keymap key (make-sparse-keymap))))
 
-;;; Initial config
+;;; Misc config
 
 (add-to-list 'load-path "~/.emacs.d/lisp")
 (add-to-list 'load-path "~/.emacs.d/custom")
-(add-to-list 'load-path "~/Projects/crdt")
 (setq-default garbage-collection-messages nil)
 (setq-default inhibit-startup-message t)
 
@@ -153,18 +159,16 @@ Use binary search."
 (put 'list-threads 'disabled nil)
 (put 'list-timers 'disabled nil)
 
-;; Sudo edit better default dir
-(add-hook 'find-file-hook
-          (lambda ()
-            (setq default-directory
-                  (replace-regexp-in-string "^/sudo:root@localhost:" "" default-directory))))
-
 (load (setq custom-file "~/.emacs.d/custom/custom.el"))
 (add-hook 'after-save-hook 'executable-make-buffer-file-executable-if-script-p)
 
 ;;; Mode line
 
 (defun k-pad-mode-line-format (format &optional right-format)
+  "Format the mode line as a string according to FORMAT and RIGHT-FORMAT.
+FORMAT is left-aligned and RIGHT-FORMAT is right-aligned.  Add
+padding space at the left and right of the mode line so that the
+edge of the mode line align with left and right fringe."
   (unless (stringp format)
     (setq format (format-mode-line format)))
   (when right-format
@@ -182,12 +186,16 @@ Use binary search."
 (byte-compile 'k-pad-mode-line-format)
 
 (defvar k-selected-window nil)
+
 (defun k-set-selected-window ()
   (when (not (minibuffer-window-active-p (frame-selected-window)))
     (setq k-selected-window (frame-selected-window))))
-(defun k-mode-line-selected-p ()
+
+(defsubst k-mode-line-selected-p ()
   (eq (selected-window) k-selected-window))
+
 (add-hook 'window-state-change-hook 'k-set-selected-window)
+
 (setq-default mode-line-misc-info
               '((slime-mode (:eval (slime-mode-line)))
                 (:eval (if (eq major-mode 'emms-playlist-mode) (k-emms-mode-line) "")))
@@ -200,6 +208,7 @@ Use binary search."
 
                    mode-line-misc-info)
                  '(" "
+                   current-input-method-title " "
                    mode-name mode-line-process
                    "  "
                    (:eval (if (k-mode-line-selected-p) #("%c" 0 2 (face mode-line-emphasis))
@@ -210,7 +219,15 @@ Use binary search."
               tab-line-format nil)
 
 (defvar-local k-pad-last-header-line-format nil)
-(defun k-pad-header-line-after-advice (&optional object &rest args)
+
+(defun k-pad-header-line-after-advice (&optional object &rest _args)
+  "Add padding to header line using `k-pad-mode-line-format'.
+This is intended to be used as an :after advice or (normal or
+abnormal) hook.  If OBJECT is not given, pad header line for
+current buffer.  If OBJECT is a buffer, pad header line for it.
+If OBJECT is a frame, pad header line for all buffers displayed
+in it.  The function should be idempotent and suitable for
+repeated invocation."
   (cond ((framep object)
          (dolist (window (window-list object 'no-minibuf))
            (k-pad-header-line-after-advice (window-buffer window))))
@@ -220,27 +237,45 @@ Use binary search."
                (setq-local header-line-format `(:eval (k-pad-mode-line-format ',header-line-format)))
                (setq-local k-pad-last-header-line-format header-line-format))))))
 (byte-compile 'k-pad-header-line-after-advice)
+
 (add-hook 'Info-mode-hook #'k-pad-header-line-after-advice)
 (add-hook 'window-buffer-change-functions 'k-pad-header-line-after-advice)
 
 (defvar k-inhibit-tab-line nil)
+
 (defun k-compute-tab-line (frame)
+  "Add an empty tab line to windows in FRAME to simulate bottom dividers.
+Tab lines are not added to windows at the top and windows whose
+buffer has non-nill `k-inhibit-tab-line'.
+
+This differs from bottom dividers because it does not add space
+to below window at the bottom (above echo area)."
   (dolist (w (window-list frame))
     (with-current-buffer (window-buffer w)
       (unless k-inhibit-tab-line
         (if (< (cadr (window-edges w)) 2)
             (set-window-parameter w 'tab-line-format nil)
           (set-window-parameter w 'tab-line-format " "))))))
-(add-hook 'window-buffer-change-functions 'k-compute-tab-line)
 
+(add-hook 'window-buffer-change-functions 'k-compute-tab-line)
 
 ;;; Packages
 
-(require 'use-package)
-(setq-default use-package-always-ensure t)
+(use-package package
+  :config
+  (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t))
+
+(use-package sudo-edit
+  :init
+  (add-hook 'find-file-hook
+            (lambda ()
+              (setq default-directory
+                    (replace-regexp-in-string "^/sudo:root@localhost:" "" default-directory)))))
 
 (use-package system-packages
   :demand t)
+
+;;; In buffer completion (company)
 
 (defvar k--company-current-index)
 
@@ -254,8 +289,6 @@ Use binary search."
 
   ;; Zebra strips, to look consistent with vertico
   ;; Patch `company--create-lines' and `company-fill-propertize'
-  ;; (pkg-info-version-info 'company)
-  ;; "0.9.13 (package: 20220825.1044)"
   (defun company--create-lines (selection limit)
     (let ((len company-candidates-length)
           (window-width (company--window-width))
@@ -386,6 +419,7 @@ Use binary search."
         (cons
          left-margin-size
          (nreverse new)))))
+  (byte-compile 'company--create-lines)
 
   (defun company-fill-propertize (value annotation width selected left right)
     (let* ((margin (length left))
@@ -467,25 +501,25 @@ Use binary search."
           (add-face-text-property 0 width 'company-tooltip t line)
         (add-face-text-property 0 width 'k-zebra t line))
       line))
-
-  (byte-compile 'company--create-lines)
   (byte-compile 'company-fill-propertize)
 
   ;; Don't let `company-elisp' quickhelp hijack `*Help*' buffer
   (defvar k-help-buffer-override nil)
-  (defun k--company-help-buffer-advice (orig &rest args)
+
+  (define-advice company-capf
+      (:around (orig &rest args) k-help-buffer-override)
     (let ((k-help-buffer-override "*company-documentation*"))
       (apply orig args)))
-  (advice-add 'company-capf :around 'k--company-help-buffer-advice)
-  (defun k--help-buffer-advice (orig)
+
+  (define-advice help-buffer
+      (:around (orig) k-help-buffer-override)
     (or (when k-help-buffer-override
           (get-buffer-create k-help-buffer-override))
         (funcall orig)))
-  (advice-add 'help-buffer :around 'k--help-buffer-advice)
 
   (global-company-mode))
 
-;; Use posframe so that company works in minibuffer...
+;; Use posframe so that company works in minibuffer
 (use-package company-posframe
   :demand t
   :config
@@ -500,24 +534,14 @@ Use binary search."
   (advice-add 'company-posframe-show :after (lambda () (company-posframe-quickhelp-show)))
   (company-posframe-mode))
 
-
-(use-package diff-mode
-  :config
-  ;; show whitespace in diff-mode
-  (add-hook 'diff-mode-hook
-            (lambda ()
-              (setq-local whitespace-style
-                          '( face tabs tab-mark spaces space-mark trailing
-                             indentation::space indentation::tab
-                             newline newline-mark))
-              (whitespace-mode))))
-
 ;;; Generic stripes
 ;; I prefer using text-property to color stuff,
 ;; but when I don't feel like trying I use `stripes' overlays.
+
 (use-package stripes
   :config
   (setq-default stripes-unit 1 stripes-overlay-priority 0))
+
 (use-package hl-line
   :config
   (setq-default hl-line-overlay-priority 5)
@@ -530,25 +554,18 @@ Use binary search."
 
 ;;; Theme
 
-(add-to-list 'custom-theme-load-path "~/.emacs.d/themes")
-
 (setenv "GREP_COLOR" "31")
 (setq-default k-color-style 'bright)
-;; (setq-default k-color-style 'dark)
-
-(require 'color)
 
 (deftheme k)
 
-;; Tweek fonts to  match `window-text-pixel-size'...
-
+;;;; Font Inventory
+;; Tweek fonts to  match `window-text-pixel-size'
 (defvar k-light-monospace "Source Code Pro-20:weight=light")
 (defvar k-monospace "Source Code Pro")
 (defvar k-serif-monospace "Libertinus Mono-19")
-;; (defvar k-courier-height 200)
-;; (defvar k-noto-sans-height 200)
-;; (set-frame-font k-light-monospace nil t)
 
+;;;; Color palette
 (defvar k-bg-blue)
 (defvar k-fg-blue)
 (defvar k-dk-blue)
@@ -569,10 +586,17 @@ Use binary search."
 (defvar k-theme-dark-p nil)
 
 (defvar k--hsl-sat 1.0)
+
 (defsubst k-hsl-to-hex (h s l)
   (apply #'color-rgb-to-hex (color-hsl-to-rgb h (* s k--hsl-sat) l)))
-;; (k-generate-theme 0.578 0.724 0.920 0.000 0.667 nil)
+
 (defun k-generate-theme (hue-1 sat-1 hue-2 sat-2 hue-3 sat-3 contrast dark-p)
+  "Algorithmically generate and load theme.
+HUE-1 and SAT-1 is used for `k-*-blue',
+HUE-2 and SAT-2 is used for `k-*-purple',
+HUE-3 and SAT-3 is used for `k-*-pink'.
+CONTRAST is the hue used for `k-fg-red'.
+DARK-P specifies whether to generate a dark or light theme."
   (setq k-theme-dark-p dark-p)
   (let ((k--hsl-sat sat-1))
     (if dark-p
@@ -643,6 +667,7 @@ Use binary search."
           (when (derived-mode-p 'pdf-view-mode)
             (pdf-view-midnight-minor-mode -1)))))))
 
+;;;; Face inventory
 (defface k-quote nil "Base face for quote.")
 (defface k-keyword nil "Base face for keyword.")
 (defface k-proper-name nil "Base face for proper name.")
@@ -653,12 +678,15 @@ Use binary search."
 (defface k-prompt nil "Base face for prompts.")
 (defface k-zebra nil "Base face for zebra stripes.")
 (defface k-monochrome-emoji nil "Monochrome emoji face.")
-(defface emms-mode-line-title nil "Face for EMMS track title in mode line.")
 (defface k-separator-overline nil "Face for separator overlines.")
 
+;;;; Misc settings
+(defface emms-mode-line-title nil "Face for EMMS track title in mode line.")
 (setq-default goto-address-mail-face '(button k-quote))
 
+;;;; Generate faces
 (defun k-load-faces ()
+  "Generate and set faces."
   (setq custom--inhibit-theme-enable nil)
 
   (custom-theme-set-faces
@@ -1094,11 +1122,15 @@ Use binary search."
     ('bright (k-generate-theme 0.578 1.0 0.920 1.0 0.724 1.0 0.000 nil))
     ('dark (k-generate-theme 0.578 1.0 0.446 1.0 0.578 1.0 0.105 t))))
 
+;;;; GUI tweeks
 (let ((gap (string-pixel-width "o")))
+  ;; make space between windows
   (set-alist 'default-frame-alist 'right-fringe gap)
   (set-alist 'default-frame-alist 'left-fringe gap)
   (set-alist 'default-frame-alist 'right-divider-width (* gap 2))
+  ;; make "outer gaps"
   (set-alist 'default-frame-alist 'internal-border-width gap))
+
 (cond
  ((eq window-system 'ns)
   (set-alist 'default-frame-alist 'ns-transparent-titlebar t)
@@ -1106,11 +1138,15 @@ Use binary search."
   (setq frame-title-format nil)
   (setq ns-use-proxy-icon nil)
   (setq ns-use-native-fullscreen nil)))
+
 (set-alist 'default-frame-alist 'undecorated t)
 (set-alist 'default-frame-alist 'alpha 100)
+
+;; Try not to let underline touch the text.  We use underline to draw
+;; a horizontal separator below header line, and this make it look better.
 (setq-default underline-minimum-offset 10)
 
-;;; Echo per window
+;;; Per window echo area
 
 (defvar-local k-echo-area--top-separator-overlay nil)
 (defvar-local k-echo-area--mode-line nil)
@@ -1205,13 +1241,17 @@ Use binary search."
     (dolist (window (window-list frame t))
       (k-echo-area-clear-1 window))))
 
+(add-hook 'k-echo-area-mode-hook '(lambda () (setq-local k-inhibit-tab-line t)))
+
+;;; Message to per window echo area
+
 (defvar k-echo-area-message-singleton t)
-
 (defvar-local k-message nil)
-
 (defvar k-message--buffers nil)
 
 (defun k-message (format-string &rest args)
+  "Like `message' but in k-echo-area.
+Format FORMAT-STRING with ARGS."
   (if (minibufferp (window-buffer))
       (apply #'message format-string args)
     (if format-string
@@ -1219,6 +1259,7 @@ Use binary search."
       (setq k-message nil))))
 
 (defun k-message-display ()
+  "Refresh display of `k-message' for current buffer."
   (let ((message k-message))
     (with-current-buffer
         (or (cl-find-if (lambda (buf) (not (get-buffer-window buf t))) k-message--buffers)
@@ -1242,14 +1283,17 @@ Use binary search."
 
 (add-hook 'post-command-hook #'k-message-display)
 (add-hook 'echo-area-clear-hook '(lambda () (k-message nil)))
+
 (setq eldoc-message-function 'k-message)
 
-(add-hook 'k-echo-area-mode-hook '(lambda () (setq-local k-inhibit-tab-line t)))
+;;; World clock
 
 (use-package time
   :config
   (setq-default world-clock-list '(("BJT-8" "Beijing")
                                    ("America/Los_Angeles" "California"))))
+
+;;; Appearances
 
 (use-package all-the-icons
   :demand t
@@ -1262,6 +1306,23 @@ Use binary search."
 (use-package volatile-highlights
   :config
   (volatile-highlights-mode))
+
+(use-package highlight-indent-guides
+  :hook (emacs-lisp-mode lisp-mode scheme-mode clojure-mode)
+  :config
+  (setq highlight-indent-guides-method 'character)
+  (setq highlight-indent-guides-responsive nil)
+  (setq highlight-indent-guides-auto-enabled nil))
+
+(use-package highlight-parentheses
+  :demand t
+  :config
+  (setq-default highlight-parentheses-colors '(nil))
+  (set-face-attribute 'hl-paren-face nil :inherit 'show-paren-match)
+  (show-paren-mode)
+  (globalize highlight-parentheses-mode))
+
+;;; Indent and whitespace
 
 (use-package clean-aindent-mode
   :config
@@ -1287,13 +1348,6 @@ Use binary search."
 (use-package vlf
   :config
   (setq-default vlf-application 'dont-ask))
-
-(use-package highlight-parentheses
-  :config
-  (setq-default highlight-parentheses-colors '(nil))
-  (set-face-attribute 'hl-paren-face nil :inherit 'show-paren-match)
-  (show-paren-mode)
-  (globalize highlight-parentheses-mode))
 
 (use-package topsy
   :hook (prog-mode)
@@ -1379,10 +1433,7 @@ Use binary search."
   :config
   (setq cdlatex-math-symbol-alist '((42 ("\\times" "\\product")) (43 ("\\cup" "\\sum")))))
 
-;;; Completion
-
-;; (pkg-info-version-info 'vertico)
-;; "1.2"
+;;; Completion system
 
 (defvar-local vertico--buffer-window nil)
 
@@ -1664,6 +1715,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
       (let ((buffer (find-file-noselect filename)))
         (with-current-buffer buffer
           (consult-line))))))
+
 (use-package embark-consult)
 
 ;;; Misc key bindings
@@ -1715,9 +1767,31 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (define-key indent-rigidly-map (kbd "M-b") 'indent-rigidly-left-to-tab-stop)
 (define-key indent-rigidly-map (kbd "M-f") 'indent-rigidly-right-to-tab-stop)
 
+;; More efficient bindings for keyboard macro
+(use-package kmacro
+  :bind (("C-x (" . kmacro-start-macro-or-insert-counter)
+         ("C-x e" . kmacro-end-or-call-macro)
+         ("C-x )" . nil)))
+
+;;; Fast cursor movement (avy)
+
 (use-package avy
+  :init
+  (defconst hyper-mask (- ?\H-a ?a))
+  (defun hyper-ace ()
+    (interactive)
+    (avy-goto-word-1 (- last-command-event hyper-mask)))
+  (dolist (x (number-sequence ?a ?z))
+    (global-set-key (vector (+ hyper-mask x)) #'hyper-ace))
+  (setq avy-keys (number-sequence ?a ?z))
   :config
+  (defun my-avy--regex-candidates (fun regex &optional beg end pred group)
+    (let ((regex (pyim-cregexp-build regex)))
+      (funcall fun regex beg end pred group)))
+  (advice-add 'avy--regex-candidates :around #'my-avy--regex-candidates)
+
   (put 'avy 'priority 10))
+
 (use-package ace-link
   :config
   (ace-link-setup-default "o")
@@ -1752,11 +1826,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
       (ace-link--widget-action pt)))
   (add-to-list 'avy-styles-alist
                '(ace-link-widget . pre)))
-
-(use-package kmacro
-  :bind (("C-x (" . kmacro-start-macro-or-insert-counter)
-         ("C-x e" . kmacro-end-or-call-macro)
-         ("C-x )" . nil)))
 
 ;;; Lisp development
 
@@ -1905,7 +1974,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                     slime-asdf slime-media slime-parse slime-mrepl))
     (unless slime-default-connection
       (slime)))
-  (add-hook 'after-init-hook 'ensure-slime)
+  (add-hook 'emacs-startup-hook 'ensure-slime)
 
   (defun slime-undefine ()
     "Undefine toplevel definition at point."
@@ -2030,6 +2099,19 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (setq-default which-key-idle-delay 0)
   (which-key-mode))
 
+;;; Version control
+
+(use-package diff-mode
+  :config
+  ;; show whitespace in diff-mode
+  (add-hook 'diff-mode-hook
+            (lambda ()
+              (setq-local whitespace-style
+                          '( face tabs tab-mark spaces space-mark trailing
+                             indentation::space indentation::tab
+                             newline newline-mark))
+              (whitespace-mode))))
+
 (use-package magit
   :bind ( "s-m" . magit-status)
   :config
@@ -2079,18 +2161,10 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   :init
   (add-hook 'after-init-hook 'winner-mode))
 
-(use-package avy
-  :config
-  (defconst hyper-mask (- ?\H-a ?a))
-  (defun hyper-ace ()
-    (interactive)
-    (avy-goto-word-1 (- last-command-event hyper-mask)))
-  (dolist (x (number-sequence ?a ?z))
-    (global-set-key (vector (+ hyper-mask x)) #'hyper-ace))
-  (setq avy-keys (number-sequence ?a ?z)))
-
 (use-package goto-last-change
   :bind ("s-e" . goto-last-change))
+
+;;; Multi media
 
 (use-package emms
   :commands k-emms
@@ -2230,6 +2304,7 @@ emms-playlist-mode and query for a playlist to open."
                          (append colors '(0.0 t))))
               (k-theme-switch 'dark)
               (set-frame-parameter nil 'alpha 100)))))))
+
   (defun k-emms-bpm-cursor ()
     (let ((bpm (emms-track-get (emms-playlist-current-selected-track) 'info-bpm)))
       (if bpm
@@ -2242,11 +2317,13 @@ emms-playlist-mode and query for a playlist to open."
         (message "No BPM data for: %s" (emms-track-get (emms-playlist-current-selected-track) 'info-title))
         (setq k-blink-cursor-time-start nil
               k-blink-cursor-interval 0.5))))
+
   (defun k-emms-bpm-cursor-stop-hook ()
     (if (or emms-player-paused-p emms-player-stopped-p)
         (setq k-blink-cursor-time-start nil
               k-blink-cursor-interval 0.5)
       (k-emms-bpm-cursor)))
+
   (add-hook 'emms-player-started-hook 'k-emms-generate-theme)
   (add-hook 'emms-player-started-hook 'k-emms-bpm-cursor)
   (add-hook 'emms-player-paused-hook 'k-emms-bpm-cursor-stop-hook)
@@ -2260,169 +2337,6 @@ emms-playlist-mode and query for a playlist to open."
          (with-slots (x y width height) (exwm-workspace--get-geometry exwm--frame)
            (exwm--set-geometry exwm--id x y width height)))))
     (add-hook 'exwm-update-class-hook 'k-exwm-update-class)))
-
-;;; Cute and useless visuals!
-(blink-cursor-mode -1)
-(defvar blink-cursor-colors (list "#000"))
-(defvar blink-background-colors nil)
-(defvar k-blink-cursor-time-start nil)
-(defvar k-blink-cursor-interval 0.5)
-(defvar k-blink-cursor-flash-interval 0.1)
-(defvar k-blink-cursor-timer (run-at-time k-blink-cursor-interval nil 'blink-cursor-timer-function))
-(setq blink-cursor-count 0)
-(defun blink-cursor-timer-function ()
-  (if (internal-show-cursor-p)
-      (progn
-        (when (>= blink-cursor-count (length blink-cursor-colors))
-          (setq blink-cursor-count 0))
-        (let ((color (nth blink-cursor-count blink-cursor-colors))
-              (bg (nth blink-cursor-count blink-background-colors)))
-          (set-cursor-color color)
-          (setq blink-cursor-count (+ 1 blink-cursor-count))
-          (internal-show-cursor nil nil))
-        (setq k-blink-cursor-timer
-              (run-at-time
-               (if k-blink-cursor-time-start
-                   (- k-blink-cursor-interval
-                      (mod (float-time (time-since k-blink-cursor-time-start)) k-blink-cursor-interval))
-                 k-blink-cursor-flash-interval)
-               nil 'blink-cursor-timer-function)))
-    (internal-show-cursor nil t)
-    (setq k-blink-cursor-timer (run-at-time (- k-blink-cursor-interval k-blink-cursor-flash-interval) nil 'blink-cursor-timer-function))))
-(defun k-rhythm-hit-result ()
-  (when k-blink-cursor-time-start
-    (let* ((time (float-time (time-since k-blink-cursor-time-start)))
-           (err (abs (- time (* k-blink-cursor-interval (round time k-blink-cursor-interval)))))
-           (inhibit-message t))
-      (cond ((< err 0.06) (message "Perfect"))
-            ((< err 0.12) (message "Ok"))
-            ((< err 0.18) (message "Meh"))
-            (t (message "Miss"))))))
-;; (add-hook 'pre-command-hook 'k-rhythm-hit-result)
-(use-package highlight-indent-guides
-  :hook (emacs-lisp-mode lisp-mode scheme-mode clojure-mode)
-  :config
-  (setq highlight-indent-guides-method 'character)
-  (setq highlight-indent-guides-responsive nil)
-  (setq highlight-indent-guides-auto-enabled nil))
-
-;;; Scheme
-
-(use-package scheme)
-(use-package geiser
-  :bind ( :map scheme-mode-map
-          ("M-l" . geiser-load-current-buffer)
-          ("C-h h" . geiser-doc-look-up-manual))
-  :config
-  (defun geiser-mode-maybe ()
-    (unless (eq major-mode 'scheme-interaction-mode)
-      (geiser-mode)))
-  (add-hook 'scheme-mode-hook 'geiser-mode-maybe)
-  (setq geiser-mode-start-repl-p t))
-
-(use-package racket-mode
-  :bind ( :map racket-mode-map
-          ("M-l" . (lambda ()
-                     (interactive)
-                     (geiser-load-file (buffer-file-name (current-buffer)))
-                     (switch-to-geiser-module (geiser-eval--get-module) (current-buffer)))))
-  :config
-  (add-hook 'racket-mode-hook 'geiser-mode))
-
-(use-package multi-vterm
-  :bind
-  ( ("s-x" . multi-vterm-next)
-    ("s-X" . multi-vterm)))
-(use-package vterm
-  :bind ( :map vterm-mode-map
-          ("C-c C-t" . nil)
-          ("C-c C-j" . vterm-copy-mode)
-          ("C-c M-o" . vterm-clear)
-          ("C-q" . vterm-send-next-key)
-          ("C-d" . (lambda () (interactive) (vterm-send-key "d" nil nil t)))
-          ("s-x" . multi-vterm)
-          ("s-f" . multi-vterm-next)
-          ("s-b" . multi-vterm-prev)
-          :map vterm-copy-mode-map
-          ("C-c C-k" . (lambda () (interactive) (vterm-copy-mode -1)))
-          ("s-x" . multi-vterm)
-          ("s-f" . multi-vterm-next)
-          ("s-b" . multi-vterm-prev))
-  :config
-  ;; Ad-hoc workaround: interaction with wide fringe/padding
-  (defun vterm--get-margin-width () 1)
-
-  (setq vterm-max-scrollback 1000000))
-
-;;; Web browsing
-
-(setq-default browse-url-browser-function 'eww-browse-url)
-(when (k-exwm-enabled-p)
-  (setq-default browse-url-secondary-browser-function 'k-browse-url-chromium)
-  (defun k-browse-url-chromium (url &rest args)
-    (start-process "chromium" " *chromium*" "chromium"
-                   (concat "--app=" url))))
-
-(use-package eww
-  :config
-  (setq-default browse-url-browser-function 'eww-browse-url)
-  (add-hook 'eww-after-render-hook 'k-pad-header-line-after-advice)
-  (defvar k-eww-history (make-hash-table :test 'equal)
-    "Global history for eww. A EQUAL hash that maps title strings to URL.")
-  (defun k-eww-after-render-hook ()
-    "Update EWW buffer title and save `k-eww-history'."
-    (let ((title (plist-get eww-data :title))
-          (url (plist-get eww-data :url)))
-      (rename-buffer (format "*eww: %s*" title) t)
-      (unless (> (length title) 0) (setq title "<no title>"))
-      (puthash (concat (truncate-string-to-width title 40 nil nil (truncate-string-ellipsis))
-                       #(" " 0 1 (display (space :align-to center)))
-                       (propertize url 'face 'completions-annotations))
-               url k-eww-history)))
-  (add-hook 'eww-after-render-hook 'k-eww-after-render-hook)
-  (defun k-eww-read-url ()
-    (let* ((cand
-            (completing-read "Enter URL or keywords: " k-eww-history)))
-      (or (gethash cand k-eww-history) cand)))
-  (defun eww-new-buffer (url)
-    (interactive (list (k-eww-read-url)))
-    (with-temp-buffer
-      (if current-prefix-arg
-          (let ((eww-search-prefix "https://scholar.google.com/scholar?q="))
-            (eww url))
-        (eww url))))
-  (define-key eww-mode-map (kbd "G") 'eww-new-buffer)
-
-  (when (k-exwm-enabled-p)
-    (defun k-eww-reload-in-chromium ()
-      (interactive)
-      (k-browse-url-chromium (plist-get eww-data :url)))
-    (define-key eww-mode-map (kbd "f") 'k-eww-reload-in-chromium)))
-
-(use-package pdf-tools
-  :config
-  (setq pdf-view-midnight-invert nil)
-  (pdf-tools-install))
-
-(k-theme-switch 'bright)
-
-;; (when (featurep 'xwidget-internal)
-;;   (add-to-list 'load-path "~/.emacs.d/lisp/xwwp")
-;;   (require 'xwwp-full)
-;;   (define-key xwidget-webkit-mode-map (kbd "o") 'xwwp-ace-toggle)
-;;   (define-key xwidget-webkit-mode-map (kbd "s-h") 'xwwp-section)
-;;   (setq-default xwwp-ace-label-style
-;;                 `(("z-index" . "2147483647")
-;;                   ("color" . ,k-dk-blue)
-;;                   ("font-family" . "monospace")
-;;                   ("background-color" . ,"rgba(255,255,255,0.5)")
-;;                   ("font-size" . "1.5em")
-;;                   ("padding" . "0.1em")
-;;                   ("border-width" . "0.1em")
-;;                   ("border-style" . "solid")))
-;;   (define-key xwidget-webkit-mode-map (kbd "l") 'xwidget-webkit-back)
-;;   (define-key xwidget-webkit-mode-map (kbd "r") 'xwidget-webkit-forward)
-;;   (define-key xwidget-webkit-mode-map (kbd "g") 'xwidget-webkit-reload))
 
 (use-package ytel
   :bind ( :map ytel-mode-map
@@ -2478,7 +2392,171 @@ emms-playlist-mode and query for a playlist to open."
                (hl-line-mode)))
   (advice-add 'ytel--draw-buffer :after #'k-pad-header-line-after-advice))
 
-;;; EXWM
+;;; Cute and useless visuals!
+
+(blink-cursor-mode -1)
+(defvar blink-cursor-colors (list "#000"))
+(defvar blink-background-colors nil)
+(defvar k-blink-cursor-time-start nil)
+(defvar k-blink-cursor-interval 0.5)
+(defvar k-blink-cursor-flash-interval 0.1)
+(defvar k-blink-cursor-timer (run-at-time k-blink-cursor-interval nil 'blink-cursor-timer-function))
+(setq blink-cursor-count 0)
+
+(defun blink-cursor-timer-function ()
+  (if (internal-show-cursor-p)
+      (progn
+        (when (>= blink-cursor-count (length blink-cursor-colors))
+          (setq blink-cursor-count 0))
+        (let ((color (nth blink-cursor-count blink-cursor-colors))
+              (bg (nth blink-cursor-count blink-background-colors)))
+          (set-cursor-color color)
+          (setq blink-cursor-count (+ 1 blink-cursor-count))
+          (internal-show-cursor nil nil))
+        (setq k-blink-cursor-timer
+              (run-at-time
+               (if k-blink-cursor-time-start
+                   (- k-blink-cursor-interval
+                      (mod (float-time (time-since k-blink-cursor-time-start)) k-blink-cursor-interval))
+                 k-blink-cursor-flash-interval)
+               nil 'blink-cursor-timer-function)))
+    (internal-show-cursor nil t)
+    (setq k-blink-cursor-timer (run-at-time (- k-blink-cursor-interval k-blink-cursor-flash-interval) nil 'blink-cursor-timer-function))))
+
+(defun k-rhythm-hit-result ()
+  (when k-blink-cursor-time-start
+    (let* ((time (float-time (time-since k-blink-cursor-time-start)))
+           (err (abs (- time (* k-blink-cursor-interval (round time k-blink-cursor-interval)))))
+           (inhibit-message t))
+      (cond ((< err 0.06) (message "Perfect"))
+            ((< err 0.12) (message "Ok"))
+            ((< err 0.18) (message "Meh"))
+            (t (message "Miss"))))))
+
+;; (add-hook 'pre-command-hook 'k-rhythm-hit-result)
+
+;;; Scheme
+
+(use-package scheme)
+
+(use-package geiser
+  :bind ( :map scheme-mode-map
+          ("M-l" . geiser-load-current-buffer)
+          ("C-h h" . geiser-doc-look-up-manual))
+  :config
+  (defun geiser-mode-maybe ()
+    (unless (eq major-mode 'scheme-interaction-mode)
+      (geiser-mode)))
+  (add-hook 'scheme-mode-hook 'geiser-mode-maybe)
+  (setq geiser-mode-start-repl-p t))
+
+(use-package racket-mode
+  :bind ( :map racket-mode-map
+          ("M-l" . (lambda ()
+                     (interactive)
+                     (geiser-load-file (buffer-file-name (current-buffer)))
+                     (switch-to-geiser-module (geiser-eval--get-module) (current-buffer)))))
+  :config
+  (add-hook 'racket-mode-hook 'geiser-mode))
+
+;;; Terminal (vterm)
+
+(use-package multi-vterm
+  :bind
+  ( ("s-x" . multi-vterm-next)
+    ("s-X" . multi-vterm)))
+
+(use-package vterm
+  :bind ( :map vterm-mode-map
+          ("C-c C-t" . nil)
+          ("C-c C-j" . vterm-copy-mode)
+          ("C-c M-o" . vterm-clear)
+          ("C-q" . vterm-send-next-key)
+          ("C-d" . (lambda () (interactive) (vterm-send-key "d" nil nil t)))
+          ("s-x" . multi-vterm)
+          ("s-f" . multi-vterm-next)
+          ("s-b" . multi-vterm-prev)
+          :map vterm-copy-mode-map
+          ("C-c C-k" . (lambda () (interactive) (vterm-copy-mode -1)))
+          ("s-x" . multi-vterm)
+          ("s-f" . multi-vterm-next)
+          ("s-b" . multi-vterm-prev))
+  :config
+  ;; Ad-hoc workaround: interaction with wide fringe/padding
+  (defun vterm--get-margin-width () 1)
+
+  (setq vterm-max-scrollback 1000000))
+
+;;; Web browsing
+
+(setq-default browse-url-browser-function 'eww-browse-url)
+
+(when (k-exwm-enabled-p)
+  (setq-default browse-url-secondary-browser-function 'k-browse-url-chromium)
+  (defun k-browse-url-chromium (url &rest args)
+    (start-process "chromium" " *chromium*" "chromium"
+                   (concat "--app=" url))))
+
+(use-package eww
+  :config
+  (setq-default browse-url-browser-function 'eww-browse-url)
+  (add-hook 'eww-after-render-hook 'k-pad-header-line-after-advice)
+  (defvar k-eww-history (make-hash-table :test 'equal)
+    "Global history for eww. A EQUAL hash that maps title strings to URL.")
+  (defun k-eww-after-render-hook ()
+    "Update EWW buffer title and save `k-eww-history'."
+    (let ((title (plist-get eww-data :title))
+          (url (plist-get eww-data :url)))
+      (rename-buffer (format "eww: %s" title) t)
+      (unless (> (length title) 0) (setq title "<no title>"))
+      (puthash (concat (truncate-string-to-width title 40 nil nil (truncate-string-ellipsis))
+                       #(" " 0 1 (display (space :align-to center)))
+                       (propertize url 'face 'completions-annotations))
+               url k-eww-history)))
+  (add-hook 'eww-after-render-hook 'k-eww-after-render-hook)
+  (defun k-eww-read-url ()
+    (let* ((cand
+            (completing-read "Enter URL or keywords: " k-eww-history)))
+      (or (gethash cand k-eww-history) cand)))
+  (defun eww-new-buffer (url)
+    (interactive (list (k-eww-read-url)))
+    (with-temp-buffer
+      (if current-prefix-arg
+          (let ((eww-search-prefix "https://scholar.google.com/scholar?q="))
+            (eww url))
+        (eww url))))
+  (define-key eww-mode-map (kbd "G") 'eww-new-buffer)
+
+  (when (k-exwm-enabled-p)
+    (defun k-eww-reload-in-chromium ()
+      (interactive)
+      (k-browse-url-chromium (plist-get eww-data :url)))
+    (define-key eww-mode-map (kbd "f") 'k-eww-reload-in-chromium)))
+
+(use-package pdf-tools
+  :config
+  (setq pdf-view-midnight-invert nil)
+  (pdf-tools-install))
+
+;; (when (featurep 'xwidget-internal)
+;;   (add-to-list 'load-path "~/.emacs.d/lisp/xwwp")
+;;   (require 'xwwp-full)
+;;   (define-key xwidget-webkit-mode-map (kbd "o") 'xwwp-ace-toggle)
+;;   (define-key xwidget-webkit-mode-map (kbd "s-h") 'xwwp-section)
+;;   (setq-default xwwp-ace-label-style
+;;                 `(("z-index" . "2147483647")
+;;                   ("color" . ,k-dk-blue)
+;;                   ("font-family" . "monospace")
+;;                   ("background-color" . ,"rgba(255,255,255,0.5)")
+;;                   ("font-size" . "1.5em")
+;;                   ("padding" . "0.1em")
+;;                   ("border-width" . "0.1em")
+;;                   ("border-style" . "solid")))
+;;   (define-key xwidget-webkit-mode-map (kbd "l") 'xwidget-webkit-back)
+;;   (define-key xwidget-webkit-mode-map (kbd "r") 'xwidget-webkit-forward)
+;;   (define-key xwidget-webkit-mode-map (kbd "g") 'xwidget-webkit-reload))
+
+;;; System utils and EXWM
 
 (defun k-screenshot ()
   "Save a screenshot and copy its path."
@@ -2532,6 +2610,8 @@ emms-playlist-mode and query for a playlist to open."
 
 (when (k-exwm-enabled-p)
   (start-process "picom" "*picom*" "picom"))
+
+;;; Org
 
 (use-package org
   :config
@@ -2855,6 +2935,7 @@ emms-playlist-mode and query for a playlist to open."
 ;;; Input Method
 
 (use-package pyim
+  :autoload pyim-cregexp-build
   :config
   (setq-default pyim-punctuation-translate-p '(auto no yes))
   (set-input-method 'pyim)
@@ -2864,17 +2945,21 @@ emms-playlist-mode and query for a playlist to open."
         (get-text-property (point) 'read-only)))
   (setq-default pyim-indicator-list '(pyim-indicator-with-modeline)
                 pyim-english-input-switch-functions
-                '(k-pyim-probe pyim-probe-program-mode pyim-probe-isearch-mode)))
-(use-package pyim-basedict
-  :config
-  (pyim-basedict-enable))
-(use-package pyim-cangjiedict
-  :config
-  (pyim-cangjie6dict-enable))
+                '(k-pyim-probe pyim-probe-program-mode pyim-probe-isearch-mode))
+  (pyim-basedict-enable)
+  (pyim-greatdict-enable))
+
+(use-package pyim-basedict)
+
+(use-package pyim-greatdict
+  :straight
+  (pyim-greatdict :type git :host github :repo "tumashu/pyim-greatdict"
+                  :files ("*.pyim.gz" :defaults)))
 
 ;;; Misc handy commands
 
 (defvar lookup-word-buffer nil)
+
 (defun lookup-word (word)
   (interactive (list (thing-at-point 'word t)))
   (select-window (display-buffer-below-selected
@@ -2918,9 +3003,19 @@ normally have their errors suppressed."
     (advice-add func :around #'k-reraise-error)
     (message "Debug on hidden errors enabled for %s" func))))
 
+(defun k-straight-freeze-versions ()
+  "Run `straight-freeze-versions' asynchronously in Emacs subprocess."
+  (interactive)
+  (when-let ((buf (find-buffer-visiting "~/.emacs.d/init.el")))
+    (with-current-buffer buf
+      (when (buffer-modified-p buf)
+        (save-buffer))))
+  (k-run-helper-command "emacs --script '~/.emacs.d/init.el' --eval='(straight-freeze-versions)'"
+                        "*straight-freeze-versions*"))
 
-;; Vampire timezone
+;;; Vampire timezone
 ;; How much sun-protection-free time left?
+
 (require 'solar)
 (setq-default calendar-longitude -122.1697
               calendar-latitude 37.4275)
@@ -3138,6 +3233,7 @@ normally have their errors suppressed."
           :map undo-tree-visualizer-mode-map
           ("M-n" . undo-tree-visualize-redo-to-x)
           ("M-p" . undo-tree-visualize-undo-to-x))
+  :init (add-hook 'emacs-startup-hook 'global-undo-tree-mode)
   :config
   (setq-default undo-limit 1000000
                 undo-strong-limit 10000000
@@ -3145,8 +3241,13 @@ normally have their errors suppressed."
                 undo-tree-enable-undo-in-region t
                 undo-tree-auto-save-history nil ;; Too fucking slow!
                 undo-tree-visualizer-timestamps t))
-(global-undo-tree-mode)
 
+;;; Finale
+
+;; load up the theme
+(k-theme-switch 'bright)
+
+;; perform GC
 (setq gc-cons-threshold 8000000 gc-cons-percentage 0.25)
 
 (provide 'init)

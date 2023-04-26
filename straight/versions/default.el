@@ -62,7 +62,7 @@
  ("project" . "33511939473551b5cfa42de9a12d606b3d60a2cf")
  ("pyim" . "4c953701a368e1433bf91fd19766d76c9b496825")
  ("pyim-basedict" . "d61af27686f7a39e6c138b7261a686e7ea7a0ef7")
- ("pyim-cangjiedict" . "d17e3d32a6480939b350a91a915ebe8e6efad819")
+ ("pyim-greatdict" . "87594b2a4d6391cf69475257b286d3b844791571")
  ("queue" . "130c2d656cd5d7376552272fab9e50a7c37d0c4a")
  ("racket-mode" . "3d122858696f2c81101e52d2f191dd2d11a11daa")
  ("rainbow-identifiers" . "19fbfded1baa98d12335f26f6d7b20e5ae44ce2e")
