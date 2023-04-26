@@ -28,6 +28,10 @@
 
 (use-package alist :straight apel :demand t)
 
+(use-package package
+  :config
+  (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t))
+
 (use-package s :demand t)
 
 (defmacro globalize (mode)
@@ -1108,100 +1112,139 @@ Use binary search."
 
 ;;; Echo per window
 
-(defvar-local k--top-separator-ov nil)
+(defvar-local k-echo-area--top-separator-overlay nil)
+(defvar-local k-echo-area--mode-line nil)
+(put 'k-echo-area--mode-line 'risky-local-variable t)
+
+(defun k-echo-area-window (window)
+  "Return the k-echo-area window for WINDOW."
+  (when-let ((root (window-atom-root window))
+             (main-window (window-child root))
+             (echo-area-window (window-next-sibling main-window)))
+    (when (buffer-local-value 'k-echo-area-mode (window-buffer echo-area-window))
+      echo-area-window)))
+
+(defun k-echo-area-main-window (window)
+  "Return the window whose k-echo-area is WINDOW."
+  (when-let ((root (window-atom-root window))
+             (main-window (window-child root))
+             (echo-area-window (window-next-sibling main-window)))
+    (when (buffer-local-value 'k-echo-area-mode (window-buffer echo-area-window))
+      main-window)))
 
 (define-minor-mode k-echo-area-mode
-  "Minor mode for ` *echo per window*' buffer."
+  "Minor mode for k-echo-area buffers."
   :lighter nil
   (if k-echo-area-mode
       (save-excursion
         (setq-local overline-margin 0)
         (goto-char (point-min))
         (vertical-motion (cons (1- (window-text-width)) 0))
-        (if k--top-separator-ov
-            (move-overlay k--top-separator-ov (point-min) (point))
-          (setq k--top-separator-ov (make-overlay (point-min) (point) nil t t))
-          (overlay-put k--top-separator-ov 'face 'k-separator-overline)
-          (overlay-put k--top-separator-ov 'after-string
+        (if k-echo-area--top-separator-overlay
+            (move-overlay k-echo-area--top-separator-overlay (point-min) (point))
+          (setq k-echo-area--top-separator-overlay (make-overlay (point-min) (point) nil t t))
+          (overlay-put k-echo-area--top-separator-overlay 'face 'k-separator-overline)
+          (overlay-put k-echo-area--top-separator-overlay 'after-string
                        (propertize " "  'display '(space :align-to right)
-                                   'face 'k-separator-overline))))
-    (when k--top-separator-ov
-      (delete-overlay k--top-separator-ov)
-      (setq k--top-separator-ov nil))))
+                                   'face 'k-separator-overline)))
+        (setq-local mode-line-format (when k-echo-area--mode-line 'k-echo-area--mode-line)))
+    (when k-echo-area--top-separator-overlay
+      (delete-overlay k-echo-area--top-separator-overlay)
+      (setq k-echo-area--top-separator-overlay nil))))
 
-(defun k-window-echo-area--map (function &optional buffer)
-  (let ((f (lambda (window)
-             (let ((buf (window-buffer window)))
-               (when (buffer-local-value 'k-echo-area-mode buf)
-                 (funcall function window
-                          (when-let ((root (window-atom-root window))
-                                     (parent (window-child root)))
-                            (and (window-live-p parent) parent))))))))
-    (if buffer
-        (mapc f (get-buffer-window-list buffer 'none))
-      (dolist (frame (frame-list))
-        (mapc f (window-list frame 'none))))))
-
+(defun k-echo-area-display (main-window buf)
+  "Display BUF in a k-echo-area window created for MAIN-WINDOW."
+  (let (height)
+    (with-current-buffer buf
+      (setq-local k-echo-area--mode-line
+                  (when-let ((parent-mode-line (buffer-local-value 'mode-line-format
+                                                                   (window-buffer main-window))))
+                    (format-mode-line parent-mode-line)))
+      (k-echo-area-mode)
+      (setq height (count-screen-lines))
+      (let ((echo-area-window (k-echo-area-window main-window)))
+        (if echo-area-window
+            (set-window-buffer echo-area-window buf)
+          (setq echo-area-window
+                (display-buffer
+                 buf
+                 `(display-buffer-in-atom-window
+                   (dedicated . weak)
+                   (window-parameters
+                    (no-other-window . t)
+                    (no-delete-other-window . t))))))
+        (let (window-size-fixed)
+          (set-window-text-height echo-area-window (max height 1)))
+        (set-window-parameter main-window 'mode-line-format 'none)
+        echo-area-window))))
+(set-alist 'window-persistent-parameters 'window-atom t)
 (set-alist 'window-persistent-parameters 'mode-line-format t)
 
-(defun k-window-echo-area-clear (&optional buffer)
+(defun k-echo-area-clear (main-window)
+  "Remove the k-echo-area window for MAIN-WINDOW."
   (save-selected-window
-    (k-window-echo-area--map
-     (lambda (window parent)
-       (when parent
-         (set-window-parameter parent 'mode-line-format nil))
-       (set-window-parameter window 'window-atom nil)
-       (delete-window window))
-     buffer)))
+    (when-let ((echo-area-window (k-echo-area-window main-window)))
+      (set-window-parameter main-window 'mode-line-format nil)
+      (set-window-parameter echo-area-window 'window-atom nil)
+      (delete-window echo-area-window))))
 
-(defun k-window-echo-area-display (buf)
-  (k-window-echo-area-clear)
-  (save-selected-window
-    (when (minibufferp (window-buffer))
-      (select-window (minibuffer-selected-window)))
-    (let (height window)
-      (set-window-parameter nil 'mode-line-format 'none)
-      (with-current-buffer buf
-        (k-echo-area-mode)
-        (setq-local mode-line-format
-                    (let ((parent-mode-line (buffer-local-value 'mode-line-format (window-buffer))))
-                      (when parent-mode-line
-                        (s-replace "%" "%%" (format-mode-line parent-mode-line)))))
-        (setq height (count-screen-lines)))
-      (setq window
-            (display-buffer buf
-                            `(display-buffer-in-atom-window
-                              (window-height . ,(lambda (window)
-                                                  (set-window-text-height window (max height 1))))
-                              (dedicated . t))))
-      window)))
+(defun k-echo-area-clear-1 (echo-area-window)
+  "Remove the k-echo-area window."
+  (when (and (window-live-p echo-area-window)
+             (buffer-local-value 'k-echo-area-mode
+                                 (window-buffer echo-area-window)))
+    (save-selected-window
+      (when-let ((main-window (k-echo-area-main-window echo-area-window)))
+        (set-window-parameter main-window 'mode-line-format nil))
+      (set-window-parameter echo-area-window 'window-atom nil)
+      (delete-window echo-area-window))))
+
+(defun k-echo-area-clear-all ()
+  "Remove all k-echo-area window, for debug purpose only."
+  (dolist (frame (frame-list))
+    (dolist (window (window-list frame t))
+      (k-echo-area-clear-1 window))))
+
+(defvar k-echo-area-message-singleton t)
 
 (defvar-local k-message nil)
+
+(defvar k-message--buffers nil)
+
 (defun k-message (format-string &rest args)
   (if (minibufferp (window-buffer))
       (apply #'message format-string args)
     (if format-string
         (setq k-message (apply #'format format-string args))
       (setq k-message nil))))
+
 (defun k-message-display ()
   (let ((message k-message))
-    (with-current-buffer (get-buffer-create " *echo per window*")
+    (with-current-buffer
+        (or (cl-find-if (lambda (buf) (not (get-buffer-window buf t))) k-message--buffers)
+            (let ((buf (generate-new-buffer " *echo per window*")))
+              (push buf k-message--buffers)
+              buf))
+      (when k-echo-area-message-singleton
+        (dolist (buf k-message--buffers)
+          (unless (eq buf (current-buffer))
+            (mapc #'k-echo-area-clear-1 (get-buffer-window-list buf nil t)))))
       (setq-local header-line-format nil
                   tab-line-format nil
-                  k-inhibit-tab-line t)
+                  window-size-fixed t)
       (if message
           (progn
             (setq-local cursor-type nil)
             (delete-region (point-min) (point-max))
             (insert message)
-            (set-window-parameter
-             (k-window-echo-area-display (current-buffer))
-             'no-other-window t))
-        (k-window-echo-area-clear (current-buffer))))))
+            (k-echo-area-display (selected-window) (current-buffer)))
+        (k-echo-area-clear (selected-window))))))
+
 (add-hook 'post-command-hook #'k-message-display)
 (add-hook 'echo-area-clear-hook '(lambda () (k-message nil)))
-(add-hook 'window-configuration-change-hook '(lambda () (k-message nil)))
 (setq eldoc-message-function 'k-message)
+
+(add-hook 'k-echo-area-mode-hook '(lambda () (setq-local k-inhibit-tab-line t)))
 
 (use-package time
   :config
@@ -1472,8 +1515,8 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   :config
   (cl-defmethod vertico--resize-window (height &context (vertico-buffer-mode (eql t)))
     ;; we use `fit-window-to-buffer' instead and ignore HEIGHT
-    (when k--top-separator-ov
-      (overlay-put k--top-separator-ov 'after-string nil))
+    (when k-echo-area--top-separator-overlay
+      (overlay-put k-echo-area--top-separator-overlay 'after-string nil))
     (let ((string (overlay-get vertico--candidates-ov 'after-string)))
       (put-text-property 0 1 'display '(space :align-to right) string)
       (put-text-property 0 1 'face 'k-separator-overline string))
@@ -1511,13 +1554,15 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
            (_ (unwind-protect
                   (setf
                    win (with-minibuffer-selected-window
-                         (k-window-echo-area-display buf))
-                   vertico--buffer-window win)))
+                         ;; (k-window-echo-area-display buf)
+                         (k-echo-area-display (selected-window) buf))
+                   vertico--buffer-window win
+                   main-win (selected-window))))
            (sym (make-symbol "vertico-buffer--destroy"))
            (depth (recursion-depth)))
       (fset sym (lambda ()
+                  (k-echo-area-clear main-win)
                   (when (= depth (recursion-depth))
-                    (k-window-echo-area-clear buf)
                     (with-selected-window (active-minibuffer-window)
                       (when vertico-buffer-hide-prompt
                         (set-window-vscroll nil 0))
@@ -1532,7 +1577,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
       (setq-local show-trailing-whitespace nil
                   header-line-format nil
                   tab-line-format nil
-                  k-inhibit-tab-line t
                   truncate-lines t
                   face-remapping-alist
                   (copy-tree `((mode-line-inactive mode-line)
@@ -2435,6 +2479,7 @@ emms-playlist-mode and query for a playlist to open."
   (advice-add 'ytel--draw-buffer :after #'k-pad-header-line-after-advice))
 
 ;;; EXWM
+
 (defun k-screenshot ()
   "Save a screenshot and copy its path."
   (interactive)
@@ -2457,6 +2502,7 @@ emms-playlist-mode and query for a playlist to open."
          (string-to-number
           (shell-command-to-string
            "osascript -e 'output volume of (get volume settings)'")))))
+
 (defun k-set-volume (volume)
   "Change volume."
   (interactive (list (read-from-minibuffer
