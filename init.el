@@ -1,8 +1,8 @@
 ;;; init.el --- kchan's emacs config -*- lexical-binding: t -*-
 ;;; Commentary:
-;;; TODO
 ;;; Code:
 
+;;; Preamble
 ;; Turn off GC during startup
 (setq gc-cons-threshold (* 1024 1024 1024) gc-cons-percentage 1.0)
 
@@ -162,7 +162,7 @@ Use binary search."
 (load (setq custom-file "~/.emacs.d/custom/custom.el"))
 (add-hook 'after-save-hook 'executable-make-buffer-file-executable-if-script-p)
 
-;;; Mode line
+;;; ⭐ Mode line
 
 (defun k-pad-mode-line-format (format &optional right-format)
   "Format the mode line as a string according to FORMAT and RIGHT-FORMAT.
@@ -259,21 +259,9 @@ to below window at the bottom (above echo area)."
 
 (add-hook 'window-buffer-change-functions 'k-compute-tab-line)
 
-;;; Packages
-
 (use-package package
   :config
   (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t))
-
-(use-package sudo-edit
-  :init
-  (add-hook 'find-file-hook
-            (lambda ()
-              (setq default-directory
-                    (replace-regexp-in-string "^/sudo:root@localhost:" "" default-directory)))))
-
-(use-package system-packages
-  :demand t)
 
 ;;; In buffer completion (company)
 
@@ -503,7 +491,7 @@ to below window at the bottom (above echo area)."
       line))
   (byte-compile 'company-fill-propertize)
 
-  ;; Don't let `company-elisp' quickhelp hijack `*Help*' buffer
+  ;; ⭐ Don't let `company-elisp' quickhelp hijack `*Help*' buffer
   (defvar k-help-buffer-override nil)
 
   (define-advice company-capf
@@ -552,7 +540,11 @@ to below window at the bottom (above echo area)."
       (overlay-put ol 'face hl-line-face)
       ol)))
 
-;;; Theme
+;;; ⭐ Theme
+;; I generate theme algorithmically from a list of hue and saturation
+;; values. There're two hand-tune ones accessible using
+;; `k-theme-switch', and my EMMS integration generate themes from
+;; YouTube video thumbnail when it is played.
 
 (setenv "GREP_COLOR" "31")
 (setq-default k-color-style 'bright)
@@ -1146,7 +1138,15 @@ DARK-P specifies whether to generate a dark or light theme."
 ;; a horizontal separator below header line, and this make it look better.
 (setq-default underline-minimum-offset 10)
 
-;;; Per window echo area
+;;; ⭐ Per window echo area
+;; This displays "pseudo" echo areas under each window.  I find it
+;; more comfy to look at than the global echo area.
+
+;; The implementation is a mega-hack: we split a echo area window
+;; under the main window, set the main window's `mode-line-format'
+;; window parameter to `none', and copy its actual mode line to the
+;; echo area window, so that the echo area window appears to be above
+;; main window's mode line.
 
 (defvar-local k-echo-area--top-separator-overlay nil)
 (defvar-local k-echo-area--mode-line nil)
@@ -1243,7 +1243,7 @@ DARK-P specifies whether to generate a dark or light theme."
 
 (add-hook 'k-echo-area-mode-hook '(lambda () (setq-local k-inhibit-tab-line t)))
 
-;;; Message to per window echo area
+;;; ⭐ Message to per window echo area
 
 (defvar k-echo-area-message-singleton t)
 (defvar-local k-message nil)
@@ -1284,9 +1284,10 @@ Format FORMAT-STRING with ARGS."
 (add-hook 'post-command-hook #'k-message-display)
 (add-hook 'echo-area-clear-hook '(lambda () (k-message nil)))
 
+;; Use `k-message' for `eldoc'. Pretty comfy!
 (setq eldoc-message-function 'k-message)
 
-;;; World clock
+;;; Time
 
 (use-package time
   :config
@@ -1433,7 +1434,7 @@ Format FORMAT-STRING with ARGS."
   :config
   (setq cdlatex-math-symbol-alist '((42 ("\\times" "\\product")) (43 ("\\cup" "\\sum")))))
 
-;;; Completion system
+;;; ⭐ Completion system
 
 (defvar-local vertico--buffer-window nil)
 
@@ -1910,6 +1911,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 (use-package paxedit
   :after paredit
+  :init (add-hook 'emacs-startup-hook 'paxedit-mode)
   :bind ( :map paxedit-mode-map
           ("C-w" . paxedit-kill-1)
           ("M-w" . paxedit-copy-1)
@@ -1941,7 +1943,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     (apply orig-func args)))
 
 (use-package slime
-  :defer nil
   :bind ( :map slime-mode-map
           ("C-M-g" . slime-undefine)
           ("C-c C-s")
@@ -2119,7 +2120,8 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (defun cloc-magit-root ()
     "Run Count Line Of Code for current Git repo."
     (interactive)
-    (k-run-helper-command (concat "cloc " (magit-toplevel)) "*cloc*")))
+    (k-run-helper-command (concat "cloc " (magit-toplevel)) "*cloc*"))
+  (add-hook 'magit-post-stage-hook 'k-generate-org-index--magit-post-stage-hook))
 
 ;;; window/buffer/frame/workspaces movement
 
@@ -2165,7 +2167,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (use-package goto-last-change
   :bind ("s-e" . goto-last-change))
 
-;;; Multi media
+;;; ⭐ Multi media
 
 (use-package emms
   :commands k-emms
@@ -2393,7 +2395,10 @@ emms-playlist-mode and query for a playlist to open."
                (hl-line-mode)))
   (advice-add 'ytel--draw-buffer :after #'k-pad-header-line-after-advice))
 
-;;; Cute and useless visuals!
+;;; ⭐ Blink cursor
+;; It can synchronize to BPM which EMMS is playing!
+;; This works together with `k-emms-bpm-cursor'. It also
+;; uses absolute timing, otherwise Emacs timer will drift.
 
 (blink-cursor-mode -1)
 (defvar blink-cursor-colors (list "#000"))
@@ -2557,7 +2562,7 @@ emms-playlist-mode and query for a playlist to open."
 ;;   (define-key xwidget-webkit-mode-map (kbd "r") 'xwidget-webkit-forward)
 ;;   (define-key xwidget-webkit-mode-map (kbd "g") 'xwidget-webkit-reload))
 
-;;; System utils and EXWM
+;;; ⭐ System utils and EXWM
 
 (defun k-screenshot ()
   "Save a screenshot and copy its path."
@@ -2611,6 +2616,26 @@ emms-playlist-mode and query for a playlist to open."
 
 (when (k-exwm-enabled-p)
   (start-process "picom" "*picom*" "picom"))
+
+(use-package sudo-edit
+  :init
+  (add-hook 'find-file-hook
+            (lambda ()
+              (setq default-directory
+                    (replace-regexp-in-string "^/sudo:root@localhost:" "" default-directory)))))
+
+(use-package system-packages
+  :demand t)
+
+(use-package insecure-lock
+  :config
+  (defun insecure-lock-hide ()
+    (if insecure-lock-mode
+        (progn
+          (set-frame-parameter nil 'insecure-lock--saved-alpha (frame-parameter nil 'alpha))
+          (set-frame-parameter nil 'alpha 0.0))
+      (set-frame-parameter nil 'alpha (frame-parameter nil 'insecure-lock--saved-alpha))))
+  (setq insecure-lock-mode-hook '(insecure-lock-hide insecure-lock-blank-screen insecure-lock-posframe)))
 
 ;;; Org
 
@@ -2957,7 +2982,7 @@ emms-playlist-mode and query for a playlist to open."
   (pyim-greatdict :type git :host github :repo "tumashu/pyim-greatdict"
                   :files ("*.pyim.gz" :defaults)))
 
-;;; Misc handy commands
+;;; ⭐ Misc handy commands
 
 (defvar lookup-word-buffer nil)
 
@@ -2970,7 +2995,9 @@ emms-playlist-mode and query for a playlist to open."
   (setq lookup-word-buffer (browse-url (format "https://en.wiktionary.org/wiki/%s#Latin" word))))
 
 (defun demolish-package (symbol)
-  "Nuke everything under namespace SYMBOL."
+  "Nuke everything under namespace SYMBOL.
+This is useful when maintaining a long running Emacs image and
+you want to try reloading/updating a package."
   (ignore-errors (unload-feature symbol t))
   (let* ((prefix (concat (symbol-name symbol) "-"))
          (accused-p (lambda (x) (or (eq x symbol) (s-prefix-p prefix (symbol-name x))))))
@@ -3090,20 +3117,8 @@ normally have their errors suppressed."
         (vampire-time-update))
     (posframe-delete " *Vampire Time Screensaver*")))
 
-;;; insecure-lock
-
-(use-package insecure-lock
-  :config
-  (defun insecure-lock-hide ()
-    (if insecure-lock-mode
-        (progn
-          (set-frame-parameter nil 'insecure-lock--saved-alpha (frame-parameter nil 'alpha))
-          (set-frame-parameter nil 'alpha 0.0))
-      (set-frame-parameter nil 'alpha (frame-parameter nil 'insecure-lock--saved-alpha))))
-  (setq insecure-lock-mode-hook '(insecure-lock-hide insecure-lock-blank-screen insecure-lock-posframe)))
-
-
-;;; telega
+;;; telega.el
+;; A heavily modified telega.el to tweak its appearance to my liking.
 
 (defvar k-telega-extra-xheight 10)
 (use-package telega
@@ -3243,121 +3258,192 @@ normally have their errors suppressed."
                 undo-tree-auto-save-history nil ;; Too fucking slow!
                 undo-tree-visualizer-timestamps t))
 
-;;; Org index generation
+;;; ⭐ Org index generation
 
-(defun k-generate-org-index (output-buffer)
+(use-package toc-org)
+
+(defun k-generate-org-index (output-buffer source-filename)
+  "Read Emacs Lisp from current buffer and write org index to OUTPUT-BUFFER.
+SOURCE-FILENAME is used for generate relative link with line numbers.
+This reads starting from the point in current buffer and write the the point
+in OUTPUT-BUFFER. Both points are advanced during processing."
   (let ((input-buffer (current-buffer)))
     (cl-flet ((output (&rest args)
                 (with-current-buffer output-buffer
                   (apply #'insert args)))
               (link ()
+                "Return a relative link with current line number in the input buffer."
                 (with-current-buffer input-buffer
                   (save-restriction
                     (widen)
-                    (format "file:init.el#L%s" (line-number-at-pos))))))
+                    (format "file:%s#L%s" source-filename (line-number-at-pos))))))
       (cl-macrolet ((with-output (&rest body)
                       `(let ((from (point)))
                          ,@body
                          (output (buffer-substring-no-properties from (point))))))
-        (save-excursion
-          (goto-char (point-min))
-          (while (< (point) (point-max))
-            (let (sexp-type)
-              (cond ((looking-at ";;;;")
-                     (goto-char (match-end 0))
-                     (cl-fresh-line output-buffer)
-                     (output "**")
-                     (with-output
-                      (end-of-line))
-                     (output "\n"))
-                    ((looking-at ";;;")
-                     (goto-char (match-end 0))
-                     (cl-fresh-line output-buffer)
-                     (output "*")
-                     (with-output
-                      (end-of-line))
-                     (output "\n"))
-                    ((looking-at ";; (")
-                     (while (looking-at ";;")
-                       (forward-comment 1)
-                       (skip-chars-forward "[:space:]")))
-                    ((looking-at ";;")
-                     (goto-char (match-end 0))
-                     (with-output
-                      (end-of-line)))
-                    ((looking-at "(use-package ")
-                     (goto-char (match-end 0))
-                     (let ((name (symbol-name (symbol-at-point)))
-                           (from (line-end-position)))
-                       (up-list)
-                       (backward-char 1)
-                       (setq sexp-type "Package")
-                       (when (> (point) from)
-                         (let ((output-from (with-current-buffer output-buffer (point))))
-                           (save-excursion
-                             (save-restriction
-                               (narrow-to-region from (point))
-                               (k-generate-org-index output-buffer)))
-                           (when (> (with-current-buffer output-buffer (point-max)) output-from)
-                             (with-current-buffer output-buffer
-                               (save-excursion
-                                 ;; fix one missing white space at the
-                                 ;; beginning of package section... do
-                                 ;; I really understand this?
-                                 (goto-char (1- output-from))
-(                                 (cl-fresh-line output-buffer))
-                                 (insert "** Package [[" (link) "][" name "]]")
-                                 (insert "\n")
-                                 (setq sexp-type nil))))))
-                       (if sexp-type
-                           (beginning-of-defun)
-                         (forward-line))))
-                    ((looking-at-p "(defun\\|(defsubst")
-                     (setq sexp-type "Function"))
-                    ((looking-at-p "(\\(cl-\\)?defmacro")
-                     (setq sexp-type "Macro"))
-                    (t (forward-sexp)
-                       (end-of-line)))
-              (when sexp-type
-                (save-excursion
-                  (down-list)
-                  (forward-sexp)
-                  (forward-sexp)
-                  (let ((name (symbol-at-point))
-                        (doc (ignore-errors
-                               (forward-sexp)
-                               (skip-chars-forward "[:space:]\n")
-                               (when (looking-at-p "\"")
-                                 (let ((from (1+ (point))))
-                                   (search-forward ".")
-                                   (buffer-substring-no-properties from (point)))))))
-                    (with-current-buffer output-buffer
-                      (skip-chars-backward "[:space:]\n")
-                      (delete-char (- (point-max) (point))))
-                    (if doc
-                        (progn
-                          (cl-fresh-line output-buffer)
-                          (output "  - " sexp-type " [[" (link) "][" (symbol-name name) "]]: " doc "\n"))
+        (while (< (point) (point-max))
+          (let (sexp-type)
+            (cond ;; skip ";;; Commentary:" etc
+             ((looking-at-p ";;; [[:alpha:]]*:$\\|;;; .* ends .*$")
+              (forward-line))
+             ;; Org subsection for ";;;; ..."
+             ((looking-at ";;;; ")
+              (goto-char (match-end 0))
+              (cl-fresh-line output-buffer)
+              (output "** [[" (link) "][")
+              (with-output
+               (end-of-line))
+              (output "]]\n"))
+             ;; Org section for ";;; ..."
+             ((looking-at ";;; ")
+              (goto-char (match-end 0))
+              (cl-fresh-line output-buffer)
+              (output "* [[" (link) "][")
+              (with-output
+               (end-of-line))
+              (output "]]\n"))
+             ;; Skip comment block starting with ";; (".  Useful for
+             ;; skipping commented out Lisp form.  Will also skip
+             ;; any following text commemt without empty line.
+             ((looking-at ";; (")
+              (while (looking-at ";;")
+                (forward-comment 1)
+                (skip-chars-forward "[:space:]")))
+             ;; ";;" comment gets output verbatim
+             ((looking-at ";;")
+              (goto-char (match-end 0))
+              (with-output
+               (end-of-line)))
+             ;; For `use-package' form, we invoke
+             ;; `k-generate-org-index' recursively on the body.  If
+             ;; it generates any output, we make a Org subsection.
+             ;; Otherwise, we set `sexp-type' and let top-level
+             ;; definition (later in code) processing facility
+             ;; handle it instead.
+             ((looking-at "(use-package ")
+              (goto-char (match-end 0))
+              (let ((name (symbol-name (symbol-at-point)))
+                    (from (line-end-position)))
+                (up-list)
+                (backward-char 1)
+                (setq sexp-type "Package")
+                (when (> (point) from)
+                  (let ((output-from (with-current-buffer output-buffer (point))))
+                    (save-excursion
+                      (save-restriction
+                        (narrow-to-region from (point))
+                        (goto-char (point-min))
+                        (k-generate-org-index output-buffer source-filename)))
+                    (when (> (with-current-buffer output-buffer (point-max)) output-from)
                       (with-current-buffer output-buffer
-                        (if (save-excursion
-                              (forward-line 0)
-                              (and (looking-at-p (concat "  - " sexp-type))
-                                   (progn
-                                     (end-of-line)
-                                     (not (looking-back "\\." 1)))))
-                            (progn
-                              (insert ", "))
+                        (save-excursion
+                          (goto-char output-from)
                           (cl-fresh-line output-buffer)
-                          (insert "  - " sexp-type " "))
-                        (insert "[[" (link) "][" (symbol-name name) "]]" "\n")))))
-                (forward-sexp)
+                          (insert "** Package [[" (link) "][" name "]]")
+                          ;; fix one missing white space at the
+                          ;; beginning of package section... do
+                          ;; I really understand this?
+                          (insert "\n ")
+                          (setq sexp-type nil))))))
+                (if sexp-type
+                    (beginning-of-defun)
+                  (forward-line))))
+             ;; Recognize top-level definitions.
+             ((looking-at-p "(defun\\|(defsubst")
+              (setq sexp-type "Function"))
+             ((looking-at-p "(\\(cl-\\)?defmacro")
+              (setq sexp-type "Macro"))
+             ;; Skip other sexps.
+             (t (forward-sexp)
                 (end-of-line)))
-            (let ((linum (line-number-at-pos)))
-              (skip-chars-forward "[:space:]\n")
-              (when (and (> (- (line-number-at-pos) linum) 1)
-                         (with-current-buffer output-buffer (not (looking-back "\n\n" 2))))
-                (cl-fresh-line output-buffer)
-                (output "\n")))))))))
+            ;; Top-level-definition processing.
+            (when sexp-type
+              (save-excursion
+                (down-list)
+                (forward-sexp)
+                (forward-sexp)
+                (let ((name (symbol-at-point))
+                      (doc (ignore-errors
+                             (forward-sexp)
+                             (skip-chars-forward "[:space:]\n")
+                             (when (looking-at-p "\"")
+                               (let ((from (1+ (point))))
+                                 (forward-sexp)
+                                 (buffer-substring-no-properties from (1- (point))))))))
+                  ;; Add indentation
+                  (when doc
+                    (setq doc (s-join "\n    " (s-lines doc))))
+                  ;; Remove trailing whitespace first. We'll build
+                  ;; it later.
+                  (with-current-buffer output-buffer
+                    (skip-chars-backward "[:space:]\n")
+                    (delete-char (- (point-max) (point))))
+                  (if doc
+                      ;; If `doc' is non-nil, we always make a new
+                      ;; list item on its own line
+                      (progn
+                        (cl-fresh-line output-buffer)
+                        (output "  - " sexp-type " [[" (link) "][" (symbol-name name) "]]: " doc "\n"))
+                    ;; If `doc' is nil, see if we have an item with
+                    ;; the same `sexp-type' immediately preceding
+                    ;; us. If so, amalgamate with the preceding list
+                    ;; item.
+                    (with-current-buffer output-buffer
+                      (if (save-excursion
+                            (forward-line 0)
+                            (and (looking-at-p (concat "  - " sexp-type))
+                                 (progn
+                                   (end-of-line)
+                                   (not (looking-back "\\." 1)))))
+                          (progn
+                            (insert ", "))
+                        (cl-fresh-line output-buffer)
+                        (insert "  - " sexp-type " "))
+                      (insert "[[" (link) "][" (symbol-name name) "]]" "\n")))))
+              (forward-sexp)
+              (end-of-line)))
+          ;; If we have empty lines in the source file, also ensure
+          ;; we have at least one empty line in the output
+          (let ((linum (line-number-at-pos)))
+            (skip-chars-forward "[:space:]\n")
+            (when (and (> (- (line-number-at-pos) linum) 1)
+                       (with-current-buffer output-buffer (not (looking-back "\n\n" 2))))
+              (cl-fresh-line output-buffer)
+              (output "\n"))))))))
+
+(defun k-generate-org-index-init ()
+  "Generate README.org from init.el."
+  (interactive)
+  (with-current-buffer (find-file-noselect "~/.emacs.d/init.el")
+    (save-excursion
+      (goto-char (point-min))
+      (forward-line) ;; skip first line
+      (let ((output-buffer (find-file-noselect "~/.emacs.d/README.org")))
+        (with-current-buffer output-buffer
+          (goto-char (point-min))
+          (delete-char (- (point-max) (point-min)))
+          (insert "#+TITLE: kchan's Emacs config
+
+This org file is an index automatically generated from init.el.
+Links in the file are clickable on GitHub and bring you to the
+source code.  The more non-trivial parts of my config are marked
+with ⭐, which I think some people may find interesting. Have
+fun!
+
+* Table of Contents :TOC:
+"))
+        (k-generate-org-index output-buffer "init.el")
+        (with-current-buffer output-buffer
+          (toc-org-mode)
+          (save-buffer))))))
+
+(defun k-generate-org-index--magit-post-stage-hook ()
+  (when (equal (magit-toplevel) (file-truename "~/.emacs.d/"))
+    (let ((staged (magit-staged-files)))
+      (when (and (member "init.el" staged)
+                 (not (member "README.org"  staged)))
+        (k-generate-org-index-init)
+        (magit-stage-file "README.org")))))
 
 ;;; Finale
 

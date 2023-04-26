@@ -1,77 +1,183 @@
-* init.el --- kchan's emacs config -*- lexical-binding: t -*-
-* Commentary:
-* TODO
-* Code:
+#+TITLE: kchan's Emacs config
 
+This org file is an index automatically generated from init.el.
+Links in the file are clickable on GitHub and bring you to the
+source code.  The more non-trivial parts of my config are marked
+with ⭐, which I think some people may find interesting. Have
+fun!
+
+* Table of Contents :TOC:
+- [[#preamble][Preamble]]
+- [[#bootstrap-straightel][Bootstrap straight.el]]
+- [[#util-functions][Util functions]]
+- [[#misc-config][Misc config]]
+- [[#-mode-line][⭐ Mode line]]
+- [[#in-buffer-completion-company][In buffer completion (company)]]
+  - [[#package-company][Package company]]
+- [[#generic-stripes][Generic stripes]]
+  - [[#package-hl-line][Package hl-line]]
+- [[#-theme][⭐ Theme]]
+  - [[#font-inventory][Font Inventory]]
+  - [[#color-palette][Color palette]]
+  - [[#face-inventory][Face inventory]]
+  - [[#misc-settings][Misc settings]]
+  - [[#generate-faces][Generate faces]]
+  - [[#gui-tweeks][GUI tweeks]]
+- [[#-per-window-echo-area][⭐ Per window echo area]]
+- [[#-message-to-per-window-echo-area][⭐ Message to per window echo area]]
+- [[#time][Time]]
+- [[#appearances][Appearances]]
+- [[#indent-and-whitespace][Indent and whitespace]]
+  - [[#package-flycheck][Package flycheck]]
+  - [[#package-tex][Package tex]]
+- [[#-completion-system][⭐ Completion system]]
+  - [[#package-vertico][Package vertico]]
+  - [[#package-vertico-buffer][Package vertico-buffer]]
+  - [[#package-marginalia][Package marginalia]]
+  - [[#package-orderless][Package orderless]]
+  - [[#package-embark][Package embark]]
+- [[#misc-key-bindings][Misc key bindings]]
+- [[#fast-cursor-movement-avy][Fast cursor movement (avy)]]
+  - [[#package-avy][Package avy]]
+  - [[#package-ace-link][Package ace-link]]
+- [[#lisp-development][Lisp development]]
+  - [[#package-macrostep][Package macrostep]]
+  - [[#package-comment-or-uncomment-sexp][Package comment-or-uncomment-sexp]]
+  - [[#package-paxedit][Package paxedit]]
+  - [[#package-slime][Package slime]]
+  - [[#package-slime-repl][Package slime-repl]]
+  - [[#package-slime-company][Package slime-company]]
+- [[#version-control][Version control]]
+  - [[#package-diff-mode][Package diff-mode]]
+  - [[#package-magit][Package magit]]
+- [[#windowbufferframeworkspaces-movement][window/buffer/frame/workspaces movement]]
+  - [[#package-buffer-move][Package buffer-move]]
+  - [[#package-windmove][Package windmove]]
+- [[#-multi-media][⭐ Multi media]]
+  - [[#package-emms][Package emms]]
+  - [[#package-ytel][Package ytel]]
+- [[#-blink-cursor][⭐ Blink cursor]]
+- [[#scheme][Scheme]]
+  - [[#package-geiser][Package geiser]]
+- [[#terminal-vterm][Terminal (vterm)]]
+  - [[#package-vterm][Package vterm]]
+- [[#web-browsing][Web browsing]]
+  - [[#package-eww][Package eww]]
+- [[#-system-utils-and-exwm][⭐ System utils and EXWM]]
+  - [[#package-insecure-lock][Package insecure-lock]]
+- [[#org][Org]]
+  - [[#package-org][Package org]]
+- [[#erc][ERC]]
+  - [[#package-erc][Package erc]]
+- [[#email][Email]]
+  - [[#package-notmuch][Package notmuch]]
+- [[#input-method][Input Method]]
+  - [[#package-pyim][Package pyim]]
+- [[#-misc-handy-commands][⭐ Misc handy commands]]
+- [[#vampire-timezone][Vampire timezone]]
+- [[#telegael][telega.el]]
+  - [[#package-telega][Package telega]]
+- [[#undo-tree][Undo Tree]]
+- [[#-org-index-generation][⭐ Org index generation]]
+- [[#finale][Finale]]
+
+* [[file:init.el#L5][Preamble]]
  Turn off GC during startup
 
  Misc libraries
 
-* Bootstrap straight.el
+* [[file:init.el#L15][Bootstrap straight.el]]
 
-* Util functions
+* [[file:init.el#L37][Util functions]]
   - Package [[file:init.el#L39][alist]], [[file:init.el#L41][s]]
   - Macro [[file:init.el#L44][globalize]]: Define and enable a global minor mode from minor MODE.
   - Function [[file:init.el#L52][k-exwm-enabled-p]], [[file:init.el#L55][delete-from-list]]
   - Macro [[file:init.el#L58][with-advice]]: Temporarily add ADVICE to SYMBOL during evaluation of BODY.
-  - Function [[file:init.el#L66][k-run-helper-command]]: Run helper shell COMMAND in buffer with NAME.
+  - Function [[file:init.el#L68][k-run-helper-command]]: Run helper shell COMMAND in buffer with NAME.
+    Run CONTINUATION once the shell process exited.
+    If SILENT is non-nil, do not display the NAME buffer.
   - Function [[file:init.el#L86][k-global-set-key]]: Bind KEY to COMMAND, also works in EXWM windows.
   - Function [[file:init.el#L92][k-fill-right]]: Prepend a variable space to STRING to make it right-aligned.
-  - Function [[file:init.el#L100][k-insert-fill-right]]: Insert STRING and make it right-aligned using a variable space.
-  - Function [[file:init.el#L117][k-truncate-string-to-width]]: Truncate STRING to PIXEL-WIDTH.
+  - Function [[file:init.el#L103][k-insert-fill-right]]: Insert STRING and make it right-aligned using a variable space.
+    This is more correct than (insert (k-fill-right STRING)) in some
+    cases, because it respect the current buffer settings,
+    e.g. invisibility spec.
+  - Function [[file:init.el#L118][k-truncate-string-to-width]]: Truncate STRING to PIXEL-WIDTH.
+    Use binary search.
   - Function [[file:init.el#L133][k-ensure-prefix-map]]
 
-* Misc config
+* [[file:init.el#L136][Misc config]]
 
-* Mode line
-  - Function [[file:init.el#L168][k-pad-mode-line-format]]: Format the mode line as a string according to FORMAT and RIGHT-FORMAT.
+* [[file:init.el#L165][⭐ Mode line]]
+  - Function [[file:init.el#L171][k-pad-mode-line-format]]: Format the mode line as a string according to FORMAT and RIGHT-FORMAT.
+    FORMAT is left-aligned and RIGHT-FORMAT is right-aligned.  Add
+    padding space at the left and right of the mode line so that the
+    edge of the mode line align with left and right fringe.
   - Function [[file:init.el#L191][k-set-selected-window]], [[file:init.el#L195][k-mode-line-selected-p]]
-  - Function [[file:init.el#L224][k-pad-header-line-after-advice]]: Add padding to header line using `k-pad-mode-line-format'.
-  - Function [[file:init.el#L247][k-compute-tab-line]]: Add an empty tab line to windows in FRAME to simulate bottom dividers.
+  - Function [[file:init.el#L230][k-pad-header-line-after-advice]]: Add padding to header line using `k-pad-mode-line-format'.
+    This is intended to be used as an :after advice or (normal or
+    abnormal) hook.  If OBJECT is not given, pad header line for
+    current buffer.  If OBJECT is a buffer, pad header line for it.
+    If OBJECT is a frame, pad header line for all buffers displayed
+    in it.  The function should be idempotent and suitable for
+    repeated invocation.
+  - Function [[file:init.el#L252][k-compute-tab-line]]: Add an empty tab line to windows in FRAME to simulate bottom dividers.
+    Tab lines are not added to windows at the top and windows whose
+    buffer has non-nill `k-inhibit-tab-line'.
 
-* Packages
-  - Package [[file:init.el#L266][package]], [[file:init.el#L270][sudo-edit]], [[file:init.el#L276][system-packages]]
+    This differs from bottom dividers because it does not add space
+    to below window at the bottom (above echo area).
+  - Package [[file:init.el#L264][package]]
 
-* In buffer completion (company)
-** Package [[file:init.el#L520][company]]
+* [[file:init.el#L266][In buffer completion (company)]]
 
- Zebra strips, to look consistent with vertico Patch `company--create-lines' and `company-fill-propertize'
-  - Function [[file:init.el#L293][company--create-lines]], [[file:init.el#L425][company-fill-propertize]]
+** Package [[file:init.el#L508][company]]
+  Zebra strips, to look consistent with vertico Patch `company--create-lines' and `company-fill-propertize'
+  - Function [[file:init.el#L281][company--create-lines]], [[file:init.el#L413][company-fill-propertize]]
 
- Don't let `company-elisp' quickhelp hijack `*Help*' buffer
+ ⭐ Don't let `company-elisp' quickhelp hijack `*Help*' buffer
 
  Use posframe so that company works in minibuffer
-  - Package [[file:init.el#L524][company-posframe]]
+  - Package [[file:init.el#L512][company-posframe]]
 
-* Generic stripes
+* [[file:init.el#L525][Generic stripes]]
  I prefer using text-property to color stuff, but when I don't feel like trying I use `stripes' overlays.
-  - Package [[file:init.el#L543][stripes]]
-** Package [[file:init.el#L553][hl-line]]
+  - Package [[file:init.el#L531][stripes]]
 
- Patch `hl-line-make-overlay' so that front advance is T
-  - Function [[file:init.el#L550][hl-line-make-overlay]]
-* Theme
+** Package [[file:init.el#L541][hl-line]]
+  Patch `hl-line-make-overlay' so that front advance is T
+  - Function [[file:init.el#L538][hl-line-make-overlay]]
+* [[file:init.el#L543][⭐ Theme]]
+ I generate theme algorithmically from a list of hue and saturation values. There're two hand-tune ones accessible using `k-theme-switch', and my EMMS integration generate themes from YouTube video thumbnail when it is played.
 
-** Font Inventory
+** [[file:init.el#L554][Font Inventory]]
  Tweek fonts to  match `window-text-pixel-size'
 
-** Color palette
-  - Function [[file:init.el#L591][k-hsl-to-hex]]
-  - Function [[file:init.el#L594][k-generate-theme]]: Algorithmically generate and load theme.
+** [[file:init.el#L560][Color palette]]
+  - Function [[file:init.el#L583][k-hsl-to-hex]]
+  - Function [[file:init.el#L591][k-generate-theme]]: Algorithmically generate and load theme.
+    HUE-1 and SAT-1 is used for `k-*-blue',
+    HUE-2 and SAT-2 is used for `k-*-purple',
+    HUE-3 and SAT-3 is used for `k-*-pink'.
+    CONTRAST is the hue used for `k-fg-red'.
+    DARK-P specifies whether to generate a dark or light theme.
 
-** Face inventory
+** [[file:init.el#L662][Face inventory]]
 
-** Misc settings
+** [[file:init.el#L675][Misc settings]]
 
-** Generate faces
-  - Function [[file:init.el#L689][k-load-faces]]: Generate and set faces.
-  - Function [[file:init.el#L1118][k-theme-switch]]: Elegantly switch to k-theme with STYLE.
+** [[file:init.el#L679][Generate faces]]
+  - Function [[file:init.el#L681][k-load-faces]]: Generate and set faces.
+  - Function [[file:init.el#L1110][k-theme-switch]]: Elegantly switch to k-theme with STYLE.
 
-** GUI tweeks
+** [[file:init.el#L1117][GUI tweeks]]
 
  Try not to let underline touch the text.  We use underline to draw a horizontal separator below header line, and this make it look better.
 
-* Per window echo area
+* [[file:init.el#L1141][⭐ Per window echo area]]
+ This displays "pseudo" echo areas under each window.  I find it more comfy to look at than the global echo area.
+
+ The implementation is a mega-hack: we split a echo area window under the main window, set the main window's `mode-line-format' window parameter to `none', and copy its actual mode line to the echo area window, so that the echo area window appears to be above main window's mode line.
   - Function [[file:init.el#L1156][k-echo-area-window]]: Return the k-echo-area window for WINDOW.
   - Function [[file:init.el#L1164][k-echo-area-main-window]]: Return the window whose k-echo-area is WINDOW.
   - Function [[file:init.el#L1192][k-echo-area-display]]: Display BUF in a k-echo-area window created for MAIN-WINDOW.
@@ -79,231 +185,257 @@
   - Function [[file:init.el#L1228][k-echo-area-clear-1]]: Remove the k-echo-area window.
   - Function [[file:init.el#L1239][k-echo-area-clear-all]]: Remove all k-echo-area window, for debug purpose only.
 
-* Message to per window echo area
-  - Function [[file:init.el#L1253][k-message]]: Like `message' but in k-echo-area.
+* [[file:init.el#L1246][⭐ Message to per window echo area]]
+  - Function [[file:init.el#L1254][k-message]]: Like `message' but in k-echo-area.
+    Format FORMAT-STRING with ARGS.
   - Function [[file:init.el#L1262][k-message-display]]: Refresh display of `k-message' for current buffer.
 
-* World clock
-  - Package [[file:init.el#L1293][time]]
+ Use `k-message' for `eldoc'. Pretty comfy!
 
-* Appearances
-  - Package [[file:init.el#L1299][all-the-icons]], [[file:init.el#L1308][volatile-highlights]], [[file:init.el#L1311][highlight-indent-guides]], [[file:init.el#L1318][highlight-parentheses]]
+* [[file:init.el#L1290][Time]]
+  - Package [[file:init.el#L1294][time]]
 
-* Indent and whitespace
-  - Package [[file:init.el#L1329][clean-aindent-mode]], [[file:init.el#L1332][dtrt-indent]], [[file:init.el#L1337][ws-butler]], [[file:init.el#L1340][comment-dwim-2]], [[file:init.el#L1343][outline]], [[file:init.el#L1350][vlf]], [[file:init.el#L1353][topsy]], [[file:init.el#L1361][crux]], [[file:init.el#L1369][snap-indent]]
-** Package [[file:init.el#L1386][flycheck]]
-  - Function [[file:init.el#L1379][k-flycheck-display-error-messages]]
-  - Package [[file:init.el#L1389][lsp-mode]], [[file:init.el#L1397][lsp-ltex]]
-** Package [[file:init.el#L1430][tex]]
+* [[file:init.el#L1297][Appearances]]
+  - Package [[file:init.el#L1300][all-the-icons]], [[file:init.el#L1309][volatile-highlights]], [[file:init.el#L1312][highlight-indent-guides]], [[file:init.el#L1319][highlight-parentheses]]
 
- to use pdfview with auctex
+* [[file:init.el#L1326][Indent and whitespace]]
+  - Package [[file:init.el#L1330][clean-aindent-mode]], [[file:init.el#L1333][dtrt-indent]], [[file:init.el#L1338][ws-butler]], [[file:init.el#L1341][comment-dwim-2]], [[file:init.el#L1344][outline]], [[file:init.el#L1351][vlf]], [[file:init.el#L1354][topsy]], [[file:init.el#L1362][crux]], [[file:init.el#L1370][snap-indent]]
+
+** Package [[file:init.el#L1387][flycheck]]
+  - Function [[file:init.el#L1380][k-flycheck-display-error-messages]]
+  - Package [[file:init.el#L1390][lsp-mode]], [[file:init.el#L1398][lsp-ltex]]
+
+** Package [[file:init.el#L1431][tex]]
+  to use pdfview with auctex
 
  to have the buffer refresh after compilation
-  - Function [[file:init.el#L1421][init-latex]]
-  - Package [[file:init.el#L1434][cdlatex]]
+  - Function [[file:init.el#L1422][init-latex]]
+  - Package [[file:init.el#L1435][cdlatex]]
 
-* Completion system
-** Package [[file:init.el#L1560][vertico]]
+* [[file:init.el#L1437][⭐ Completion system]]
 
- Multiline candidates Don't collapse multiline into single line. I find this reads much better for, say, `yank-pop'
+** Package [[file:init.el#L1561][vertico]]
+  Multiline candidates Don't collapse multiline into single line. I find this reads much better for, say, `yank-pop'
 
  Patch `read-from-kill-ring' so that it doesn't collapse entries to single line
-  - Function [[file:init.el#L1455][read-from-kill-ring]]: Read a `kill-ring' entry using completion and minibuffer history.
+  - Function [[file:init.el#L1457][read-from-kill-ring]]: Read a `kill-ring' entry using completion and minibuffer history.
+    PROMPT is a string to prompt with.
 
  Patch `vertico--truncate-multiline'
-  - Function [[file:init.el#L1505][vertico--truncate-multiline]]: Truncate multiline CAND.
-  - Function [[file:init.el#L1517][k-string-pixel-height]]: Return the width of STRING in pixels.
+  - Function [[file:init.el#L1507][vertico--truncate-multiline]]: Truncate multiline CAND.
+    Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead.
+  - Function [[file:init.el#L1518][k-string-pixel-height]]: Return the width of STRING in pixels.
 
  Patch `vertico--compute-scroll'
-  - Function [[file:init.el#L1534][vertico--compute-scroll]]: Update scroll position.
+  - Function [[file:init.el#L1535][vertico--compute-scroll]]: Update scroll position.
 
  Zebra strips, for better visualization of multiline candidates Patch `vertico--display-candidates'
-  - Function [[file:init.el#L1548][vertico--display-candidates]]: Update candidates overlay `vertico--candidates-ov' with LINES.
-** Package [[file:init.el#L1636][vertico-buffer]]
-  - Function [[file:init.el#L1581][vertico--format-count]]: Format the count string.
-  - Function [[file:init.el#L1593][k-minibuffer-message-advice]]
-** Package [[file:init.el#L1663][marginalia]]
+  - Function [[file:init.el#L1549][vertico--display-candidates]]: Update candidates overlay `vertico--candidates-ov' with LINES.
 
- Automatically give more generous field width
-  - Function [[file:init.el#L1644][marginalia--affixate]]: Affixate CANDS given METADATA and Marginalia ANNOTATOR.
- Actual completion syste
-** Package [[file:init.el#L1679][orderless]]
-m
-  - Package [[file:init.el#L1683][consult]]
-** Package [[file:init.el#L1718][embark]]
-  - Function [[file:init.el#L1713][k-grep-in]]: Grep in FILENAME.
-  - Package [[file:init.el#L1720][embark-consult]]
+** Package [[file:init.el#L1637][vertico-buffer]]
+  - Function [[file:init.el#L1582][vertico--format-count]]: Format the count string.
+  - Function [[file:init.el#L1594][k-minibuffer-message-advice]]
 
-* Misc key bindings
+** Package [[file:init.el#L1664][marginalia]]
+  Automatically give more generous field width
+  - Function [[file:init.el#L1645][marginalia--affixate]]: Affixate CANDS given METADATA and Marginalia ANNOTATOR.
+ Actual completion system
+** Package [[file:init.el#L1680][orderless]]
+  - Package [[file:init.el#L1684][consult]]
+
+** Package [[file:init.el#L1719][embark]]
+  - Function [[file:init.el#L1714][k-grep-in]]: Grep in FILENAME.
+  - Package [[file:init.el#L1721][embark-consult]]
+
+* [[file:init.el#L1723][Misc key bindings]]
 
  More efficient bindings for keyboard macro
-  - Package [[file:init.el#L1773][kmacro]]
+  - Package [[file:init.el#L1774][kmacro]]
 
-* Fast cursor movement (avy)
-** Package [[file:init.el#L1794][avy]]
-  - Function [[file:init.el#L1783][hyper-ace]], [[file:init.el#L1790][my-avy--regex-candidates]],
-** Package [[file:init.el#L1829][ace-link]]
- [[file:init.el#L1800][ace-link--widget-action]]
-  - Function [[file:init.el#L1806][ace-link--widget-collect]]: Collect the positions of visible widgets in current buffer.
-  - Function [[file:init.el#L1821][ace-link-widget]]: Open or go to a visible widget.
-* Lisp development
-  - Package [[file:init.el#L1834][emacs]]
-** Package [[file:init.el#L1849][macrostep]]
+* [[file:init.el#L1778][Fast cursor movement (avy)]]
 
- To fix the outdated naming in (define-minor-mode macrostep-mode ...) TODO: Remove once upstream fix this
-** Package [[file:init.el#L1900][comment-or-uncomment-sexp]]
-. #+nil structural comment for Common Lisp
-  - Macro [[file:init.el#L1859][advance-save-excursion]], [[file:init.el#L1865][structured-comment-maybe]]
-  - Function [[file:init.el#L1885][structured-comment-advice]]
-  - Function [[file:init.el#L1890][structured-comment-defun]]: Use #+nil to comment a top-level form for Common Lisp.
-  - Package [[file:init.el#L1903][paredit]]
-** Package [[file:init.el#L1927][paxedit]]
-  - Function [[file:init.el#L1919][paxedit-copy-1]], [[file:init.el#L1924][paxedit-kill-1]]
-  - Package [[file:init.el#L1931][rainbow-mode]]
-** Package [[file:init.el#L2032][slime]]
+** Package [[file:init.el#L1795][avy]]
+  - Function [[file:init.el#L1784][hyper-ace]], [[file:init.el#L1791][my-avy--regex-candidates]],
+** Package [[file:init.el#L1830][ace-link]]
+ [[file:init.el#L1801][ace-link--widget-action]]
+  - Function [[file:init.el#L1807][ace-link--widget-collect]]: Collect the positions of visible widgets in current buffer.
+  - Function [[file:init.el#L1822][ace-link-widget]]: Open or go to a visible widget.
+* [[file:init.el#L1832][Lisp development]]
+  - Package [[file:init.el#L1835][emacs]]
 
- Handy slime commands and key bindings
-  - Function [[file:init.el#L1974][ensure-slime]]
-  - Function [[file:init.el#L1981][slime-undefine]]: Undefine toplevel definition at point.
+** Package [[file:init.el#L1850][macrostep]]
+  To fix the outdated naming in (define-minor-mode macrostep-mode ...) TODO: Remove once upstream fix this.
+** Package [[file:init.el#L1901][comment-or-uncomment-sexp]]
+  #+nil structural comment for Common Lisp
+  - Macro [[file:init.el#L1860][advance-save-excursion]], [[file:init.el#L1866][structured-comment-maybe]]
+  - Function [[file:init.el#L1886][structured-comment-advice]]
+  - Function [[file:init.el#L1891][structured-comment-defun]]: Use #+nil to comment a top-level form for Common Lisp.
+  - Package [[file:init.el#L1904][paredit]]
+
+** Package [[file:init.el#L1929][paxedit]]
+  - Function [[file:init.el#L1921][paxedit-copy-1]], [[file:init.el#L1926][paxedit-kill-1]]
+  - Package [[file:init.el#L1933][rainbow-mode]]
+
+** Package [[file:init.el#L2033][slime]]
+  Handy slime commands and key bindings
+  - Function [[file:init.el#L1975][ensure-slime]]
+  - Function [[file:init.el#L1982][slime-undefine]]: Undefine toplevel definition at point.
 
  *slime-scratch*
-  - Function [[file:init.el#L2000][switch-to-scratch]]: Switch to scratch buffer.
+  - Function [[file:init.el#L2001][switch-to-scratch]]: Switch to scratch buffer.
 
  Slime mode line
-  - Function [[file:init.el#L2009][slime-mode-line]]
+  - Function [[file:init.el#L2010][slime-mode-line]]
 
  Hacks to make slime-autodoc works better
 
  Enable Paredit and Company in Lisp related minibuffers
-  - Function [[file:init.el#L2019][k-slime-command-p]], [[file:init.el#L2024][sexp-minibuffer-hook]]
+  - Function [[file:init.el#L2020][k-slime-command-p]], [[file:init.el#L2025][sexp-minibuffer-hook]]
 
- Slime debug window non-prolifiratio
-** Package [[file:init.el#L2048][slime-repl]]
-n
-  - Function [[file:init.el#L2045][slime-repl-sync]]: Switch to Slime REPL and synchronize package/directory.
-** Package [[file:init.el#L2090][slime-company]]
+ Slime debug window non-prolifiration
+** Package [[file:init.el#L2049][slime-repl]]
 
-  - Function [[file:init.el#L2056][company-slime]]: Company mode backend for slime.
-  - Package [[file:init.el#L2092][slime-mrepl]], [[file:init.el#L2100][which-key]]
+  - Function [[file:init.el#L2046][slime-repl-sync]]: Switch to Slime REPL and synchronize package/directory.
+** Package [[file:init.el#L2091][slime-company]]
+   - Function [[file:init.el#L2057][company-slime]]: Company mode backend for slime.
+  - Package [[file:init.el#L2093][slime-mrepl]], [[file:init.el#L2101][which-key]]
 
-* Version control
-** Package [[file:init.el#L2114][diff-mode]]
+* [[file:init.el#L2104][Version control]]
 
- show whitespace in diff-mod
-** Package [[file:init.el#L2122][magit]]
-e
-  - Function [[file:init.el#L2120][cloc-magit-root]]: Run Count Line Of Code for current Git repo.
-* window/buffer/frame/workspaces movement
-** Package [[file:init.el#L2132][buffer-move]]
+** Package [[file:init.el#L2115][diff-mode]]
+  show whitespace in diff-mode
+** Package [[file:init.el#L2124][magit]]
 
- Intuitively, this works like windmove but move buffer together with cursor
-** Package [[file:init.el#L2157][windmove]]
-. Moving between window/buffer/frame/workspaces in 4 directions
-  - Function [[file:init.el#L2143][next-workspace]]
-  - Package [[file:init.el#L2160][winner]], [[file:init.el#L2166][goto-last-change]]
+  - Function [[file:init.el#L2121][cloc-magit-root]]: Run Count Line Of Code for current Git repo.
+* [[file:init.el#L2126][window/buffer/frame/workspaces movement]]
 
-* Multi media
-** Package [[file:init.el#L2340][emms]]
-  - Function [[file:init.el#L2191][k-emms]]: Switch to the current emms-playlist buffer, use
-emms-playlist-mode and query for a playlist to open.
+** Package [[file:init.el#L2134][buffer-move]]
+  Intuitively, this works like windmove but move buffer together with cursor.
+** Package [[file:init.el#L2159][windmove]]
+  Moving between window/buffer/frame/workspaces in 4 directions
+  - Function [[file:init.el#L2145][next-workspace]]
+  - Package [[file:init.el#L2162][winner]], [[file:init.el#L2168][goto-last-change]]
+
+* [[file:init.el#L2170][⭐ Multi media]]
+
+** Package [[file:init.el#L2342][emms]]
+  - Function [[file:init.el#L2193][k-emms]]: Switch to the current emms-playlist buffer, use
+    emms-playlist-mode and query for a playlist to open.
 
  Patch `emms-playlist-mode-overlay-selected' so that overlay extend to full line Also set a `priority'
-  - Function [[file:init.el#L2201][emms-playlist-mode-overlay-selected]]: Place an overlay over the currently selected track.
+  - Function [[file:init.el#L2203][emms-playlist-mode-overlay-selected]]: Place an overlay over the currently selected track.
 
  Eye candies
-  - Function [[file:init.el#L2227][k-emms-mode-line]]
-  - Function [[file:init.el#L2254][k-emms-toggle-video]]: TELL MPV player to switch to video/no-video mode.
-  - Function [[file:init.el#L2267][emms-playing-time-display]]: Display playing time on the mode line.
-  - Function [[file:init.el#L2280][k-emms-player-mpv-event-function]], [[file:init.el#L2295][k-emms-generate-theme]], [[file:init.el#L2310][k-emms-bpm-cursor]], [[file:init.el#L2323][k-emms-bpm-cursor-stop-hook]]
-** Package [[file:init.el#L2394][ytel]]
-  - Function [[file:init.el#L2352][ytel--insert-video]]: Insert `VIDEO' in the current buffer.
-  - Function [[file:init.el#L2366][ytel-play]]: Play video at point with EMMS.
-  - Function [[file:init.el#L2374][ytel-add]]: Add video at point to EMMS playlist.
+  - Function [[file:init.el#L2229][k-emms-mode-line]]
+  - Function [[file:init.el#L2256][k-emms-toggle-video]]: TELL MPV player to switch to video/no-video mode.
+  - Function [[file:init.el#L2269][emms-playing-time-display]]: Display playing time on the mode line.
+  - Function [[file:init.el#L2282][k-emms-player-mpv-event-function]], [[file:init.el#L2297][k-emms-generate-theme]], [[file:init.el#L2312][k-emms-bpm-cursor]], [[file:init.el#L2325][k-emms-bpm-cursor-stop-hook]]
 
-* Cute and useless visuals!
-  - Function [[file:init.el#L2408][blink-cursor-timer-function]], [[file:init.el#L2428][k-rhythm-hit-result]]
+** Package [[file:init.el#L2396][ytel]]
+  - Function [[file:init.el#L2354][ytel--insert-video]]: Insert `VIDEO' in the current buffer.
+  - Function [[file:init.el#L2368][ytel-play]]: Play video at point with EMMS.
+  - Function [[file:init.el#L2376][ytel-add]]: Add video at point to EMMS playlist.
 
-* Scheme
-  - Package [[file:init.el#L2441][scheme]]
-** Package [[file:init.el#L2452][geiser]]
-  - Function [[file:init.el#L2449][geiser-mode-maybe]]
-  - Package [[file:init.el#L2455][racket-mode]]
+* [[file:init.el#L2398][⭐ Blink cursor]]
+ It can synchronize to BPM which EMMS is playing! This works together with `k-emms-bpm-cursor'. It also uses absolute timing, otherwise Emacs timer will drift.
+  - Function [[file:init.el#L2413][blink-cursor-timer-function]], [[file:init.el#L2433][k-rhythm-hit-result]]
 
-* Terminal (vterm)
-  - Package [[file:init.el#L2467][multi-vterm]]
-** Package [[file:init.el#L2489][vterm]]
+* [[file:init.el#L2444][Scheme]]
+  - Package [[file:init.el#L2446][scheme]]
 
- Ad-hoc workaround: interaction with wide fringe/padding
-  - Function [[file:init.el#L2487][vterm--get-margin-width]]
+** Package [[file:init.el#L2457][geiser]]
+  - Function [[file:init.el#L2454][geiser-mode-maybe]]
+  - Package [[file:init.el#L2460][racket-mode]]
 
-* Web browsing
-** Package [[file:init.el#L2535][eww]]
-  - Function [[file:init.el#L2508][k-eww-after-render-hook]]: Update EWW buffer title and save `k-eww-history'.
-  - Function [[file:init.el#L2519][k-eww-read-url]], [[file:init.el#L2523][eww-new-buffer]]
-  - Package [[file:init.el#L2539][pdf-tools]]
+* [[file:init.el#L2468][Terminal (vterm)]]
+  - Package [[file:init.el#L2472][multi-vterm]]
 
-* System utils and EXWM
-  - Function [[file:init.el#L2563][k-screenshot]]: Save a screenshot and copy its path.
-  - Function [[file:init.el#L2575][k-get-volume]]: Get volume.
-  - Function [[file:init.el#L2586][k-set-volume]]: Change volume.
+** Package [[file:init.el#L2494][vterm]]
+  Ad-hoc workaround: interaction with wide fringe/padding
+  - Function [[file:init.el#L2492][vterm--get-margin-width]]
 
-* Org
-** Package [[file:init.el#L2661][org]]
-  - Function [[file:init.el#L2625][check-latex-fragment]], [[file:init.el#L2656][k-org-mode-hook]]
-  - Package [[file:init.el#L2665][org-contrib]], [[file:init.el#L2668][org-variable-pitch]], [[file:init.el#L2672][org-superstar]], [[file:init.el#L2684][poly-org]]
-  - Function [[file:init.el#L2702][k-polymode-init-inner-hook]]
-  - Package [[file:init.el#L2708][engrave-faces]]
+* [[file:init.el#L2496][Web browsing]]
 
-* ERC
-** Package [[file:init.el#L2782][erc]]
-  - Function [[file:init.el#L2772][erc-insert-timestamp-right]]
+** Package [[file:init.el#L2540][eww]]
+  - Function [[file:init.el#L2513][k-eww-after-render-hook]]: Update EWW buffer title and save `k-eww-history'.
+  - Function [[file:init.el#L2524][k-eww-read-url]], [[file:init.el#L2528][eww-new-buffer]]
+  - Package [[file:init.el#L2544][pdf-tools]]
 
-* Email
-  - Function [[file:init.el#L2803][insert-plist]], [[file:init.el#L2834][k-format-relative-date]]
-  - Package [[file:init.el#L2850][message]]
-** Package [[file:init.el#L2925][notmuch]]
-  - Function [[file:init.el#L2881][notmuch-search-show-result]]: Insert RESULT at POS.
-  - Function [[file:init.el#L2913][k-update-notmuch]]: Update email database asynchronously.
-  - Package [[file:init.el#L2929][smtpmail]]
+* [[file:init.el#L2565][⭐ System utils and EXWM]]
+  - Function [[file:init.el#L2568][k-screenshot]]: Save a screenshot and copy its path.
+  - Function [[file:init.el#L2580][k-get-volume]]: Get volume.
+  - Function [[file:init.el#L2591][k-set-volume]]: Change volume.
+  - Package [[file:init.el#L2622][sudo-edit]], [[file:init.el#L2628][system-packages]]
 
-* Input Method
-** Package [[file:init.el#L2951][pyim]]
-  - Function [[file:init.el#L2945][k-pyim-probe]]
-  - Package [[file:init.el#L2953][pyim-basedict]], [[file:init.el#L2957][pyim-greatdict]]
+** Package [[file:init.el#L2638][insecure-lock]]
+  - Function [[file:init.el#L2633][insecure-lock-hide]]
+* [[file:init.el#L2640][Org]]
 
-* Misc handy commands
-  - Function [[file:init.el#L2965][lookup-word]]
-  - Function [[file:init.el#L2973][demolish-package]]: Nuke everything under namespace SYMBOL.
+** Package [[file:init.el#L2686][org]]
+  - Function [[file:init.el#L2650][check-latex-fragment]], [[file:init.el#L2681][k-org-mode-hook]]
+  - Package [[file:init.el#L2690][org-contrib]], [[file:init.el#L2693][org-variable-pitch]], [[file:init.el#L2697][org-superstar]], [[file:init.el#L2709][poly-org]]
+  - Function [[file:init.el#L2727][k-polymode-init-inner-hook]]
+  - Package [[file:init.el#L2733][engrave-faces]]
+
+* [[file:init.el#L2773][ERC]]
+
+** Package [[file:init.el#L2807][erc]]
+  - Function [[file:init.el#L2797][erc-insert-timestamp-right]]
+
+* [[file:init.el#L2810][Email]]
+  - Function [[file:init.el#L2828][insert-plist]], [[file:init.el#L2859][k-format-relative-date]]
+  - Package [[file:init.el#L2875][message]]
+
+** Package [[file:init.el#L2950][notmuch]]
+  - Function [[file:init.el#L2906][notmuch-search-show-result]]: Insert RESULT at POS.
+  - Function [[file:init.el#L2938][k-update-notmuch]]: Update email database asynchronously.
+  - Package [[file:init.el#L2954][smtpmail]]
+
+* [[file:init.el#L2961][Input Method]]
+
+** Package [[file:init.el#L2976][pyim]]
+  - Function [[file:init.el#L2970][k-pyim-probe]]
+  - Package [[file:init.el#L2978][pyim-basedict]], [[file:init.el#L2982][pyim-greatdict]]
+
+* [[file:init.el#L2985][⭐ Misc handy commands]]
+  - Function [[file:init.el#L2990][lookup-word]]
+  - Function [[file:init.el#L3000][demolish-package]]: Nuke everything under namespace SYMBOL.
+    This is useful when maintaining a long running Emacs image and
+    you want to try reloading/updating a package.
 
  https://gist.github.com/jdtsmith/1fbcacfe677d74bbe510aec80ac0050c
-  - Function [[file:init.el#L2989][k-reraise-error]]: Call function FUNC with ARGS and re-raise any error which occurs.
-  - Function [[file:init.el#L2997][toggle-debug-on-hidden-errors]]: Toggle hidden error debugging for function FUNC.
-  - Function [[file:init.el#L3008][k-straight-freeze-versions]]: Run `straight-freeze-versions' asynchronously in Emacs subprocess.
+  - Function [[file:init.el#L3018][k-reraise-error]]: Call function FUNC with ARGS and re-raise any error which occurs.
+    Useful for debugging post-command hooks and filter functions, which
+    normally have their errors suppressed.
+  - Function [[file:init.el#L3024][toggle-debug-on-hidden-errors]]: Toggle hidden error debugging for function FUNC.
+  - Function [[file:init.el#L3035][k-straight-freeze-versions]]: Run `straight-freeze-versions' asynchronously in Emacs subprocess.
 
-* Vampire timezone
+* [[file:init.el#L3044][Vampire timezone]]
  How much sun-protection-free time left?
-  - Function [[file:init.el#L3024][time-to-vampire-time]], [[file:init.el#L3035][vampire-time-status]], [[file:init.el#L3044][k-time-status]], [[file:init.el#L3067][vampire-time-update]], [[file:init.el#L3087][vampire-time-screensaver]]
+  - Function [[file:init.el#L3051][time-to-vampire-time]], [[file:init.el#L3062][vampire-time-status]], [[file:init.el#L3071][k-time-status]], [[file:init.el#L3094][vampire-time-update]], [[file:init.el#L3114][vampire-time-screensaver]]
 
-* insecure-lock
-** Package [[file:init.el#L3103][insecure-lock]]
-  - Function [[file:init.el#L3098][insecure-lock-hide]]
+* [[file:init.el#L3120][telega.el]]
+ A heavily modified telega.el to tweak its appearance to my liking.
 
-* telega
-** Package [[file:init.el#L3210][telega]]
-  - Function [[file:init.el#L3117][k-telega-chatbuf-attach-sticker]]
-  - Function [[file:init.el#L3178][k-telega-load-all-history]]: Load all history in current chat.
-  - Package [[file:init.el#L3219][proced]]
+** Package [[file:init.el#L3225][telega]]
+  - Function [[file:init.el#L3132][k-telega-chatbuf-attach-sticker]]
+  - Function [[file:init.el#L3193][k-telega-load-all-history]]: Load all history in current chat.
+  - Package [[file:init.el#L3234][proced]]
 
-* Undo Tree
-  - Package [[file:init.el#L3233][undo-tree]]
+* [[file:init.el#L3245][Undo Tree]]
+  - Package [[file:init.el#L3248][undo-tree]]
 
-* Org index generation
-  - Function [[file:init.el#L3249][k-generate-org-index]]
+* [[file:init.el#L3261][⭐ Org index generation]]
+  - Package [[file:init.el#L3263][toc-org]]
+  - Function [[file:init.el#L3269][k-generate-org-index]]: Read Emacs Lisp from current buffer and write org index to OUTPUT-BUFFER.
+    SOURCE-FILENAME is used for generate relative link with line numbers.
+    This reads starting from the point in current buffer and write the the point
+    in OUTPUT-BUFFER. Both points are advanced during processing.
+  - Function [[file:init.el#L3415][k-generate-org-index-init]]: Generate README.org from init.el.
+  - Function [[file:init.el#L3441][k-generate-org-index--magit-post-stage-hook]]
 
-* Finale
+* [[file:init.el#L3448][Finale]]
 
  load up the theme
 
  perform GC
-
-* init.el ends here
