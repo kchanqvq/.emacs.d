@@ -1140,7 +1140,9 @@ DARK-P specifies whether to generate a dark or light theme."
 
 ;;; ⭐ Per window echo area
 ;; This displays "pseudo" echo areas under each window.  I find it
-;; more comfy to look at than the global echo area.
+;; more comfy to look at than the global echo area.  I also hacked
+;; `vertico-buffer' to display vertico menu in this area, which appears
+;; *above* the main window's mode line.
 
 ;; The implementation is a mega-hack: we split a echo area window
 ;; under the main window, set the main window's `mode-line-format'
@@ -1444,6 +1446,7 @@ Format FORMAT-STRING with ARGS."
   (setq-default vertico-count 20)
 
   ;; Multiline candidates
+
   ;; Don't collapse multiline into single line.
   ;; I find this reads much better for, say, `yank-pop'
 
@@ -1544,6 +1547,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
       (setq vertico--scroll (max min-scroll (min vertico--scroll max-scroll)))))
 
   ;; Zebra strips, for better visualization of multiline candidates
+
   ;; Patch `vertico--display-candidates'
   (defun vertico--display-candidates (lines)
     "Update candidates overlay `vertico--candidates-ov' with LINES."
@@ -1566,8 +1570,9 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   :after vertico
   :load-path "straight/repos/vertico/extensions/"
   :config
+
+  ;; we use `fit-window-to-buffer' instead and ignore HEIGHT
   (cl-defmethod vertico--resize-window (height &context (vertico-buffer-mode (eql t)))
-    ;; we use `fit-window-to-buffer' instead and ignore HEIGHT
     (when k-echo-area--top-separator-overlay
       (overlay-put k-echo-area--top-separator-overlay 'after-string nil))
     (let ((string (overlay-get vertico--candidates-ov 'after-string)))
@@ -1578,6 +1583,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     ;; (set-window-text-height vertico--buffer-window (+ 1 height))
     (fit-window-to-buffer vertico--buffer-window))
 
+  ;; Customize vertico prompt
   (defun vertico--format-count ()
     "Format the count string."
     (concat
@@ -1590,6 +1596,10 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                            (t "!"))
                      vertico--total))))
 
+  ;; Vertico insert echo messages into its input line.  Without any
+  ;; patch, such echo message masks
+  ;; `k-echo-area--top-separator-overlay', breaking our horizontal
+  ;; rule drawn by overline.  The following resolves this.
   (defun k-minibuffer-message-advice (orig-func message &rest args)
     (when vertico--input
       (setq message (substring message))
@@ -1597,6 +1607,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     (apply orig-func message args))
   (advice-add 'minibuffer-message :around #'k-minibuffer-message-advice)
 
+  ;; Make `vertico-buffer' use `k-echo-area'
   (cl-defmethod vertico--setup :after (&context (vertico-buffer-mode (eql t)))
     "Setup buffer display."
     (setq k-message nil)
@@ -1663,7 +1674,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                     (cons cand (if (string-blank-p ann) "" ann))))))))
   (byte-compile 'marginalia--affixate))
 
-;; Actual completion system
 (use-package orderless
   :demand t
   :config
@@ -3042,12 +3052,19 @@ normally have their errors suppressed."
   (k-run-helper-command "emacs --script '~/.emacs.d/init.el' --eval='(straight-freeze-versions)'"
                         "*straight-freeze-versions*"))
 
-;;; Vampire timezone
+;;; ⭐ Vampire timezone
 ;; How much sun-protection-free time left?
 
+;; This currently melds together with a implementation of status area
+;; at the right bottom corner (using the right side of global echo
+;; area).  It is used for displaying battery, time, and of course,
+;; vampire time zone.  I'd better factor it out at some point.
+
 (require 'solar)
+
 (setq-default calendar-longitude -122.1697
               calendar-latitude 37.4275)
+
 (defun time-to-vampire-time (&optional time)
   (let* ((today-sun (solar-sunrise-sunset (calendar-current-date)))
          (today-sunrise (* 3600 (caar today-sun)))
@@ -3059,7 +3076,9 @@ normally have their errors suppressed."
     (cond ((<= time today-sunrise) (list 'sunrise (- today-sunrise time)))
           ((<= time today-sunset) (list 'sunset (- today-sunset time)))
           (t (list 'sunrise (+ tomorrow-sunrise (- (* 24 3600) time)))))))
+
 (defun vampire-time-status ()
+  "Status function for vampire time zone."
   (let ((time (time-to-vampire-time)))
     (concat (format-seconds "%h:%.2m:%.2s" (cadr time))
             " "
@@ -3067,31 +3086,38 @@ normally have their errors suppressed."
               (if (eq (car time) 'sunrise)
                   (all-the-icons-faicon "moon-o")
                 (all-the-icons-faicon "sun-o"))))))
+
 (defvar k-status-functions '(vampire-time-status k-time-status))
+
 (defun k-time-status ()
+  "Status function for current time."
   (format-time-string "%-m/%d %-I:%M %p"))
+
+(defun k-battery-status ()
+  "Status function for battery status."
+  (let ((output (shell-command-to-string "acpi --battery"))
+        (case-fold-search nil))
+    (string-match " \\([0-9]+\\)%" output)
+    (let* ((percent (string-to-number (match-string 1 output)))
+           (charging (string-match-p "Charging" output))
+           (quarter (/ percent 25))
+           (all-the-icons-default-faicon-adjust 0.2)
+           (all-the-icons-default-alltheicon-adjust 0.2))
+      (concat
+       (cond (charging (all-the-icons-alltheicon "battery-charging"))
+             ((> quarter 3) (all-the-icons-faicon "battery-full"))
+             ((> quarter 2) (all-the-icons-faicon "battery-three-quarters"))
+             ((> quarter 1) (all-the-icons-faicon "battery-half"))
+             ((> quarter 0) (all-the-icons-faicon "battery-quarter"))
+             (t (all-the-icons-faicon "battery-empty" :face 'error)))
+       " "
+       (match-string 1 output) "%"))))
+
 (when (executable-find "acpi")
-  (defun k-battery-status ()
-    (let ((output (shell-command-to-string "acpi --battery"))
-          (case-fold-search nil))
-      (string-match " \\([0-9]+\\)%" output)
-      (let* ((percent (string-to-number (match-string 1 output)))
-             (charging (string-match-p "Charging" output))
-             (quarter (/ percent 25))
-             (all-the-icons-default-faicon-adjust 0.2)
-             (all-the-icons-default-alltheicon-adjust 0.2))
-        (concat
-         (cond (charging (all-the-icons-alltheicon "battery-charging"))
-               ((> quarter 3) (all-the-icons-faicon "battery-full"))
-               ((> quarter 2) (all-the-icons-faicon "battery-three-quarters"))
-               ((> quarter 1) (all-the-icons-faicon "battery-half"))
-               ((> quarter 0) (all-the-icons-faicon "battery-quarter"))
-               (t (all-the-icons-faicon "battery-empty" :face 'error)))
-         " "
-         (match-string 1 output) "%"))))
   (add-to-list 'k-status-functions 'k-battery-status))
 
 (defun vampire-time-update ()
+  "Update status area."
   (let* ((msg (mapconcat #'funcall k-status-functions "  "))
          (width (string-width msg))
          (msg (k-fill-right msg)))
@@ -3110,7 +3136,9 @@ normally have their errors suppressed."
     ;;                  :border-width 1))
     ))
 (add-hook 'post-command-hook 'vampire-time-update)
+
 (defvar vampire-time-timer (run-at-time t 1 'vampire-time-update))
+
 (defun vampire-time-screensaver ()
   (if insecure-lock-mode
       (progn
@@ -3159,10 +3187,12 @@ normally have their errors suppressed."
    telega-symbol-forward (propertize (compose-chars ?🗩 ?🠒) 'face '(shadow k-monochrome-emoji))
    telega-symbol-video-chat-passive (all-the-icons-material "videocam" :face 'shadow)
    telega-symbol-video-chat-active (all-the-icons-material "videocam" :face 'success))
+
   (define-advice  telega-chars-xheight
       (:around (orig n &optional face) k)
     (+ (funcall orig n face) (* n k-telega-extra-xheight)))
   (require 'cl)
+
   (define-advice telega-sticker--create-image
       (:around (orig &rest args) k)
     (with-advice
@@ -3171,25 +3201,30 @@ normally have their errors suppressed."
       (and (not (eq type 'webp))
            (funcall orig type)))
      (apply orig args)))
+
   (define-advice telega--fmt-text-faces (:around (orig fmt-text &optional for-msg) k)
     (let ((text (funcall orig fmt-text for-msg)))
       (when for-msg
         (add-face-text-property 0 (length text) 'variable-pitch t text))
       text))
+
   (define-advice telega-ins--special (:around (orig &rest args) k)
     (with-advice
      (telega-symbol
       :around (orig ending)
       (if (eq ending 'horizontal-bar) " " (funcall orig ending)))
      (apply orig args)))
+
   (define-advice telega-ins--message0 (:around (orig &rest args) k)
     (with-advice
      (telega-fmt-eval-align
       :around (orig estr attrs)
       (funcall orig estr (plist-put attrs :align-symbol nil)))
      (apply orig args)))
+
   (define-advice telega-ins--date (:around (orig timestamp))
     (telega-ins (k-format-relative-date timestamp)))
+
   (defun k-telega-load-all-history ()
     "Load all history in current chat."
     (interactive)
@@ -3330,28 +3365,31 @@ in OUTPUT-BUFFER. Both points are advanced during processing."
                 (setq sexp-type "Package")
                 (when (> (point) from)
                   (let ((output-from (with-current-buffer output-buffer (point))))
-                    (save-excursion
+                    (with-current-buffer output-buffer
                       (save-restriction
-                        (narrow-to-region from (point))
-                        (goto-char (point-min))
-                        (k-generate-org-index output-buffer source-filename)))
+                        (narrow-to-region (point-max) (point-max))
+                        (with-current-buffer input-buffer
+                          (save-excursion
+                            (save-restriction
+                              (narrow-to-region from (point))
+                              (goto-char (point-min))
+                              (k-generate-org-index output-buffer source-filename))))))
                     (when (> (with-current-buffer output-buffer (point-max)) output-from)
                       (with-current-buffer output-buffer
                         (save-excursion
                           (goto-char output-from)
                           (cl-fresh-line output-buffer)
                           (insert "** Package [[" (link) "][" name "]]")
-                          ;; fix one missing white space at the
-                          ;; beginning of package section... do
-                          ;; I really understand this?
-                          (insert "\n ")
+                          (insert "\n")
                           (setq sexp-type nil))))))
                 (if sexp-type
                     (beginning-of-defun)
                   (forward-line))))
              ;; Recognize top-level definitions.
-             ((looking-at-p "(defun\\|(defsubst")
+             ((looking-at-p "(defun\\|(defsubst\\|(cl-defmethod")
               (setq sexp-type "Function"))
+             ((looking-at-p "(define-advice")
+              (setq sexp-type "Advice"))
              ((looking-at-p "(\\(cl-\\)?defmacro")
               (setq sexp-type "Macro"))
              ;; Skip other sexps.
