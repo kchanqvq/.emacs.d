@@ -9,6 +9,7 @@
 (require 'subr-x)
 (require 'mule-util)
 
+(setq straight-check-for-modifications '(check-on-save find-when-checking))
 (defvar bootstrap-version)
 (let ((bootstrap-file
        (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
@@ -21,12 +22,13 @@
       (goto-char (point-max))
       (eval-print-last-sexp)))
   (load bootstrap-file nil 'nomessage))
-(setq-default straight-use-package-by-default t)
+(setq-default straight-use-package-by-default t
+              use-package-always-defer t)
 (straight-use-package 'use-package)
 
-(use-package alist :straight apel)
+(use-package alist :straight apel :demand t)
 
-(use-package s)
+(use-package s :demand t)
 
 (defmacro globalize (mode)
   "Define and enable a global minor mode from minor MODE."
@@ -43,6 +45,7 @@
   (set list-var (delete element (when (boundp list-var) (symbol-value list-var)))))
 
 (cl-defmacro with-advice ((symbol how lambda-list &body advice) &body body)
+  "Temporarily add ADVICE to SYMBOL during evaluation of BODY."
   `(let ((k-advice (lambda ,lambda-list ,@advice)))
      (advice-add ',symbol ,how k-advice)
      (unwind-protect
@@ -50,12 +53,16 @@
        (advice-remove ',symbol k-advice))))
 
 (defun k-run-helper-command (command name &optional continuation silent)
+  "Run helper shell COMMAND in buffer with NAME.
+Run CONTINUATION once the shell process exited.
+If SILENT is non-nil, do not display the NAME buffer."
   (with-current-buffer
       (let ((display-comint-buffer-action
              (if silent
                  '(display-buffer-no-window (allow-no-window . t))
-                 '(nil (inhibit-same-window . t)))))
-        (shell name))
+               '(nil (inhibit-same-window . t)))))
+        (save-selected-window
+          (shell name)))
     (set-process-sentinel (get-buffer-process (current-buffer))
 			  (lambda (proc status)
                             (when continuation
@@ -71,13 +78,18 @@
   (global-set-key key command))
 
 (defun k-fill-right (string)
+  "Prepend a variable space to STRING to make it right-aligned."
   (let* ((width (string-pixel-width string)))
     (concat (propertize " " 'display
                         `(space :align-to (- right-fringe (,width))))
             string)))
+(byte-compile 'k-fill-right)
+
 (defun k-insert-fill-right (string)
-  ;; More correct than `k-fill-right' in some cases, respect current
-  ;; buffer settings (e.g. invisibility spec)
+  "Insert STRING and make it right-aligned using a variable space.
+This is more correct than (insert (k-fill-right STRING)) in some
+cases, because it respect the current buffer settings,
+e.g. invisibility spec."
   (let ((from (point)))
     (insert " " string)
     (save-restriction
@@ -88,8 +100,11 @@
                            'display
                            `(space :align-to (- right-fringe (,width))))))
     nil))
+(byte-compile 'k-insert-fill-right)
 
 (defun k-truncate-string-to-width (string pixel-width)
+  "Truncate STRING to PIXEL-WIDTH.
+Use binary search."
   (if (> (string-pixel-width string) pixel-width)
       (let* ((a 1) a-result
              (b (length string)) b-result)
@@ -101,8 +116,6 @@
               (setq a c a-result result))))
         a-result)
     string))
-(byte-compile 'k-fill-right)
-(byte-compile 'k-insert-fill-right)
 (byte-compile 'k-truncate-string-to-width)
 
 (defun k-ensure-prefix-map (keymap key)
@@ -114,13 +127,6 @@
 (add-to-list 'load-path "~/.emacs.d/lisp")
 (add-to-list 'load-path "~/.emacs.d/custom")
 (add-to-list 'load-path "~/Projects/crdt")
-
-(tool-bar-mode -1)
-(unless (eq window-system 'ns)
-  (menu-bar-mode -1))
-(scroll-bar-mode -1)
-(setq-default visual-line-fringe-indicators '(left-curly-arrow right-curly-arrow))
-
 (setq-default garbage-collection-messages nil)
 (setq-default inhibit-startup-message t)
 
@@ -148,14 +154,6 @@
           (lambda ()
             (setq default-directory
                   (replace-regexp-in-string "^/sudo:root@localhost:" "" default-directory))))
-
-(when (eq window-system 'ns)
-  (set-alist 'default-frame-alist 'ns-transparent-titlebar t)
-  (set-alist 'default-frame-alist 'ns-appearance 'dark)
-  (setq frame-title-format nil)
-  (setq ns-use-proxy-icon nil)
-  (setq ns-use-native-fullscreen nil)
-  (set-fontset-font t 'symbol "Apple Color Emoji" nil 'append))
 
 (load (setq custom-file "~/.emacs.d/custom/custom.el"))
 (add-hook 'after-save-hook 'executable-make-buffer-file-executable-if-script-p)
@@ -237,11 +235,13 @@
 (require 'use-package)
 (setq-default use-package-always-ensure t)
 
-(use-package system-packages)
+(use-package system-packages
+  :demand t)
 
 (defvar k--company-current-index)
 
 (use-package company
+  :demand t
   :config
   (setq-default company-backends '(company-capf company-files))
   (setq-default company-dabbrev-downcase nil)
@@ -483,6 +483,7 @@
 
 ;; Use posframe so that company works in minibuffer...
 (use-package company-posframe
+  :demand t
   :config
   (setq-default company-posframe-show-indicator nil
                 company-posframe-show-metadata nil
@@ -1094,6 +1095,13 @@
   (set-alist 'default-frame-alist 'left-fringe gap)
   (set-alist 'default-frame-alist 'right-divider-width (* gap 2))
   (set-alist 'default-frame-alist 'internal-border-width gap))
+(cond
+ ((eq window-system 'ns)
+  (set-alist 'default-frame-alist 'ns-transparent-titlebar t)
+  (set-alist 'default-frame-alist 'ns-appearance 'dark)
+  (setq frame-title-format nil)
+  (setq ns-use-proxy-icon nil)
+  (setq ns-use-native-fullscreen nil)))
 (set-alist 'default-frame-alist 'undecorated t)
 (set-alist 'default-frame-alist 'alpha 100)
 (setq-default underline-minimum-offset 10)
@@ -1102,7 +1110,8 @@
 
 (defvar-local k--top-separator-ov nil)
 
-(define-minor-mode k-echo-area-mode "Minor mode for ` *echo per window*' buffer."
+(define-minor-mode k-echo-area-mode
+  "Minor mode for ` *echo per window*' buffer."
   :lighter nil
   (if k-echo-area-mode
       (save-excursion
@@ -1121,15 +1130,19 @@
       (setq k--top-separator-ov nil))))
 
 (defun k-window-echo-area--map (function &optional buffer)
-  (dolist (frame (frame-list))
-    (dolist (window (window-list frame 'none))
-      (let ((buf (window-buffer window)))
-        (when (and (or (not buffer) (eq (get-buffer buffer) buf))
-                   (buffer-local-value 'k-echo-area-mode buf))
-          (funcall function window
-                   (when-let ((root (window-atom-root window))
-                              (parent (window-child root)))
-                     (and (window-live-p parent) parent))))))))
+  (let ((f (lambda (window)
+             (let ((buf (window-buffer window)))
+               (when (buffer-local-value 'k-echo-area-mode buf)
+                 (funcall function window
+                          (when-let ((root (window-atom-root window))
+                                     (parent (window-child root)))
+                            (and (window-live-p parent) parent))))))))
+    (if buffer
+        (mapc f (get-buffer-window-list buffer 'none))
+      (dolist (frame (frame-list))
+        (mapc f (window-list frame 'none))))))
+
+(set-alist 'window-persistent-parameters 'mode-line-format t)
 
 (defun k-window-echo-area-clear (&optional buffer)
   (save-selected-window
@@ -1163,7 +1176,7 @@
                               (dedicated . t))))
       window)))
 
-(defvar k-message nil)
+(defvar-local k-message nil)
 (defun k-message (format-string &rest args)
   (if (minibufferp (window-buffer))
       (apply #'message format-string args)
@@ -1171,19 +1184,20 @@
         (setq k-message (apply #'format format-string args))
       (setq k-message nil))))
 (defun k-message-display ()
-  (with-current-buffer (get-buffer-create " *echo per window*")
-    (setq-local header-line-format nil
-                tab-line-format nil
-                k-inhibit-tab-line t)
-    (if k-message
-        (progn
-          (setq-local cursor-type nil)
-          (delete-region (point-min) (point-max))
-          (insert k-message)
-          (set-window-parameter
-           (k-window-echo-area-display (current-buffer))
-           'no-other-window t))
-      (k-window-echo-area-clear (current-buffer)))))
+  (let ((message k-message))
+    (with-current-buffer (get-buffer-create " *echo per window*")
+      (setq-local header-line-format nil
+                  tab-line-format nil
+                  k-inhibit-tab-line t)
+      (if message
+          (progn
+            (setq-local cursor-type nil)
+            (delete-region (point-min) (point-max))
+            (insert message)
+            (set-window-parameter
+             (k-window-echo-area-display (current-buffer))
+             'no-other-window t))
+        (k-window-echo-area-clear (current-buffer))))))
 (add-hook 'post-command-hook #'k-message-display)
 (add-hook 'echo-area-clear-hook '(lambda () (k-message nil)))
 (add-hook 'window-configuration-change-hook '(lambda () (k-message nil)))
@@ -1195,6 +1209,7 @@
                                    ("America/Los_Angeles" "California"))))
 
 (use-package all-the-icons
+  :demand t
   :config
   (setq-default all-the-icons-faicon-scale-factor 0.7
                 all-the-icons-default-faicon-adjust 0.35
@@ -1281,14 +1296,12 @@
                 lsp-keymap-prefix "<f2>"))
 
 (use-package lsp-ltex
-  :defer t
   :config
   (setq lsp-ltex-version "15.2.0"
         lsp-ltex-latex-environments '(("mathpar" . "ignore"))
         lsp-ltex-latex-commands '(("\\lstset{}" . "ignore"))))
 
 (use-package tex
-  :defer t
   :straight auctex
   :config
   ;; to use pdfview with auctex
@@ -1331,6 +1344,7 @@
 (defvar-local vertico--buffer-window nil)
 
 (use-package vertico
+  :demand t
   :config
   (setq-default vertico-count 20)
 
@@ -1451,6 +1465,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (vertico-mode))
 
 (use-package vertico-buffer
+  :demand t
   :straight nil
   :after vertico
   :load-path "straight/repos/vertico/extensions/"
@@ -1499,16 +1514,11 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                          (k-window-echo-area-display buf))
                    vertico--buffer-window win)))
            (sym (make-symbol "vertico-buffer--destroy"))
-           (depth (recursion-depth))
-           (now (window-parameter win 'no-other-window))
-           (ndow (window-parameter win 'no-delete-other-windows)))
+           (depth (recursion-depth)))
       (fset sym (lambda ()
-                  (k-window-echo-area-clear buf)
                   (when (= depth (recursion-depth))
+                    (k-window-echo-area-clear buf)
                     (with-selected-window (active-minibuffer-window)
-                      (when (window-live-p win)
-                        (set-window-parameter win 'no-other-window now)
-                        (set-window-parameter win 'no-delete-other-windows ndow))
                       (when vertico-buffer-hide-prompt
                         (set-window-vscroll nil 0))
                       (remove-hook 'minibuffer-exit-hook sym)))))
@@ -1516,9 +1526,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
       ;; The hook will not be called when abnormally exiting the minibuffer
       ;; from another buffer via `keyboard-escape-quit'.
       (add-hook 'minibuffer-exit-hook sym)
-      (set-window-parameter win 'no-other-window t)
-      (set-window-parameter win 'no-delete-other-windows t)
-      (set-window-dedicated-p win t)
       (overlay-put vertico--candidates-ov 'window win)
       (when (and vertico-buffer-hide-prompt vertico--count-ov)
         (overlay-put vertico--count-ov 'window win))
@@ -1532,9 +1539,8 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                                ,@face-remapping-alist)))))
   (vertico-buffer-mode))
 
-;; (pkg-info-version-info 'marginalia)
-;; "20220914.945"
 (use-package marginalia
+  :demand t
   :config
   ;; Automatically give more generous field width
   (setq-default marginalia-field-width 48)
@@ -1562,6 +1568,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 ;; Actual completion system
 (use-package orderless
+  :demand t
   :config
   (setq-default orderless-matching-styles '(orderless-literal orderless-flex orderless-regexp))
   (setq-default completion-styles ;; '(orderless)
@@ -1576,7 +1583,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (marginalia-mode))
 
 (use-package consult
-  :defer nil
   :init
   (setq-default consult-preview-key "<f2>")
   :bind
@@ -1614,7 +1620,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
       (let ((buffer (find-file-noselect filename)))
         (with-current-buffer buffer
           (consult-line))))))
-;(use-package embark-consult)
+(use-package embark-consult)
 
 ;;; Misc key bindings
 
@@ -1722,21 +1728,18 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 (use-package macrostep
   :bind ( :map emacs-lisp-mode-map
-          ("C-c M-e" . macrostep-expand)))
+          ("C-c M-e" . macrostep-expand))
+  :init
+  ;; To fix the outdated naming in (define-minor-mode macrostep-mode ...)
+  ;; TODO: Remove once upstream fix this.
+  (defvaralias 'macrostep-mode-map 'macrostep-mode-keymap))
 
-(use-package paredit
-  :defer nil
-  :hook ( emacs-lisp-mode lisp-mode scheme-mode clojure-mode
-          slime-repl-mode geiser-repl-mode cider-repl-mode
-          slime-mrepl-mode)
+(use-package comment-or-uncomment-sexp
+  :after paredit
   :bind ( :map paredit-mode-map
-          ("C-j")
-          ("RET")
           ("M-;" . comment-or-uncomment-sexp)
-          ("C-M-;" . structured-comment-defun)
-          ("M-c" . paredit-convolute-sexp))
+          ("C-M-;" . structured-comment-defun))
   :config
-
   ;; #+nil structural comment for Common Lisp
   (defmacro advance-save-excursion (&rest body)
     `(let ((marker (point-marker)))
@@ -1782,8 +1785,17 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
           (beginning-of-defun)
           (comment-or-uncomment-sexp))))))
 
+(use-package paredit
+  :hook ( emacs-lisp-mode lisp-mode scheme-mode clojure-mode
+          slime-repl-mode geiser-repl-mode cider-repl-mode
+          slime-mrepl-mode)
+  :bind ( :map paredit-mode-map
+          ("C-j")
+          ("RET")
+          ("M-c" . paredit-convolute-sexp)))
+
 (use-package paxedit
-  :defer nil
+  :after paredit
   :bind ( :map paxedit-mode-map
           ("C-w" . paxedit-kill-1)
           ("M-w" . paxedit-copy-1)
@@ -1813,6 +1825,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (define-advice eval-last-sexp (:around (orig-func &rest args) k)
   (if mark-active (call-interactively #'eval-region)
     (apply orig-func args)))
+
 (use-package slime
   :defer nil
   :bind ( :map slime-mode-map
@@ -1825,6 +1838,9 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
           ("<f2> o" . slime-describe-symbol)
           ("<f2> i" . slime-documentation-lookup))
   :config
+  (let ((async-shell-command-buffer 'new-buffer))
+    (system-packages-ensure "sbcl"))
+
   (define-advice slime-load-contribs
       (:after (&rest args) k)
     (slime-load-file "~/.emacs.d/scripts.lisp"))
@@ -1832,10 +1848,11 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     (if mark-active (call-interactively #'slime-eval-region)
       (apply orig-func args)))
   (setq-default
+   inferior-lisp-program "sbcl"
    slime-lisp-implementations
-   `((sbcl (,inferior-lisp-program "--dynamic-space-size" "4096"))
-     (mega-sbcl (,inferior-lisp-program "--dynamic-space-size" "16384" "--control-stack-size" "2"))
-     (ccl ("/opt/local/bin/ccl64")))
+   `((sbcl ("sbcl" "--dynamic-space-size" "4096"))
+     (mega-sbcl ("sbcl" "--dynamic-space-size" "16384" "--control-stack-size" "2"))
+     (ccl ("ccl64")))
    slime-repl-banner-function #'ignore)
 
   ;; Handy slime commands and key bindings
@@ -1970,7 +1987,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (which-key-mode))
 
 (use-package magit
-  :defer t
   :bind ( "s-m" . magit-status)
   :config
   (defun cloc-magit-root ()
@@ -1981,7 +1997,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 ;;; window/buffer/frame/workspaces movement
 
 (use-package buffer-move
-  :config
+  :init
   ;; Intuitively, this works like windmove but move buffer together with cursor.
   (k-global-set-key (kbd "C-s-p") 'buf-move-up)
   (k-global-set-key (kbd "C-s-n") 'buf-move-down)
@@ -1989,11 +2005,12 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (k-global-set-key (kbd "C-s-l") 'buf-move-left))
 
 (use-package windmove
-  :config
+  :init
   (k-global-set-key (kbd "s-p") 'windmove-up)
   (k-global-set-key (kbd "s-n") 'windmove-down)
   (k-global-set-key (kbd "s-r") 'windmove-right)
   (k-global-set-key (kbd "s-l") 'windmove-left)
+  :config
   ;; Moving between window/buffer/frame/workspaces in 4 directions
   (defun next-workspace (direction)
     (cl-case direction
@@ -2012,13 +2029,11 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
             (fm-next-frame direction))
           (selected-window)))))
 
-(global-set-key (kbd "s-c") nil)
 (use-package winner
-  :defer nil
   :bind ( ("s-c" . winner-undo)
           ("s-C" . winner-redo))
-  :config
-  (winner-mode))
+  :init
+  (add-hook 'after-init-hook 'winner-mode))
 
 (use-package avy
   :config
@@ -2262,7 +2277,6 @@ emms-playlist-mode and query for a playlist to open."
   (setq geiser-mode-start-repl-p t))
 
 (use-package racket-mode
-  :defer t
   :bind ( :map racket-mode-map
           ("M-l" . (lambda ()
                      (interactive)
@@ -2306,7 +2320,6 @@ emms-playlist-mode and query for a playlist to open."
                    (concat "--app=" url))))
 
 (use-package eww
-  :defer t
   :config
   (setq-default browse-url-browser-function 'eww-browse-url)
   (add-hook 'eww-after-render-hook 'k-pad-header-line-after-advice)
@@ -2343,30 +2356,29 @@ emms-playlist-mode and query for a playlist to open."
     (define-key eww-mode-map (kbd "f") 'k-eww-reload-in-chromium)))
 
 (use-package pdf-tools
-  :defer t
   :config
   (setq pdf-view-midnight-invert nil)
   (pdf-tools-install))
 
 (k-theme-switch 'bright)
 
-(when (featurep 'xwidget-internal)
-  (add-to-list 'load-path "~/.emacs.d/lisp/xwwp")
-  (require 'xwwp-full)
-  (define-key xwidget-webkit-mode-map (kbd "o") 'xwwp-ace-toggle)
-  (define-key xwidget-webkit-mode-map (kbd "s-h") 'xwwp-section)
-  (setq-default xwwp-ace-label-style
-                `(("z-index" . "2147483647")
-                  ("color" . ,k-dk-blue)
-                  ("font-family" . "monospace")
-                  ("background-color" . ,"rgba(255,255,255,0.5)")
-                  ("font-size" . "1.5em")
-                  ("padding" . "0.1em")
-                  ("border-width" . "0.1em")
-                  ("border-style" . "solid")))
-  (define-key xwidget-webkit-mode-map (kbd "l") 'xwidget-webkit-back)
-  (define-key xwidget-webkit-mode-map (kbd "r") 'xwidget-webkit-forward)
-  (define-key xwidget-webkit-mode-map (kbd "g") 'xwidget-webkit-reload))
+;; (when (featurep 'xwidget-internal)
+;;   (add-to-list 'load-path "~/.emacs.d/lisp/xwwp")
+;;   (require 'xwwp-full)
+;;   (define-key xwidget-webkit-mode-map (kbd "o") 'xwwp-ace-toggle)
+;;   (define-key xwidget-webkit-mode-map (kbd "s-h") 'xwwp-section)
+;;   (setq-default xwwp-ace-label-style
+;;                 `(("z-index" . "2147483647")
+;;                   ("color" . ,k-dk-blue)
+;;                   ("font-family" . "monospace")
+;;                   ("background-color" . ,"rgba(255,255,255,0.5)")
+;;                   ("font-size" . "1.5em")
+;;                   ("padding" . "0.1em")
+;;                   ("border-width" . "0.1em")
+;;                   ("border-style" . "solid")))
+;;   (define-key xwidget-webkit-mode-map (kbd "l") 'xwidget-webkit-back)
+;;   (define-key xwidget-webkit-mode-map (kbd "r") 'xwidget-webkit-forward)
+;;   (define-key xwidget-webkit-mode-map (kbd "g") 'xwidget-webkit-reload))
 
 (use-package ytel
   :bind ( :map ytel-mode-map
@@ -2423,28 +2435,42 @@ emms-playlist-mode and query for a playlist to open."
   (advice-add 'ytel--draw-buffer :after #'k-pad-header-line-after-advice))
 
 ;;; EXWM
-(when (executable-find "import")
-  (defun k-screenshot ()
-    (interactive)
-    (let ((path (concat "~/Documents/Screenshot-" (format-time-string "%Y-%m-%d,%H:%M:%S") ".png")))
-      (start-process-shell-command
-       "import" nil (concat "import -window root " path))
-      (message (concat "Screenshot saved to " path))))
-  (global-set-key (kbd "<print>") 'k-screenshot))
-(when (executable-find "amixer")
-  (defun k-get-volume ()
-    (let ((output (shell-command-to-string "amixer get Master")))
-      (string-match "\\[\\([0-9]+\\)%\\]" output)
-      (string-to-number (match-string 1 output))))
-  (defun k-set-volume (volume)
-    "Change volume."
-    (interactive (list (read-from-minibuffer
-                        (format "Change volume (current %s%%): "
-                                (k-get-volume))
-                        nil nil t)))
-    (cl-check-type volume number)
-    (unless (= 0 (call-process-shell-command (format "amixer set Master %s%%" volume)))
-      (error "Failed to set volume"))))
+(defun k-screenshot ()
+  "Save a screenshot and copy its path."
+  (interactive)
+  (let ((path (concat (getenv "HOME") "/Documents/Screenshot-" (format-time-string "%Y-%m-%d,%H:%M:%S") ".png")))
+    (cond ((executable-find "screencapture")
+           (call-process "screencapture" nil nil nil path))
+          ((executable-find "import")
+           (call-process "import" nil nil nil "-window" "root" path))
+          (t (error "idk how")))
+    (kill-new path)
+    (message (concat "Screenshot saved to " path))))
+
+(defun k-get-volume ()
+  "Get volume."
+  (cond ((executable-find "amixer")
+         (let ((output (shell-command-to-string "amixer get Master")))
+           (string-match "\\[\\([0-9]+\\)%\\]" output)
+           (string-to-number (match-string 1 output))))
+        ((executable-find "osascript")
+         (string-to-number
+          (shell-command-to-string
+           "osascript -e 'output volume of (get volume settings)'")))))
+(defun k-set-volume (volume)
+  "Change volume."
+  (interactive (list (read-from-minibuffer
+                      (format "Change volume (current %s%%): "
+                              (k-get-volume))
+                      nil nil t)))
+  (cl-check-type volume number)
+  (unless (= 0 (call-process-shell-command
+                (cond ((executable-find "amixer")
+                       (format "amixer set Master %s%%" volume))
+                      ((executable-find "osascript")
+                       (format "osascript -e 'set volume output volume %s'" volume)))))
+    (error "Failed to set volume")))
+
 
 (when (k-exwm-enabled-p)
   (defun k-exwm-update-title ()
@@ -2462,7 +2488,6 @@ emms-playlist-mode and query for a playlist to open."
   (start-process "picom" "*picom*" "picom"))
 
 (use-package org
-  :defer t
   :config
   (require 'tex-mode)
   (modify-syntax-entry ?< "w" org-mode-syntax-table)
@@ -2513,8 +2538,9 @@ emms-playlist-mode and query for a playlist to open."
   (require 'ox-extra)
   (ox-extras-activate '(ignore-headlines)))
 
+(use-package org-variable-pitch)
+
 (use-package org-superstar
-  :defer t
   :config
   (setq-default org-superstar-item-bullet-alist
                 '((?* . ?•)
@@ -2527,7 +2553,6 @@ emms-playlist-mode and query for a playlist to open."
                   ?▷)))
 
 (use-package poly-org
-  :defer t
   :config
   (define-polymode poly-org-mode
     :hostmode 'poly-org-hostmode
@@ -2696,13 +2721,13 @@ emms-playlist-mode and query for a playlist to open."
     (format-time-string (eval my-format t) messy-date)))
 
 (use-package message :straight gnus
-  :defer t
   :config
   (setq-default message-signature "Best,\nQiantan"
-                message-fill-column nil))
+                message-fill-column nil
+                user-full-name "Qiantan Hong"
+                user-mail-address "qthong@stanford.edu"))
 
 (use-package notmuch
-  :defer t
   :bind ( :map notmuch-common-keymap
           ("G" . k-update-notmuch)
           :map notmuch-hello-mode-map
@@ -2925,21 +2950,21 @@ normally have their errors suppressed."
 
 ;;; insecure-lock
 
-(add-to-list 'load-path "~/.emacs.d/lisp/insecure-lock")
-(require 'insecure-lock)
-(defun insecure-lock-hide ()
-  (if insecure-lock-mode
-      (progn
-        (set-frame-parameter nil 'insecure-lock--saved-alpha (frame-parameter nil 'alpha))
-        (set-frame-parameter nil 'alpha 0.0))
-    (set-frame-parameter nil 'alpha (frame-parameter nil 'insecure-lock--saved-alpha))))
-(setq insecure-lock-mode-hook '(insecure-lock-hide insecure-lock-blank-screen insecure-lock-posframe))
+(use-package insecure-lock
+  :config
+  (defun insecure-lock-hide ()
+    (if insecure-lock-mode
+        (progn
+          (set-frame-parameter nil 'insecure-lock--saved-alpha (frame-parameter nil 'alpha))
+          (set-frame-parameter nil 'alpha 0.0))
+      (set-frame-parameter nil 'alpha (frame-parameter nil 'insecure-lock--saved-alpha))))
+  (setq insecure-lock-mode-hook '(insecure-lock-hide insecure-lock-blank-screen insecure-lock-posframe)))
+
 
 ;;; telega
 
 (defvar k-telega-extra-xheight 10)
 (use-package telega
-  :defer t
   :bind ( :map telega-chat-mode-map
           ("<f2>")
           ("C-c C-e" . k-telega-chatbuf-attach-sticker)
@@ -3048,7 +3073,6 @@ normally have their errors suppressed."
     (setq-default enwc-default-backend 'nm)))
 
 (use-package proced
-  :defer t
   :config
   (setq-default proced-auto-update-interval 1
                 proced-format-alist
