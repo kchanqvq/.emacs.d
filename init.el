@@ -1449,6 +1449,7 @@ Format FORMAT-STRING with ARGS."
   ;; (emacs-version)
   ;; "GNU Emacs 28.2 (build 1, x86_64-apple-darwin21.5.0, NS appkit-2113.50 Version 12.4 (Build 21F79))
   ;;  of 2022-09-18"
+
   ;; Patch `read-from-kill-ring' so that it doesn't collapse entries to single line
   (defun read-from-kill-ring (prompt)
     "Read a `kill-ring' entry using completion and minibuffer history.
@@ -3241,6 +3242,122 @@ normally have their errors suppressed."
                 undo-tree-enable-undo-in-region t
                 undo-tree-auto-save-history nil ;; Too fucking slow!
                 undo-tree-visualizer-timestamps t))
+
+;;; Org index generation
+
+(defun k-generate-org-index (output-buffer)
+  (let ((input-buffer (current-buffer)))
+    (cl-flet ((output (&rest args)
+                (with-current-buffer output-buffer
+                  (apply #'insert args)))
+              (link ()
+                (with-current-buffer input-buffer
+                  (save-restriction
+                    (widen)
+                    (format "file:init.el#L%s" (line-number-at-pos))))))
+      (cl-macrolet ((with-output (&rest body)
+                      `(let ((from (point)))
+                         ,@body
+                         (output (buffer-substring-no-properties from (point))))))
+        (save-excursion
+          (goto-char (point-min))
+          (while (< (point) (point-max))
+            (let (sexp-type)
+              (cond ((looking-at ";;;;")
+                     (goto-char (match-end 0))
+                     (cl-fresh-line output-buffer)
+                     (output "**")
+                     (with-output
+                      (end-of-line))
+                     (output "\n"))
+                    ((looking-at ";;;")
+                     (goto-char (match-end 0))
+                     (cl-fresh-line output-buffer)
+                     (output "*")
+                     (with-output
+                      (end-of-line))
+                     (output "\n"))
+                    ((looking-at ";; (")
+                     (while (looking-at ";;")
+                       (forward-comment 1)
+                       (skip-chars-forward "[:space:]")))
+                    ((looking-at ";;")
+                     (goto-char (match-end 0))
+                     (with-output
+                      (end-of-line)))
+                    ((looking-at "(use-package ")
+                     (goto-char (match-end 0))
+                     (let ((name (symbol-name (symbol-at-point)))
+                           (from (line-end-position)))
+                       (up-list)
+                       (backward-char 1)
+                       (setq sexp-type "Package")
+                       (when (> (point) from)
+                         (let ((output-from (with-current-buffer output-buffer (point))))
+                           (save-excursion
+                             (save-restriction
+                               (narrow-to-region from (point))
+                               (k-generate-org-index output-buffer)))
+                           (when (> (with-current-buffer output-buffer (point-max)) output-from)
+                             (with-current-buffer output-buffer
+                               (save-excursion
+                                 ;; fix one missing white space at the
+                                 ;; beginning of package section... do
+                                 ;; I really understand this?
+                                 (goto-char (1- output-from))
+(                                 (cl-fresh-line output-buffer))
+                                 (insert "** Package [[" (link) "][" name "]]")
+                                 (insert "\n")
+                                 (setq sexp-type nil))))))
+                       (if sexp-type
+                           (beginning-of-defun)
+                         (forward-line))))
+                    ((looking-at-p "(defun\\|(defsubst")
+                     (setq sexp-type "Function"))
+                    ((looking-at-p "(\\(cl-\\)?defmacro")
+                     (setq sexp-type "Macro"))
+                    (t (forward-sexp)
+                       (end-of-line)))
+              (when sexp-type
+                (save-excursion
+                  (down-list)
+                  (forward-sexp)
+                  (forward-sexp)
+                  (let ((name (symbol-at-point))
+                        (doc (ignore-errors
+                               (forward-sexp)
+                               (skip-chars-forward "[:space:]\n")
+                               (when (looking-at-p "\"")
+                                 (let ((from (1+ (point))))
+                                   (search-forward ".")
+                                   (buffer-substring-no-properties from (point)))))))
+                    (with-current-buffer output-buffer
+                      (skip-chars-backward "[:space:]\n")
+                      (delete-char (- (point-max) (point))))
+                    (if doc
+                        (progn
+                          (cl-fresh-line output-buffer)
+                          (output "  - " sexp-type " [[" (link) "][" (symbol-name name) "]]: " doc "\n"))
+                      (with-current-buffer output-buffer
+                        (if (save-excursion
+                              (forward-line 0)
+                              (and (looking-at-p (concat "  - " sexp-type))
+                                   (progn
+                                     (end-of-line)
+                                     (not (looking-back "\\." 1)))))
+                            (progn
+                              (insert ", "))
+                          (cl-fresh-line output-buffer)
+                          (insert "  - " sexp-type " "))
+                        (insert "[[" (link) "][" (symbol-name name) "]]" "\n")))))
+                (forward-sexp)
+                (end-of-line)))
+            (let ((linum (line-number-at-pos)))
+              (skip-chars-forward "[:space:]\n")
+              (when (and (> (- (line-number-at-pos) linum) 1)
+                         (with-current-buffer output-buffer (not (looking-back "\n\n" 2))))
+                (cl-fresh-line output-buffer)
+                (output "\n")))))))))
 
 ;;; Finale
 
