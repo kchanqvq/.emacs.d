@@ -162,6 +162,15 @@ Use binary search."
 (load (setq custom-file "~/.emacs.d/custom/custom.el"))
 (add-hook 'after-save-hook 'executable-make-buffer-file-executable-if-script-p)
 
+(use-package vlf
+  :config
+  (setq-default vlf-application 'dont-ask))
+
+(use-package which-key
+  :config
+  (setq-default which-key-idle-delay 0)
+  (which-key-mode))
+
 ;;; ⭐ Mode line
 
 (defun k-pad-mode-line-format (format &optional right-format)
@@ -1325,6 +1334,20 @@ Format FORMAT-STRING with ARGS."
   (show-paren-mode)
   (globalize highlight-parentheses-mode))
 
+(use-package topsy
+  :hook (prog-mode)
+  :config
+  (setq topsy-header-line-format
+        `(:eval (or (funcall topsy-fn)
+                    ,(propertize "── top ──"
+                                 'face 'shadow)))))
+
+(use-package outline
+  :bind ( :map outline-minor-mode-map
+          ("C-<tab>" . outline-toggle-children))
+  :config
+  (setq-default outline-minor-mode-buttons '(("▶" "▼" outline--valid-char-p))))
+
 ;;; Indent and whitespace
 
 (use-package clean-aindent-mode
@@ -1339,39 +1362,13 @@ Format FORMAT-STRING with ARGS."
 (use-package ws-butler
   :hook (prog-mode text-mode))
 
-(use-package comment-dwim-2
-  :bind (("M-;" . comment-dwim-2)))
-
-(use-package outline
-  :bind ( :map outline-minor-mode-map
-          ("C-<tab>" . outline-toggle-children))
-  :config
-  (setq-default outline-minor-mode-buttons '(("▶" "▼" outline--valid-char-p))))
-
-(use-package vlf
-  :config
-  (setq-default vlf-application 'dont-ask))
-
-(use-package topsy
-  :hook (prog-mode)
-  :config
-  (setq topsy-header-line-format
-        `(:eval (or (funcall topsy-fn)
-                    ,(propertize "── top ──"
-                                 'face 'shadow)))))
-
-(use-package crux
-  :bind (( [remap move-beginning-of-line] . crux-move-beginning-of-line)
-         ( [remap kill-line] . crux-smart-kill-line))
-  :config
-  (crux-with-region-or-line kill-region)
-  (crux-with-region-or-line kill-ring-save))
-
 (use-package snap-indent
   :hook
   ( (prog-mode . snap-indent-mode)
     (tex-mode . snap-indent-mode)
     (slime-repl-mode . snap-indent-mode)))
+
+;;; General Programming Utilities
 
 (use-package flycheck
   :bind ( :map flycheck-mode-map
@@ -1394,6 +1391,8 @@ Format FORMAT-STRING with ARGS."
   :init
   (setq-default lsp-headerline-breadcrumb-enable nil
                 lsp-keymap-prefix "<f2>"))
+
+;;; TeX
 
 (use-package lsp-ltex
   :config
@@ -1785,59 +1784,15 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
          ("C-x e" . kmacro-end-or-call-macro)
          ("C-x )" . nil)))
 
-;;; Fast cursor movement (avy)
+(use-package comment-dwim-2
+  :bind (("M-;" . comment-dwim-2)))
 
-(use-package avy
-  :init
-  (defconst hyper-mask (- ?\H-a ?a))
-  (defun hyper-ace ()
-    (interactive)
-    (avy-goto-word-1 (- last-command-event hyper-mask)))
-  (dolist (x (number-sequence ?a ?z))
-    (global-set-key (vector (+ hyper-mask x)) #'hyper-ace))
-  (setq avy-keys (number-sequence ?a ?z))
+(use-package crux
+  :bind (( [remap move-beginning-of-line] . crux-move-beginning-of-line)
+         ( [remap kill-line] . crux-smart-kill-line))
   :config
-  (defun my-avy--regex-candidates (fun regex &optional beg end pred group)
-    (let ((regex (pyim-cregexp-build regex)))
-      (funcall fun regex beg end pred group)))
-  (advice-add 'avy--regex-candidates :around #'my-avy--regex-candidates)
-
-  (put 'avy 'priority 10))
-
-(use-package ace-link
-  :config
-  (ace-link-setup-default "o")
-  (defun ace-link--widget-action (pt)
-    (when (number-or-marker-p pt)
-      (goto-char pt)
-      (let ((button (get-char-property pt 'button)))
-        (when button
-	  (widget-apply-action button)))))
-  (defun ace-link--widget-collect ()
-    "Collect the positions of visible widgets in current buffer."
-    (let (candidates pt)
-      (save-excursion
-        (save-restriction
-          (narrow-to-region
-           (window-start)
-           (window-end))
-          (goto-char (point-min))
-          (setq pt (point))
-          (while (progn (widget-forward 1)
-                        (> (point) pt))
-            (setq pt (point))
-            (push (point) candidates))))
-      (nreverse candidates)))
-  (defun ace-link-widget ()
-    "Open or go to a visible widget."
-    (interactive)
-    (let ((pt (avy-with ace-link-widget
-                (avy-process
-                 (ace-link--widget-collect)
-                 (avy--style-fn avy-style)))))
-      (ace-link--widget-action pt)))
-  (add-to-list 'avy-styles-alist
-               '(ace-link-widget . pre)))
+  (crux-with-region-or-line kill-region)
+  (crux-with-region-or-line kill-ring-save))
 
 ;;; Lisp development
 
@@ -2107,11 +2062,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (add-hook 'slime-mrepl-mode-hook #'slime-company-maybe-enable)
   (add-hook 'slime-mrepl-mode-hook #'slime-autodoc-mode))
 
-(use-package which-key
-  :config
-  (setq-default which-key-idle-delay 0)
-  (which-key-mode))
-
 ;;; Version control
 
 (use-package diff-mode
@@ -2133,6 +2083,63 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     (interactive)
     (k-run-helper-command (concat "cloc " (magit-toplevel)) "*cloc*"))
   (add-hook 'magit-post-stage-hook 'k-generate-org-index--magit-post-stage-hook))
+
+;;; Fast cursor movement
+
+(use-package avy
+  :init
+  (defconst hyper-mask (- ?\H-a ?a))
+  (defun hyper-ace ()
+    (interactive)
+    (avy-goto-word-1 (- last-command-event hyper-mask)))
+  (dolist (x (number-sequence ?a ?z))
+    (global-set-key (vector (+ hyper-mask x)) #'hyper-ace))
+  (setq avy-keys (number-sequence ?a ?z))
+  :config
+  (defun my-avy--regex-candidates (fun regex &optional beg end pred group)
+    (let ((regex (pyim-cregexp-build regex)))
+      (funcall fun regex beg end pred group)))
+  (advice-add 'avy--regex-candidates :around #'my-avy--regex-candidates)
+
+  (put 'avy 'priority 10))
+
+(use-package ace-link
+  :config
+  (ace-link-setup-default "o")
+  (defun ace-link--widget-action (pt)
+    (when (number-or-marker-p pt)
+      (goto-char pt)
+      (let ((button (get-char-property pt 'button)))
+        (when button
+	  (widget-apply-action button)))))
+  (defun ace-link--widget-collect ()
+    "Collect the positions of visible widgets in current buffer."
+    (let (candidates pt)
+      (save-excursion
+        (save-restriction
+          (narrow-to-region
+           (window-start)
+           (window-end))
+          (goto-char (point-min))
+          (setq pt (point))
+          (while (progn (widget-forward 1)
+                        (> (point) pt))
+            (setq pt (point))
+            (push (point) candidates))))
+      (nreverse candidates)))
+  (defun ace-link-widget ()
+    "Open or go to a visible widget."
+    (interactive)
+    (let ((pt (avy-with ace-link-widget
+                (avy-process
+                 (ace-link--widget-collect)
+                 (avy--style-fn avy-style)))))
+      (ace-link--widget-action pt)))
+  (add-to-list 'avy-styles-alist
+               '(ace-link-widget . pre)))
+
+(use-package goto-last-change
+  :bind ("s-e" . goto-last-change))
 
 ;;; window/buffer/frame/workspaces movement
 
@@ -2174,9 +2181,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
           ("s-C" . winner-redo))
   :init
   (add-hook 'after-init-hook 'winner-mode))
-
-(use-package goto-last-change
-  :bind ("s-e" . goto-last-change))
 
 ;;; ⭐ Multi media
 
@@ -3052,42 +3056,13 @@ normally have their errors suppressed."
   (k-run-helper-command "emacs --script '~/.emacs.d/init.el' --eval='(straight-freeze-versions)'"
                         "*straight-freeze-versions*"))
 
-;;; ⭐ Vampire timezone
-;; How much sun-protection-free time left?
+;;; ⭐ Status area
 
-;; This currently melds together with a implementation of status area
-;; at the right bottom corner (using the right side of global echo
-;; area).  It is used for displaying battery, time, and of course,
-;; vampire time zone.  I'd better factor it out at some point.
+;; A status area at the right bottom corner (using the right side of
+;; global echo area).  It is used for displaying battery, time, and
+;; vampire time zone.
 
-(require 'solar)
-
-(setq-default calendar-longitude -122.1697
-              calendar-latitude 37.4275)
-
-(defun time-to-vampire-time (&optional time)
-  (let* ((today-sun (solar-sunrise-sunset (calendar-current-date)))
-         (today-sunrise (* 3600 (caar today-sun)))
-         (today-sunset (* 3600 (caadr today-sun)))
-         (tomorrow-sunrise
-          (* 3600 (caar (solar-sunrise-sunset (calendar-current-date 1)))))
-         (time (pcase (decode-time time)
-                 (`(,s ,m ,h . ,_) (+ s (* 60 (+ m (* 60 h))))))))
-    (cond ((<= time today-sunrise) (list 'sunrise (- today-sunrise time)))
-          ((<= time today-sunset) (list 'sunset (- today-sunset time)))
-          (t (list 'sunrise (+ tomorrow-sunrise (- (* 24 3600) time)))))))
-
-(defun vampire-time-status ()
-  "Status function for vampire time zone."
-  (let ((time (time-to-vampire-time)))
-    (concat (format-seconds "%h:%.2m:%.2s" (cadr time))
-            " "
-            (let ((all-the-icons-default-faicon-adjust 0.25))
-              (if (eq (car time) 'sunrise)
-                  (all-the-icons-faicon "moon-o")
-                (all-the-icons-faicon "sun-o"))))))
-
-(defvar k-status-functions '(vampire-time-status k-time-status))
+(defvar k-status-functions '(k-time-status))
 
 (defun k-time-status ()
   "Status function for current time."
@@ -3116,7 +3091,7 @@ normally have their errors suppressed."
 (when (executable-find "acpi")
   (add-to-list 'k-status-functions 'k-battery-status))
 
-(defun vampire-time-update ()
+(defun k-status-update ()
   "Update status area."
   (let* ((msg (mapconcat #'funcall k-status-functions "  "))
          (width (string-width msg))
@@ -3135,21 +3110,54 @@ normally have their errors suppressed."
     ;;   (posframe-show buffer :poshandler 'posframe-poshandler-frame-center
     ;;                  :border-width 1))
     ))
-(add-hook 'post-command-hook 'vampire-time-update)
+(add-hook 'post-command-hook 'k-status-update)
 
-(defvar vampire-time-timer (run-at-time t 1 'vampire-time-update))
+(defvar k-status-timer (run-at-time t 1 'k-status-update))
 
-(defun vampire-time-screensaver ()
-  (if insecure-lock-mode
-      (progn
-        (get-buffer-create " *Vampire Time Screensaver*")
-        (vampire-time-update))
-    (posframe-delete " *Vampire Time Screensaver*")))
+;;; Vampire timezone
+;; How much sun-protection-free time left?
+
+(require 'solar)
+
+(setq-default calendar-longitude -122.1697
+              calendar-latitude 37.4275)
+
+(defun time-to-vampire-time (&optional time)
+  (let* ((today-sun (solar-sunrise-sunset (calendar-current-date)))
+         (today-sunrise (* 3600 (caar today-sun)))
+         (today-sunset (* 3600 (caadr today-sun)))
+         (tomorrow-sunrise
+          (* 3600 (caar (solar-sunrise-sunset (calendar-current-date 1)))))
+         (time (pcase (decode-time time)
+                 (`(,s ,m ,h . ,_) (+ s (* 60 (+ m (* 60 h))))))))
+    (cond ((<= time today-sunrise) (list 'sunrise (- today-sunrise time)))
+          ((<= time today-sunset) (list 'sunset (- today-sunset time)))
+          (t (list 'sunrise (+ tomorrow-sunrise (- (* 24 3600) time)))))))
+
+(defun vampire-time-status ()
+  "Status function for vampire time zone."
+  (let ((time (time-to-vampire-time)))
+    (concat (format-seconds "%h:%.2m:%.2s" (cadr time))
+            " "
+            (let ((all-the-icons-default-faicon-adjust 0.25))
+              (if (eq (car time) 'sunrise)
+                  (all-the-icons-faicon "moon-o")
+                (all-the-icons-faicon "sun-o"))))))
+
+(add-to-list 'k-status-functions 'vampire-time-status)
+
+;; (defun vampire-time-screensaver ()
+;;   (if insecure-lock-mode
+;;       (progn
+;;         (get-buffer-create " *Vampire Time Screensaver*")
+;;         (k-status-update))
+;;     (posframe-delete " *Vampire Time Screensaver*")))
 
 ;;; telega.el
 ;; A heavily modified telega.el to tweak its appearance to my liking.
 
 (defvar k-telega-extra-xheight 10)
+
 (use-package telega
   :bind ( :map telega-chat-mode-map
           ("<f2>")
@@ -3301,7 +3309,7 @@ normally have their errors suppressed."
 (defun k-generate-org-index (output-buffer source-filename)
   "Read Emacs Lisp from current buffer and write org index to OUTPUT-BUFFER.
 SOURCE-FILENAME is used for generate relative link with line numbers.
-This reads starting from the point in current buffer and write the the point
+Processing starts from the point in current buffer and write to the point
 in OUTPUT-BUFFER. Both points are advanced during processing."
   (let ((input-buffer (current-buffer)))
     (cl-flet ((output (&rest args)
