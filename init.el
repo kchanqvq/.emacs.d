@@ -561,6 +561,27 @@ below window at the bottom (above echo area)."
 (deftheme k)
 
 ;;;; Font Inventory
+
+(defun k-set-fonts (scripts spec)
+  (dolist (script scripts)
+    (set-fontset-font t script nil)
+    (if (listp spec)
+        (dolist (s spec)
+          (set-fontset-font t script s nil t))
+      (set-fontset-font t script spec))))
+(k-set-fonts '(han kana cjk-misc)
+             (font-spec :family "PingFang SC"))
+;; (k-set-fonts '(cyrillic phonetic)
+;;   (font-spec :family "Noto Sans" :size 18))
+;; (k-set-fonts  '(hebrew)
+;;               (font-spec :family "Arial Hebrew" :size 16))
+(k-set-fonts '(emoji symbol)
+             (list (font-spec :family "Hiragino Sans" :size 16)
+                   (font-spec :family "Noto Emoji" :size 16)
+                   (cond ((member "Apple Color Emoji" (font-family-list))
+                          (font-spec :family "Apple Color Emoji" :size 16))
+                         (t (font-spec :family "Noto Color Emoji")))))
+
 ;; Tweek fonts to  match `window-text-pixel-size'
 (defvar k-light-monospace "Source Code Pro-20:weight=light")
 (defvar k-monospace "Source Code Pro")
@@ -1140,6 +1161,12 @@ DARK-P specifies whether to generate a dark or light theme."
   (setq ns-use-proxy-icon nil)
   (setq ns-use-native-fullscreen nil)))
 
+(tool-bar-mode -1)
+(unless (eq window-system 'ns)
+  (menu-bar-mode -1))
+(scroll-bar-mode -1)
+(setq-default visual-line-fringe-indicators '(left-curly-arrow right-curly-arrow))
+
 (set-alist 'default-frame-alist 'undecorated t)
 (set-alist 'default-frame-alist 'alpha 100)
 
@@ -1301,7 +1328,7 @@ Format FORMAT-STRING with ARGS."
 ;;; Time
 
 (use-package time
-  :config
+  :init
   (setq-default world-clock-list '(("BJT-8" "Beijing")
                                    ("America/Los_Angeles" "California"))))
 
@@ -1778,7 +1805,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (define-key indent-rigidly-map (kbd "M-b") 'indent-rigidly-left-to-tab-stop)
 (define-key indent-rigidly-map (kbd "M-f") 'indent-rigidly-right-to-tab-stop)
 
-;; More efficient bindings for keyboard macro
+;;;; More efficient bindings for keyboard macro
 (use-package kmacro
   :bind (("C-x (" . kmacro-start-macro-or-insert-counter)
          ("C-x e" . kmacro-end-or-call-macro)
@@ -1793,6 +1820,20 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   :config
   (crux-with-region-or-line kill-region)
   (crux-with-region-or-line kill-ring-save))
+
+;;;; Disable input method (option+space) hot key on macOS
+
+(defun k-ns-toggle-input-method-shortcut (enable)
+  (call-process-shell-command
+   (format "/usr/libexec/PlistBuddy -c \"Set :AppleSymbolicHotKeys:60:enabled %s\" ~/Library/Preferences/com.apple.symbolichotkeys.plist"
+           (if enable "true" "false")))
+  (call-process-shell-command
+   "/System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings -u"))
+
+(defun k-ns-focus-change-function ()
+  (k-ns-toggle-input-method-shortcut (not (frame-focus-state))))
+
+(add-function :after after-focus-change-function #'k-ns-focus-change-function)
 
 ;;; Lisp development
 
@@ -2977,10 +3018,9 @@ emms-playlist-mode and query for a playlist to open."
 
 (use-package pyim
   :autoload pyim-cregexp-build
+  :init (setq-default default-input-method 'pyim)
   :config
   (setq-default pyim-punctuation-translate-p '(auto no yes))
-  (set-input-method 'pyim)
-  (deactivate-input-method)
   (defun k-pyim-probe ()
     (or buffer-read-only
         (get-text-property (point) 'read-only)))
