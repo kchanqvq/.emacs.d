@@ -249,7 +249,7 @@ Tab lines are not added to windows at the top and windows whose
 buffer has non-nill `k-inhibit-tab-line'.
 
 This differs from bottom dividers because it does not add space
-to below window at the bottom (above echo area)."
+below window at the bottom (above echo area)."
   (dolist (w (window-list frame))
     (with-current-buffer (window-buffer w)
       (unless k-inhibit-tab-line

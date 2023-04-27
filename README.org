@@ -126,7 +126,7 @@ fun!
     buffer has non-nill `k-inhibit-tab-line'.
 
     This differs from bottom dividers because it does not add space
-    to below window at the bottom (above echo area).
+    below window at the bottom (above echo area).
   - Package [[file:init.el#L264][package]]
 
 * [[file:init.el#L266][In buffer completion (company)]]
