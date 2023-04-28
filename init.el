@@ -48,8 +48,7 @@
          (lambda () (,mode)))
        (,%global-mode-symbol))))
 
-(defun k-exwm-enabled-p ()
-  (member 'exwm--server-stop kill-emacs-hook))
+(defvar k-exwm-enabled-p nil)
 
 (defun k-guix-p ()
   (executable-find "guix"))
@@ -93,7 +92,7 @@ If SILENT is non-nil, do not display the NAME buffer."
 
 (defun k-global-set-key (key command)
   "Bind KEY to COMMAND, also works in EXWM windows."
-  (when (k-exwm-enabled-p)
+  (when k-exwm-enabled-p
     (define-key exwm-mode-map key command))
   (global-set-key key command))
 
@@ -1768,6 +1767,24 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 (use-package embark-consult)
 
+;;; EXWM
+
+(use-package exwm
+  :if k-exwm-enabled-p
+  :demand t
+  :config
+  (setq exwm-randr-workspace-output-plist '(0 "eDP-1" 1 "HDMI-1"))
+
+  (defun k-exwm-update-title ()
+    (exwm-workspace-rename-buffer (concat exwm-class-name ": " exwm-title)))
+  (add-hook 'exwm-update-title-hook 'k-exwm-update-title)
+
+  (require 'exwm-randr)
+  (exwm-randr-enable)
+  (exwm-enable)
+
+  (start-process "picom" "*picom*" "picom"))
+
 ;;; Misc key bindings
 
 (define-key key-translation-map (kbd "<f1>") (kbd "C-h"))
@@ -1792,7 +1809,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (k-global-set-key (kbd "s-g") 'eww-new-buffer)
 (k-global-set-key (kbd "s-a") 'k-emms)
 
-(when (k-exwm-enabled-p)
+(when k-exwm-enabled-p
   (setq exwm-input-global-keys
         `((,(kbd "s-<escape>") . exwm-reset)))
   (setq exwm-input-simulation-keys
@@ -2217,7 +2234,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     (cl-case direction
       (left (exwm-workspace-switch (1- exwm-workspace-current-index)))
       (right (exwm-workspace-switch (1+ exwm-workspace-current-index)))))
-  (when (not (k-exwm-enabled-p))
+  (when (not k-exwm-enabled-p)
       (require 'framemove))
 
   (define-advice windmove-find-other-window
@@ -2225,7 +2242,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     "If there is an error, try framemove in that direction."
     (or (apply orig-func direction args)
         (progn
-          (if (k-exwm-enabled-p)
+          (if k-exwm-enabled-p
               (next-workspace direction)
             (fm-next-frame direction))
           (selected-window)))))
@@ -2401,7 +2418,7 @@ emms-playlist-mode and query for a playlist to open."
   (add-hook 'emms-player-paused-hook 'k-emms-bpm-cursor-stop-hook)
   (add-hook 'emms-player-stopped-hook 'k-emms-bpm-cursor-stop-hook)
 
-  (when (k-exwm-enabled-p)
+  (when k-exwm-enabled-p
     (defun k-exwm-update-class ()
       (pcase exwm-class-name
         ("mpv"
@@ -2569,7 +2586,7 @@ emms-playlist-mode and query for a playlist to open."
 
 (setq-default browse-url-browser-function 'eww-browse-url)
 
-(when (k-exwm-enabled-p)
+(when k-exwm-enabled-p
   (setq-default browse-url-secondary-browser-function 'k-browse-url-chromium)
   (defun k-browse-url-chromium (url &rest args)
     (start-process "chromium" " *chromium*" "chromium"
@@ -2607,7 +2624,7 @@ emms-playlist-mode and query for a playlist to open."
         (eww url))))
   (define-key eww-mode-map (kbd "G") 'eww-new-buffer)
 
-  (when (k-exwm-enabled-p)
+  (when k-exwm-enabled-p
     (defun k-eww-reload-in-chromium ()
       (interactive)
       (k-browse-url-chromium (plist-get eww-data :url)))
@@ -2640,7 +2657,7 @@ emms-playlist-mode and query for a playlist to open."
 ;;   (define-key xwidget-webkit-mode-map (kbd "r") 'xwidget-webkit-forward)
 ;;   (define-key xwidget-webkit-mode-map (kbd "g") 'xwidget-webkit-reload))
 
-;;; ⭐ System utils and EXWM
+;;; ⭐ System utils
 
 (defun k-screenshot ()
   "Save a screenshot and copy its path."
@@ -2678,22 +2695,6 @@ emms-playlist-mode and query for a playlist to open."
                       ((executable-find "osascript")
                        (format "osascript -e 'set volume output volume %s'" volume)))))
     (error "Failed to set volume")))
-
-
-(when (k-exwm-enabled-p)
-  (defun k-exwm-update-title ()
-    (exwm-workspace-rename-buffer (concat exwm-class-name ": " exwm-title)))
-  (add-hook 'exwm-update-title-hook 'k-exwm-update-title))
-
-(when (executable-find "xrandr")
-  (defun k-auto-xrandr ()
-    (call-process "xrandr" nil nil nil "--auto"))
-  (add-hook 'exwm-randr-screen-change-hook 'k-auto-xrandr)
-  (when (k-exwm-enabled-p)
-    (k-auto-xrandr)))
-
-(when (k-exwm-enabled-p)
-  (start-process "picom" "*picom*" "picom"))
 
 (use-package sudo-edit
   :init
@@ -3333,10 +3334,10 @@ normally have their errors suppressed."
 
   (telega-autoplay-mode))
 
-(when (k-exwm-enabled-p)
-  (use-package enwc
-    :config
-    (setq-default enwc-default-backend 'nm)))
+(use-package enwc
+  :if k-exwm-enabled-p
+  :config
+  (setq-default enwc-default-backend 'nm))
 
 (use-package proced
   :config
