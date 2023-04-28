@@ -51,6 +51,15 @@
 (defun k-exwm-enabled-p ()
   (member 'exwm--server-stop kill-emacs-hook))
 
+(defun k-guix-p ()
+  (executable-find "guix"))
+
+(defmacro k-use-guix-maybe (package)
+  `(if (k-guix-p)
+       (progn
+         (use-package ,package :straight nil))
+     (straight-use-package ',package)))
+
 (defun delete-from-list (list-var element)
   (set list-var (delete element (when (boundp list-var) (symbol-value list-var)))))
 
@@ -166,10 +175,10 @@ Use binary search."
   :config
   (setq-default vlf-application 'dont-ask))
 
-(use-package which-key
-  :config
-  (setq-default which-key-idle-delay 0)
-  (which-key-mode))
+;; (use-package which-key
+;;   :config
+;;   (setq-default which-key-idle-delay 0)
+;;   (which-key-mode))
 
 ;;; ⭐ Mode line
 
@@ -540,6 +549,7 @@ below window at the bottom (above echo area)."
   (setq-default stripes-unit 1 stripes-overlay-priority 0))
 
 (use-package hl-line
+  :demand t
   :config
   (setq-default hl-line-overlay-priority 5)
   ;; Patch `hl-line-make-overlay' so that front advance is T
@@ -1740,11 +1750,13 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     (lambda ()
       (interactive)
       (embark--act 'k-grep-in (car (embark--targets)) embark-quit-after-action))))
+  :init
+  (setq-default prefix-help-command #'embark-prefix-help-command)
   :config
   (require 'embark)
-  (setq embark-prompter #'embark-completing-read-prompter)
+  (setq embark-prompter #'embark-keymap-prompter)
   (setq embark-indicators
-        '( embark--vertico-indicator embark-minimal-indicator
+        '( embark--vertico-indicator embark-mixed-indicator
            embark-highlight-indicator embark-isearch-highlight-indicator))
   (defun k-grep-in (filename)
     "Grep in FILENAME."
@@ -2145,6 +2157,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (put 'avy 'priority 10))
 
 (use-package ace-link
+  :demand t
   :config
   (ace-link-setup-default "o")
   (defun ace-link--widget-action (pt)
@@ -2523,12 +2536,10 @@ emms-playlist-mode and query for a playlist to open."
 
 ;;; Terminal (vterm)
 
-(use-package multi-vterm
-  :bind
-  ( ("s-x" . multi-vterm-next)
-    ("s-X" . multi-vterm)))
+(k-use-guix-maybe vterm)
 
 (use-package vterm
+  :straight nil
   :bind ( :map vterm-mode-map
           ("C-c C-t" . nil)
           ("C-c C-j" . vterm-copy-mode)
@@ -2549,6 +2560,11 @@ emms-playlist-mode and query for a playlist to open."
 
   (setq vterm-max-scrollback 1000000))
 
+(use-package multi-vterm
+  :bind
+  ( ("s-x" . multi-vterm-next)
+    ("s-X" . multi-vterm)))
+
 ;;; Web browsing
 
 (setq-default browse-url-browser-function 'eww-browse-url)
@@ -2560,8 +2576,10 @@ emms-playlist-mode and query for a playlist to open."
                    (concat "--app=" url))))
 
 (use-package eww
+  :commands eww-new-buffer
   :config
-  (setq-default browse-url-browser-function 'eww-browse-url)
+  (setq-default browse-url-browser-function 'eww-browse-url
+                eww-search-prefix "https://www.google.com/search?q=")
   (add-hook 'eww-after-render-hook 'k-pad-header-line-after-advice)
   (defvar k-eww-history (make-hash-table :test 'equal)
     "Global history for eww. A EQUAL hash that maps title strings to URL.")
@@ -2595,10 +2613,14 @@ emms-playlist-mode and query for a playlist to open."
       (k-browse-url-chromium (plist-get eww-data :url)))
     (define-key eww-mode-map (kbd "f") 'k-eww-reload-in-chromium)))
 
+(k-use-guix-maybe pdf-tools)
+
 (use-package pdf-tools
+  :straight nil
+  :demand t
   :config
   (setq pdf-view-midnight-invert nil)
-  (pdf-tools-install))
+  (pdf-loader-install))
 
 ;; (when (featurep 'xwidget-internal)
 ;;   (add-to-list 'load-path "~/.emacs.d/lisp/xwwp")
@@ -3196,9 +3218,12 @@ normally have their errors suppressed."
 ;;; telega.el
 ;; A heavily modified telega.el to tweak its appearance to my liking.
 
+(k-use-guix-maybe telega)
+
 (defvar k-telega-extra-xheight 10)
 
 (use-package telega
+  :straight nil
   :bind ( :map telega-chat-mode-map
           ("<f2>")
           ("C-c C-e" . k-telega-chatbuf-attach-sticker)
