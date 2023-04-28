@@ -2072,7 +2072,8 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   :bind ( :map slime-mode-map
           ("s-x" . slime-repl-sync)
           :map slime-repl-mode-map
-          ("M-r" . nil)
+          ("M-r")
+          ("DEL")
           ("C-c C-s" . consult-history)
           ("C-c C-r" . consult-history))
   :config
