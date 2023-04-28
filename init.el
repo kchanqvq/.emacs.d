@@ -1867,11 +1867,14 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 ;;; Lisp development
 
 (use-package emacs
-  :bind ( :map emacs-lisp-mode-map
+  :bind ( :map lisp-mode-shared-map
           ("C-c C-p" . eval-print-last-sexp)
+          ("C-c C-r" . eval-region)
+          ("C-c C-l" . load-file)
+          :map emacs-lisp-mode-map
+          ("C-c C-k" . emacs-lisp-byte-compile-and-load)
           :map lisp-interaction-mode-map
-          ("C-j")
-          ("C-c C-p" . eval-print-last-sexp))
+          ("C-j"))
   :config
   (setq-default eval-expression-print-level nil
                 eval-expression-print-length nil))
@@ -1982,11 +1985,11 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
           ("C-M-g" . slime-undefine)
           ("C-c C-s")
           :map slime-editing-map
-          ("C-c C-r")
           ("<f2> v" . slime-inspect)
           ("<f2> c" . slime-inspect-presentation-at-point)
           ("<f2> o" . slime-describe-symbol)
-          ("<f2> i" . slime-documentation-lookup))
+          ("<f2> i" . slime-documentation-lookup)
+          ("C-c C-p" . slime-eval-print-last-expression))
   :autoload ensure-slime
   :init (add-hook 'emacs-startup-hook 'ensure-slime)
   :config
@@ -2077,7 +2080,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
           ("C-c C-s" . consult-history)
           ("C-c C-r" . consult-history))
   :config
-  (set-alist 'consult-mode-histories 'slime-repl-mode 'slime-repl-input-history)
+  (set-alist 'consult-mode-histories 'slime-repl-mode '(slime-repl-input-history))
 
   (defun slime-repl-sync ()
     "Switch to Slime REPL and synchronize package/directory."
