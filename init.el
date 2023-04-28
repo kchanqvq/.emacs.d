@@ -56,7 +56,7 @@
 (defmacro k-use-guix-maybe (package)
   `(if (k-guix-p)
        (progn
-         (use-package ,package :straight nil))
+         (use-package ,package :straight nil :demand t))
      (straight-use-package ',package)))
 
 (defun delete-from-list (list-var element)
@@ -2568,7 +2568,7 @@ emms-playlist-mode and query for a playlist to open."
   :config
   (add-hook 'racket-mode-hook 'geiser-mode))
 
-;;; Terminal (vterm)
+;; Terminal (vterm)
 
 (k-use-guix-maybe vterm)
 
@@ -2580,14 +2580,8 @@ emms-playlist-mode and query for a playlist to open."
           ("C-c M-o" . vterm-clear)
           ("C-q" . vterm-send-next-key)
           ("C-d" . (lambda () (interactive) (vterm-send-key "d" nil nil t)))
-          ("s-x" . multi-vterm)
-          ("s-f" . multi-vterm-next)
-          ("s-b" . multi-vterm-prev)
           :map vterm-copy-mode-map
-          ("C-c C-k" . (lambda () (interactive) (vterm-copy-mode -1)))
-          ("s-x" . multi-vterm)
-          ("s-f" . multi-vterm-next)
-          ("s-b" . multi-vterm-prev))
+          ("C-c C-k" . (lambda () (interactive) (vterm-copy-mode -1))))
   :config
   ;; Ad-hoc workaround: interaction with wide fringe/padding
   (defun vterm--get-margin-width () 1)
@@ -2595,11 +2589,20 @@ emms-playlist-mode and query for a playlist to open."
   (setq vterm-max-scrollback 1000000))
 
 (use-package multi-vterm
+  :after vterm
   :bind
   ( ("s-x" . multi-vterm-next)
-    ("s-X" . multi-vterm)))
+    ("s-X" . multi-vterm)
+    :map vterm-mode-map
+    ("s-x" . multi-vterm)
+    ("s-f" . multi-vterm-next)
+    ("s-b" . multi-vterm-prev)
+    :map vterm-copy-mode-map
+    ("s-x" . multi-vterm)
+    ("s-f" . multi-vterm-next)
+    ("s-b" . multi-vterm-prev)))
 
-;;; Web browsing
+;; Web browsing
 
 (setq-default browse-url-browser-function 'eww-browse-url)
 
@@ -2655,6 +2658,12 @@ emms-playlist-mode and query for a playlist to open."
   :config
   (setq pdf-view-midnight-invert nil)
   (pdf-loader-install))
+
+(use-package image-mode
+  :straight (:type built-in)
+  :bind ( :map image-mode-map
+          ("+" . image-increase-size)
+          ("-" . image-decrease-size)))
 
 ;; (when (featurep 'xwidget-internal)
 ;;   (add-to-list 'load-path "~/.emacs.d/lisp/xwwp")
