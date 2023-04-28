@@ -174,10 +174,11 @@ Use binary search."
   :config
   (setq-default vlf-application 'dont-ask))
 
-;; (use-package which-key
-;;   :config
-;;   (setq-default which-key-idle-delay 0)
-;;   (which-key-mode))
+(use-package which-key
+  :config
+  (setq-default which-key-idle-delay 0
+                which-key-use-C-h-commands nil)
+  (which-key-mode))
 
 ;;; ⭐ Mode line
 
@@ -2138,6 +2139,10 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 ;;; Version control
 
+(use-package vc-hooks :straight (:type built-in)
+  :config
+  (setq-default vc-follow-symlinks t))
+
 (use-package diff-mode
   :config
   ;; show whitespace in diff-mode
@@ -2157,6 +2162,14 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     (interactive)
     (k-run-helper-command (concat "cloc " (magit-toplevel)) "*cloc*"))
   (add-hook 'magit-post-stage-hook 'k-generate-org-index--magit-post-stage-hook))
+
+(use-package smerge
+  :straight (:type built-in)
+  :bind ( :map smerge-mode-map
+          ("M-n" . smerge-next)
+          ("M-p" . smerge-prev)
+          ("C-c")
+          ("C-c C-c" . smerge-keep-current)))
 
 ;;; Fast cursor movement
 
@@ -2264,11 +2277,11 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   :bind
   ( :map emms-playlist-mode-map
     ("p" . emms-pause)
-    ("n" . l)
+    ("n")
     ("M-p" . emms-previous)
     ("M-n" . emms-next)
-    ("C-M-p" . emms-playlist-mode-previous)
-    ("C-M-n" . emms-playlist-mode-next)
+    ("s-f" . emms-playlist-mode-previous)
+    ("s-b" . emms-playlist-mode-next)
     ([remap save-buffer] . emms-playlist-save))
   :config
   (require 'emms-setup)
