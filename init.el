@@ -3433,7 +3433,8 @@ in OUTPUT-BUFFER. Both points are advanced during processing."
              ((looking-at "(use-package ")
               (goto-char (match-end 0))
               (let ((name (symbol-name (symbol-at-point)))
-                    (from (line-end-position)))
+                    (from (line-end-position))
+                    (link (link)))
                 (up-list)
                 (backward-char 1)
                 (setq sexp-type "Package")
@@ -3453,7 +3454,7 @@ in OUTPUT-BUFFER. Both points are advanced during processing."
                         (save-excursion
                           (goto-char output-from)
                           (cl-fresh-line output-buffer)
-                          (insert "** Package [[" (link) "][" name "]]")
+                          (insert "** Package [[" link "][" name "]]")
                           (insert "\n")
                           (setq sexp-type nil))))))
                 (if sexp-type
@@ -3471,48 +3472,49 @@ in OUTPUT-BUFFER. Both points are advanced during processing."
                 (end-of-line)))
             ;; Top-level-definition processing.
             (when sexp-type
-              (save-excursion
-                (down-list)
-                (forward-sexp)
-                (forward-sexp)
-                (let ((name (symbol-at-point))
-                      (doc (ignore-errors
-                             (forward-sexp)
-                             (skip-chars-forward "[:space:]\n")
-                             (when (looking-at-p "\"")
-                               (let ((from (1+ (point))))
-                                 (forward-sexp)
-                                 (buffer-substring-no-properties from (1- (point))))))))
-                  ;; Add indentation
-                  (when doc
-                    (setq doc (s-join "\n    " (s-lines doc))))
-                  ;; Remove trailing whitespace first. We'll build
-                  ;; it later.
-                  (with-current-buffer output-buffer
-                    (skip-chars-backward "[:space:]\n")
-                    (delete-char (- (point-max) (point))))
-                  (if doc
-                      ;; If `doc' is non-nil, we always make a new
-                      ;; list item on its own line
-                      (progn
-                        (cl-fresh-line output-buffer)
-                        (output "  - " sexp-type " [[" (link) "][" (symbol-name name) "]]: " doc "\n"))
-                    ;; If `doc' is nil, see if we have an item with
-                    ;; the same `sexp-type' immediately preceding
-                    ;; us. If so, amalgamate with the preceding list
-                    ;; item.
+              (let ((link (link)))
+                (save-excursion
+                  (down-list)
+                  (forward-sexp)
+                  (forward-sexp)
+                  (let ((name (symbol-at-point))
+                        (doc (ignore-errors
+                               (forward-sexp)
+                               (skip-chars-forward "[:space:]\n")
+                               (when (looking-at-p "\"")
+                                 (let ((from (1+ (point))))
+                                   (forward-sexp)
+                                   (buffer-substring-no-properties from (1- (point))))))))
+                    ;; Add indentation
+                    (when doc
+                      (setq doc (s-join "\n    " (s-lines doc))))
+                    ;; Remove trailing whitespace first. We'll build
+                    ;; it later.
                     (with-current-buffer output-buffer
-                      (if (save-excursion
-                            (forward-line 0)
-                            (and (looking-at-p (concat "  - " sexp-type))
-                                 (progn
-                                   (end-of-line)
-                                   (not (looking-back "\\." 1)))))
-                          (progn
-                            (insert ", "))
-                        (cl-fresh-line output-buffer)
-                        (insert "  - " sexp-type " "))
-                      (insert "[[" (link) "][" (symbol-name name) "]]" "\n")))))
+                      (skip-chars-backward "[:space:]\n")
+                      (delete-char (- (point-max) (point))))
+                    (if doc
+                        ;; If `doc' is non-nil, we always make a new
+                        ;; list item on its own line
+                        (progn
+                          (cl-fresh-line output-buffer)
+                          (output "  - " sexp-type " [[" link "][" (symbol-name name) "]]: " doc "\n"))
+                      ;; If `doc' is nil, see if we have an item with
+                      ;; the same `sexp-type' immediately preceding
+                      ;; us. If so, amalgamate with the preceding list
+                      ;; item.
+                      (with-current-buffer output-buffer
+                        (if (save-excursion
+                              (forward-line 0)
+                              (and (looking-at-p (concat "  - " sexp-type))
+                                   (progn
+                                     (end-of-line)
+                                     (not (looking-back "\\." 1)))))
+                            (progn
+                              (insert ", "))
+                          (cl-fresh-line output-buffer)
+                          (insert "  - " sexp-type " "))
+                        (insert "[[" link "][" (symbol-name name) "]]" "\n"))))))
               (forward-sexp)
               (end-of-line)))
           ;; If we have empty lines in the source file, also ensure
