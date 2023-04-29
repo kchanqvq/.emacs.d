@@ -175,10 +175,19 @@ Use binary search."
   (setq-default vlf-application 'dont-ask))
 
 (use-package which-key
+  :hook emacs-startup
   :config
   (setq-default which-key-idle-delay 0
                 which-key-use-C-h-commands nil)
-  (which-key-mode))
+  ;; Make `which-key' popup use k-echo-area
+  (setq-default which-key-popup-type 'custom
+                which-key-custom-show-popup-function
+                '(lambda (dim)
+                   (k-echo-area-display (selected-window) which-key--buffer))
+                which-key-custom-hide-popup-function
+                '(lambda () (k-echo-area-clear (selected-window)))
+                which-key-custom-popup-max-dimensions-function
+                '(lambda (w) (cons 20 w))))
 
 ;;; ⭐ Mode line
 
@@ -214,26 +223,28 @@ edge of the mode line align with left and right fringe."
 
 (add-hook 'window-state-change-hook 'k-set-selected-window)
 
+(defvar-local k-mode-line-format-left
+    '(""
+      (:propertize "%b" face mode-line-buffer-id)
+      " \t"
+      mode-line-misc-info))
+
+(defvar-local k-mode-line-format-right
+    '(" "
+      current-input-method-title " "
+      mode-name mode-line-process
+      "  "
+      (:eval (if (k-mode-line-selected-p) #("%c" 0 2 (face mode-line-emphasis))
+               "%c"))
+      (#(" %l/" 0 3 (face mode-line-highlight))
+       (:propertize (:eval (number-to-string (line-number-at-pos (point-max))))
+                    face bold))))
+
 (setq-default mode-line-misc-info
               '((slime-mode (:eval (slime-mode-line)))
                 (:eval (if (eq major-mode 'emms-playlist-mode) (k-emms-mode-line) "")))
               mode-line-format
-              `(:eval
-                (k-pad-mode-line-format
-                 '(""
-                   (:propertize "%b" face mode-line-buffer-id)
-                   " \t"
-
-                   mode-line-misc-info)
-                 '(" "
-                   current-input-method-title " "
-                   mode-name mode-line-process
-                   "  "
-                   (:eval (if (k-mode-line-selected-p) #("%c" 0 2 (face mode-line-emphasis))
-                            "%c"))
-                   (#(" %l/" 0 3 (face mode-line-highlight))
-                    (:propertize (:eval (number-to-string (line-number-at-pos (point-max))))
-                                 face bold)))))
+              `(:eval (k-pad-mode-line-format k-mode-line-format-left k-mode-line-format-right))
               tab-line-format nil)
 
 (defvar-local k-pad-last-header-line-format nil)
@@ -1643,7 +1654,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     (apply orig-func message args))
   (advice-add 'minibuffer-message :around #'k-minibuffer-message-advice)
 
-  ;; Make `vertico-buffer' use `k-echo-area'
+  ;; Make `vertico-buffer' use k-echo-area
   (cl-defmethod vertico--setup :after (&context (vertico-buffer-mode (eql t)))
     "Setup buffer display."
     (setq k-message nil)
@@ -1791,6 +1802,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (define-key key-translation-map (kbd "<f1>") (kbd "C-h"))
 (global-set-key "c" 'describe-char)
 (global-set-key "a" 'describe-face)
+(global-set-key "M" 'describe-keymap)
 (global-set-key [f2] nil)
 
 (global-set-key (kbd "s-w") 'save-buffer)
@@ -1950,26 +1962,31 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 (use-package paxedit
   :after paredit
-  :init (add-hook 'emacs-startup-hook 'paxedit-mode)
+  :hook paredit-mode
   :bind ( :map paxedit-mode-map
           ("C-w" . paxedit-kill-1)
           ("M-w" . paxedit-copy-1)
           ("M-j" . paxedit-compress))
   :config
-  (defun paxedit-copy-1 (expression-p)
-    (interactive "P")
-    (cond (mark-active (call-interactively #'kill-ring-save))
-          (expression-p (paxedit-copy))
-          (t (paxedit-symbol-copy))))
-  (defun paxedit-kill-1 (expression-p)
-    (interactive "P")
-    (cond (mark-active (kill-region 0 0 'region))
-          (expression-p (paxedit-kill))
+  (defun paxedit-copy-1 (beg end)
+    (interactive "r")
+    (cond (mark-active
+           (paredit-check-region beg end)
+           (kill-ring-save beg end))
+          (current-prefix-arg
+           (paxedit-copy)
+           (message "Sexp copied"))
+          (t (paxedit-symbol-copy)
+             (message "Symbol copied"))))
+  (defun paxedit-kill-1 (beg end)
+    (interactive "r")
+    (cond (mark-active
+           (paredit-check-region beg end)
+           (kill-region beg end))
+          (current-prefix-arg
+           (paxedit-kill))
           (t (paxedit-symbol-kill)))))
 ;; (add-hook 'slime-repl-mode-hook #'k-pad-header-line-after-advice)
-
-(use-package rainbow-mode
-  :hook emacs-lisp-mode)
 
 (font-lock-add-keywords 'lisp-mode '(("(\\(setf\\)" 1 font-lock-keyword-face)
                                      ("(\\(setq\\)" 1 font-lock-keyword-face)
@@ -1992,7 +2009,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
           ("<f2> i" . slime-documentation-lookup)
           ("C-c C-p" . slime-eval-print-last-expression))
   :autoload ensure-slime
-  :init (add-hook 'emacs-startup-hook 'ensure-slime)
+  :hook (emacs-startup . ensure-slime)
   :config
   (let ((async-shell-command-buffer 'new-buffer))
     (system-packages-ensure "sbcl"))
@@ -2239,6 +2256,9 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (k-global-set-key (kbd "C-s-r") 'buf-move-right)
   (k-global-set-key (kbd "C-s-l") 'buf-move-left))
 
+(use-package framemove
+  :autoload fm-next-frame)
+
 (use-package windmove
   :init
   (k-global-set-key (kbd "s-p") 'windmove-up)
@@ -2251,8 +2271,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     (cl-case direction
       (left (exwm-workspace-switch (1- exwm-workspace-current-index)))
       (right (exwm-workspace-switch (1+ exwm-workspace-current-index)))))
-  (when (not k-exwm-enabled-p)
-      (require 'framemove))
 
   (define-advice windmove-find-other-window
       (:around (orig-func direction &rest args) k)
@@ -2612,6 +2630,8 @@ emms-playlist-mode and query for a playlist to open."
     (start-process "chromium" " *chromium*" "chromium"
                    (concat "--app=" url))))
 
+(defvar-local k-eww-title nil)
+
 (use-package eww
   :commands eww-new-buffer
   :config
@@ -2621,20 +2641,42 @@ emms-playlist-mode and query for a playlist to open."
   (defvar k-eww-history (make-hash-table :test 'equal)
     "Global history for eww. A EQUAL hash that maps title strings to URL.")
   (defun k-eww-after-render-hook ()
-    "Update EWW buffer title and save `k-eww-history'."
+    "Save `k-eww-history'."
     (let ((title (plist-get eww-data :title))
           (url (plist-get eww-data :url)))
-      (rename-buffer (format "eww: %s" title) t)
-      (unless (> (length title) 0) (setq title "<no title>"))
       (puthash (concat (truncate-string-to-width title 40 nil nil (truncate-string-ellipsis))
                        #(" " 0 1 (display (space :align-to center)))
                        (propertize url 'face 'completions-annotations))
                url k-eww-history)))
   (add-hook 'eww-after-render-hook 'k-eww-after-render-hook)
+
+  ;; Move page title from header line to buffer name instead
+  (setq-default eww-header-line-format "%u")
+  (define-advice eww-update-header-line-format
+      (:after () k)
+    "Update EWW buffer title."
+    (setq k-eww-title
+          (if (zerop (length (plist-get eww-data :title)))
+	      "[untitled]"
+            (plist-get eww-data :title)))
+    (setq-local k-mode-line-format-left
+                '(#("eww: " 0 4 (face mode-line-buffer-id))
+                  (:propertize k-eww-title face variable-pitch)))
+    (rename-buffer (format "eww: %s" k-eww-title) t))
+
   (defun k-eww-read-url ()
-    (let* ((cand
-            (completing-read "Enter URL or keywords: " k-eww-history)))
+    "Read URL with global history completion from `k-eww-history'.
+If inside a Google Search buffer, use the search keyword as
+default input."
+    (let* ((title (plist-get eww-data :title))
+           (suffix " - Google Search")
+           (cand
+            (completing-read "Enter URL or keywords: " k-eww-history
+                             nil nil
+                             (when (string-suffix-p suffix title)
+                               (string-remove-suffix suffix title)))))
       (or (gethash cand k-eww-history) cand)))
+
   (defun eww-new-buffer (url)
     (interactive (list (k-eww-read-url)))
     (with-temp-buffer
@@ -2643,6 +2685,12 @@ emms-playlist-mode and query for a playlist to open."
             (eww url))
         (eww url))))
   (define-key eww-mode-map (kbd "G") 'eww-new-buffer)
+
+  (define-advice url-http
+      (:before (url &rest _args) k-reddit)
+    "Redirect to old.reddit.com"
+    (when (string-equal (url-host url) "www.reddit.com")
+      (setf (url-host url) "old.reddit.com")))
 
   (when k-exwm-enabled-p
     (defun k-eww-reload-in-chromium ()
@@ -2663,7 +2711,12 @@ emms-playlist-mode and query for a playlist to open."
   :straight (:type built-in)
   :bind ( :map image-mode-map
           ("+" . image-increase-size)
-          ("-" . image-decrease-size)))
+          ("-" . image-decrease-size)
+          ("r" . image-rotate))
+  :config
+  ;; Disable transient map because we've already put those bindings
+  ;; into the main `image-mode-map'
+  (setq-default image--repeat-map (make-sparse-keymap)))
 
 ;; (when (featurep 'xwidget-internal)
 ;;   (add-to-list 'load-path "~/.emacs.d/lisp/xwwp")
@@ -3385,7 +3438,7 @@ normally have their errors suppressed."
           :map undo-tree-visualizer-mode-map
           ("M-n" . undo-tree-visualize-redo-to-x)
           ("M-p" . undo-tree-visualize-undo-to-x))
-  :init (add-hook 'emacs-startup-hook 'global-undo-tree-mode)
+  :hook (emacs-startup . global-undo-tree-mode)
   :config
   (setq-default undo-limit 1000000
                 undo-strong-limit 10000000
