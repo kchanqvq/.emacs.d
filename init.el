@@ -41,12 +41,12 @@
 (use-package s :demand t)
 
 (defmacro globalize (mode)
-  "Define and enable a global minor mode from minor MODE."
+  "Define a global minor mode from MODE, and add to `emacs-startup-hook'."
   (let ((%global-mode-symbol (intern (concat "global-" (symbol-name mode)))))
     `(progn
        (define-globalized-minor-mode ,%global-mode-symbol ,mode
          (lambda () (,mode)))
-       (,%global-mode-symbol))))
+       (add-hook 'emacs-startup-hook ',%global-mode-symbol))))
 
 (defvar k-exwm-enabled-p nil)
 
@@ -175,6 +175,11 @@ Use binary search."
   (setq-default vlf-application 'dont-ask))
 
 (use-package which-key
+  ;; Disabled for now because it seem to interact poorly with
+  ;; window-management & recurisve-edit. If the invoked command
+  ;; changes window configuration, sometimes it seem to interfere with
+  ;; which-key's own windows.
+  :disabled t
   :hook emacs-startup
   :config
   (setq-default which-key-idle-delay 0
@@ -185,7 +190,8 @@ Use binary search."
                 '(lambda (dim)
                    (k-echo-area-display (selected-window) which-key--buffer))
                 which-key-custom-hide-popup-function
-                '(lambda () (k-echo-area-clear (selected-window)))
+                '(lambda ()
+                   (k-echo-area-clear-1 (get-buffer-window which-key--buffer)))
                 which-key-custom-popup-max-dimensions-function
                 '(lambda (w) (cons 20 w))))
 
@@ -297,7 +303,7 @@ below window at the bottom (above echo area)."
 (defvar k--company-current-index)
 
 (use-package company
-  :demand t
+  :hook (emacs-startup . global-company-mode)
   :config
   (setq-default company-backends '(company-capf company-files))
   (setq-default company-dabbrev-downcase nil)
@@ -532,13 +538,11 @@ below window at the bottom (above echo area)."
       (:around (orig) k-help-buffer-override)
     (or (when k-help-buffer-override
           (get-buffer-create k-help-buffer-override))
-        (funcall orig)))
-
-  (global-company-mode))
+        (funcall orig))))
 
 ;; Use posframe so that company works in minibuffer
 (use-package company-posframe
-  :demand t
+  :hook emacs-startup
   :config
   (setq-default company-posframe-show-indicator nil
                 company-posframe-show-metadata nil
@@ -560,7 +564,6 @@ below window at the bottom (above echo area)."
   (setq-default stripes-unit 1 stripes-overlay-priority 0))
 
 (use-package hl-line
-  :demand t
   :config
   (setq-default hl-line-overlay-priority 5)
   ;; Patch `hl-line-make-overlay' so that front advance is T
@@ -903,6 +906,8 @@ DARK-P specifies whether to generate a dark or light theme."
    `(undo-tree-visualizer-current-face ((default :foreground ,k-dk-pink :inherit bold)))
    `(undo-tree-visualizer-active-branch-face ((default :foreground ,k-dk-blue :inherit bold)))
    ;; `(undo-tree-visualizer-register-face ((,class (:foreground ,highlight))))
+   `(vundo-highlight ((default :foreground ,k-fg-pink)))
+   `(vundo-saved ((default :foreground ,k-fg-blue)))
 
    ;; Magit
 
@@ -1182,10 +1187,6 @@ DARK-P specifies whether to generate a dark or light theme."
   (setq ns-use-proxy-icon nil)
   (setq ns-use-native-fullscreen nil)))
 
-(tool-bar-mode -1)
-(unless (eq window-system 'ns)
-  (menu-bar-mode -1))
-(scroll-bar-mode -1)
 (setq-default visual-line-fringe-indicators '(left-curly-arrow right-curly-arrow))
 
 (set-alist 'default-frame-alist 'undecorated t)
@@ -1234,7 +1235,7 @@ DARK-P specifies whether to generate a dark or light theme."
       (save-excursion
         (setq-local overline-margin 0)
         (goto-char (point-min))
-        (vertical-motion (cons (1- (window-text-width)) 0))
+        (goto-char (line-end-position))
         (if k-echo-area--top-separator-overlay
             (move-overlay k-echo-area--top-separator-overlay (point-min) (point))
           (setq k-echo-area--top-separator-overlay (make-overlay (point-min) (point) nil t t))
@@ -1338,7 +1339,9 @@ Format FORMAT-STRING with ARGS."
             (delete-region (point-min) (point-max))
             (insert message)
             (k-echo-area-display (selected-window) (current-buffer)))
-        (k-echo-area-clear (selected-window))))))
+        (when-let ((echo-area-window (k-echo-area-window (selected-window))))
+          (when (memq (window-buffer echo-area-window) k-message--buffers)
+            (k-echo-area-clear-1 echo-area-window)))))))
 
 (add-hook 'post-command-hook #'k-message-display)
 (add-hook 'echo-area-clear-hook '(lambda () (k-message nil)))
@@ -1375,12 +1378,11 @@ Format FORMAT-STRING with ARGS."
   (setq highlight-indent-guides-auto-enabled nil))
 
 (use-package highlight-parentheses
-  :demand t
+  :init (globalize highlight-parentheses-mode)
   :config
   (setq-default highlight-parentheses-colors '(nil))
   (set-face-attribute 'hl-paren-face nil :inherit 'show-paren-match)
-  (show-paren-mode)
-  (globalize highlight-parentheses-mode))
+  (show-paren-mode))
 
 (use-package topsy
   :hook (prog-mode)
@@ -1397,10 +1399,6 @@ Format FORMAT-STRING with ARGS."
   (setq-default outline-minor-mode-buttons '(("▶" "▼" outline--valid-char-p))))
 
 ;;; Indent and whitespace
-
-(use-package clean-aindent-mode
-  :config
-  (clean-aindent-mode))
 
 (use-package dtrt-indent
   :hook prog-mode
@@ -1422,11 +1420,11 @@ Format FORMAT-STRING with ARGS."
   :bind ( :map flycheck-mode-map
           ("M-n" . flycheck-next-error)
           ("M-p" . flycheck-previous-error))
+  :hook (emacs-startup . global-flycheck-mode)
   :config
   (defun k-flycheck-display-error-messages (errors)
     (k-message (flycheck-help-echo-all-error-messages errors)))
   (setq flycheck-display-errors-function #'k-flycheck-display-error-messages)
-  (global-flycheck-mode)
   (setq-default flycheck-indication-mode nil)
   (advice-add 'flycheck-jump-to-error :before
               (lambda (_error)
@@ -1488,7 +1486,7 @@ Format FORMAT-STRING with ARGS."
 (defvar-local vertico--buffer-window nil)
 
 (use-package vertico
-  :demand t
+  :hook emacs-startup
   :config
   (setq-default vertico-count 20)
 
@@ -1607,12 +1605,10 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                  (apply #'concat #(" " 0 1 (cursor t)) (and lines "\n") lines))
     (vertico--resize-window vertico-count))
   (byte-compile 'vertico--compute-scroll)
-  (byte-compile 'vertico--display-candidate)
-
-  (vertico-mode))
+  (byte-compile 'vertico--display-candidate))
 
 (use-package vertico-buffer
-  :demand t
+  :hook vertico-mode
   :straight nil
   :after vertico
   :load-path "straight/repos/vertico/extensions/"
@@ -1659,8 +1655,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     "Setup buffer display."
     (setq k-message nil)
     (add-hook 'pre-redisplay-functions 'vertico-buffer--redisplay nil 'local)
-    (setq-local overline-margin 0
-                fringe-indicator-alist '((truncation nil nil)))
+    (setq-local fringe-indicator-alist '((truncation nil nil)))
     (let* ((buf (current-buffer)) win
            (_ (unwind-protect
                   (setf
@@ -1691,11 +1686,10 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                   truncate-lines t
                   face-remapping-alist
                   (copy-tree `((mode-line-inactive mode-line)
-                               ,@face-remapping-alist)))))
-  (vertico-buffer-mode))
+                               ,@face-remapping-alist))))))
 
 (use-package marginalia
-  :demand t
+  :hook emacs-startup
   :config
   ;; Automatically give more generous field width
   (setq-default marginalia-field-width 48)
@@ -1722,7 +1716,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (byte-compile 'marginalia--affixate))
 
 (use-package orderless
-  :demand t
   :config
   (setq-default orderless-matching-styles '(orderless-literal orderless-flex orderless-regexp))
   (setq-default completion-styles ;; '(orderless)
@@ -1732,9 +1725,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (setq-default read-file-name-completion-ignore-case t)
   (setq-default enable-recursive-minibuffers t)
   (define-key vertico-map (kbd "s-f") 'vertico-next-group)
-  (define-key vertico-map (kbd "s-b") 'vertico-previous-group)
-
-  (marginalia-mode))
+  (define-key vertico-map (kbd "s-b") 'vertico-previous-group))
 
 (use-package consult
   :init
@@ -1783,7 +1774,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 (use-package exwm
   :if k-exwm-enabled-p
-  :demand t
+  :hook (emacs-startup . exwm-enable)
   :config
   (setq exwm-randr-workspace-output-plist '(0 "eDP-1" 1 "HDMI-1"))
 
@@ -1791,11 +1782,14 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     (exwm-workspace-rename-buffer (concat exwm-class-name ": " exwm-title)))
   (add-hook 'exwm-update-title-hook 'k-exwm-update-title)
 
-  (require 'exwm-randr)
-  (exwm-randr-enable)
-  (exwm-enable)
-
   (start-process "picom" "*picom*" "picom"))
+
+(use-package exwm-randr
+  :straight exwm
+  :if k-exwm-enabled-p
+  :demand t
+  :config
+  (exwm-randr-enable))
 
 ;;; Misc key bindings
 
@@ -1999,7 +1993,8 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     (apply orig-func args)))
 
 (use-package slime
-  :bind ( :map slime-mode-map
+  :bind ( ("s-o" . switch-to-scratch)
+          :map slime-mode-map
           ("C-M-g" . slime-undefine)
           ("C-c C-s")
           :map slime-editing-map
@@ -2060,7 +2055,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     (if slime-editing-mode
         (slime-scratch)
       (switch-to-buffer-other-window "*scratch*")))
-  (global-set-key (kbd "s-o") 'switch-to-scratch)
 
   ;; Slime mode line
   (defun slime-mode-line ()
@@ -2069,7 +2063,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                         'face 'k-proper-name)))
 
   ;; Hacks to make slime-autodoc works better
-  (setq auto-save-no-message t) ;; Slime auto-saves like crazy for some reason...
   (setq eldoc-idle-delay 0)
 
   ;; Enable Paredit and Company in Lisp related minibuffers
@@ -2180,6 +2173,15 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     (k-run-helper-command (concat "cloc " (magit-toplevel)) "*cloc*"))
   (add-hook 'magit-post-stage-hook 'k-generate-org-index--magit-post-stage-hook))
 
+(use-package transient
+  :config
+  ;; Make `transient' and thus `magit' use k-echo-area
+  (setq-default transient-display-buffer-action
+                '((lambda (buffer alist)
+                    (k-echo-area-display (selected-window) buffer))))
+  (defun transient--delete-window ()
+    (k-echo-area-clear-1 transient--window)))
+
 (use-package smerge
   :straight (:type built-in)
   :bind ( :map smerge-mode-map
@@ -2187,6 +2189,13 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
           ("M-p" . smerge-prev)
           ("C-c")
           ("C-c C-c" . smerge-keep-current)))
+
+;;;; autosave and backup files
+(setq-default delete-old-versions t
+              kept-new-versions 6
+              kept-old-versions 2
+              version-control t)
+(add-hook 'emacs-startup-hook 'auto-save-visited-mode)
 
 ;;; Fast cursor movement
 
@@ -2208,9 +2217,8 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (put 'avy 'priority 10))
 
 (use-package ace-link
-  :demand t
+  :hook (emacs-startup . (lambda () (ace-link-setup-default "o")))
   :config
-  (ace-link-setup-default "o")
   (defun ace-link--widget-action (pt)
     (when (number-or-marker-p pt)
       (goto-char pt)
@@ -2285,8 +2293,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 (use-package winner
   :bind ( ("s-c" . winner-undo)
           ("s-C" . winner-redo))
-  :init
-  (add-hook 'after-init-hook 'winner-mode))
+  :hook emacs-startup)
 
 ;;; ⭐ Multi media
 
@@ -2702,10 +2709,9 @@ default input."
 
 (use-package pdf-tools
   :straight nil
-  :demand t
+  :hook (after-init . pdf-loader-install)
   :config
-  (setq pdf-view-midnight-invert nil)
-  (pdf-loader-install))
+  (setq pdf-view-midnight-invert nil))
 
 (use-package image-mode
   :straight (:type built-in)
@@ -2782,8 +2788,7 @@ default input."
               (setq default-directory
                     (replace-regexp-in-string "^/sudo:root@localhost:" "" default-directory)))))
 
-(use-package system-packages
-  :demand t)
+(use-package system-packages)
 
 (use-package insecure-lock
   :config
@@ -3042,6 +3047,7 @@ default input."
           ("G" . k-update-notmuch)
           :map notmuch-hello-mode-map
           ("o" . ace-link-widget))
+  :hook (emacs-startup . k-ensure-davmail)
   :config
   (setq-default notmuch-search-oldest-first nil
                 notmuch-show-logo nil
@@ -3060,6 +3066,8 @@ default input."
                 notmuch-wash-citation-lines-prefix 2
                 notmuch-wash-citation-lines-suffix 0
                 notmuch-fcc-dirs nil)
+
+  ;; Custom email entry formatting
   (defun notmuch-search-show-result (result pos)
     "Insert RESULT at POS."
     ;; Ignore excluded matches
@@ -3092,29 +3100,34 @@ default input."
            right "\n"))
         (notmuch-search-color-line pos (point) (plist-get result :tags))
         (put-text-property pos (point) 'notmuch-search-result result))))
+  (advice-add 'notmuch-show--build-buffer :after #'k-pad-header-line-after-advice)
+
+  (defun k-ensure-davmail ()
+    "Make sure davmail is running."
+    (unless
+        (cl-find-if (lambda (p)
+                      (let ((case-fold-search t))
+                        (string-match-p "davmail" (or (cdr (assoc 'args (process-attributes p))) ""))))
+                    (list-system-processes))
+      (start-process "davmail" "*davmail*" "davmail")))
+
   (defun k-update-notmuch (&optional silent)
     "Update email database asynchronously."
     (interactive)
-    (unless
-      (cl-find-if (lambda (p)
-                    (let ((case-fold-search t))
-                      (string-match-p "davmail" (or (cdr (assoc 'args (process-attributes p))) ""))))
-                  (list-system-processes))
-      (start-process "davmail" "*davmail*" "davmail"))
     (if (process-live-p (get-buffer-process (get-buffer "*notmuch-update*")))
         (unless silent (display-buffer "*notmuch-update*" '(nil (inhibit-same-window . t))))
       (k-run-helper-command "mbsync -a; notmuch new; exit" "*notmuch-update*"
-                            #'notmuch-refresh-all-buffers silent)))
-  (advice-add 'notmuch-show--build-buffer :after #'k-pad-header-line-after-advice))
+                            #'notmuch-refresh-all-buffers silent))))
 
 (use-package smtpmail
+  :init
+  (setq-default user-mail-address "qthong@stanford.edu"
+                send-mail-function 'smtpmail-send-it)
   :config
   (setq-default smtpmail-smtp-server "localhost"
                 smtpmail-smtp-service 1025
                 smtpmail-stream-type 'plain
-                smtpmail-smtp-user "qthong@stanford.edu"
-                user-mail-address "qthong@stanford.edu"
-                send-mail-function 'smtpmail-send-it))
+                smtpmail-smtp-user "qthong@stanford.edu"))
 
 ;;; Input Method
 
@@ -3434,6 +3447,7 @@ normally have their errors suppressed."
 ;;; Undo Tree
 
 (use-package undo-tree
+  :disabled t
   :bind ( ("s-z" . undo-tree-visualize)
           :map undo-tree-visualizer-mode-map
           ("M-n" . undo-tree-visualize-redo-to-x)
@@ -3446,6 +3460,52 @@ normally have their errors suppressed."
                 undo-tree-enable-undo-in-region t
                 undo-tree-auto-save-history nil ;; Too fucking slow!
                 undo-tree-visualizer-timestamps t))
+
+(use-package vundo
+  :bind ( ("s-z" . vundo))
+  :config
+  (setq-default vundo-glyph-alist vundo-unicode-symbols
+                vundo-window-max-height 10)
+  ;; Let vundo split a window on top instead
+  (defun vundo ()
+    "Display visual undo for the current buffer."
+    (interactive)
+    (when (not (consp buffer-undo-list))
+      (user-error "There is no undo history"))
+    (when buffer-read-only
+      (user-error "Buffer is read-only"))
+    (run-hooks 'vundo-pre-enter-hook)
+    (let ((vundo-buf (vundo-1 (current-buffer))))
+      (select-window
+       (k-echo-area-display (selected-window) vundo-buf))
+      (let ((window-min-height 3))
+        (fit-window-to-buffer nil vundo-window-max-height))
+      (goto-char
+       (vundo-m-point
+        (vundo--current-node vundo--prev-mod-list)))
+      (setq vundo--roll-back-to-this
+            (vundo--current-node vundo--prev-mod-list))))
+
+  ;; `jit-lock-mode' need to be passed nil to turn off
+  (define-derived-mode vundo-mode special-mode
+    "Vundo" "Mode for displaying the undo tree."
+    (setq mode-line-format nil
+          truncate-lines t
+          cursor-type nil)
+    ;; OUR CHANGE: bug fix
+    (jit-lock-mode nil)
+    ;; OUR CHANGE: also turn of line truncation symbol
+    (setq-local fringe-indicator-alist '((truncation nil nil)))
+    (face-remap-add-relative 'default 'vundo-default)
+
+    ;; Disable evil-mode, as normal-mode
+    ;; key bindings override the ones set by vundo.
+    (when (and (boundp 'evil-emacs-state-modes)
+               (not (memq 'vundo-mode evil-emacs-state-modes)))
+      (push 'vundo-mode evil-emacs-state-modes))))
+
+(use-package undo-fu-session
+  :hook (emacs-startup . 'undo-fu-session-global-mode))
 
 ;;; ⭐ Org index generation
 
