@@ -1716,14 +1716,15 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (byte-compile 'marginalia--affixate))
 
 (use-package orderless
-  :config
-  (setq-default orderless-matching-styles '(orderless-literal orderless-flex orderless-regexp))
+  :init
   (setq-default completion-styles ;; '(orderless)
                 '(flex orderless))
   (setq-default completion-ignore-case t)
   (setq-default read-buffer-completion-ignore-case t)
   (setq-default read-file-name-completion-ignore-case t)
   (setq-default enable-recursive-minibuffers t)
+  :config
+  (setq-default orderless-matching-styles '(orderless-literal orderless-flex orderless-regexp))
   (define-key vertico-map (kbd "s-f") 'vertico-next-group)
   (define-key vertico-map (kbd "s-b") 'vertico-previous-group))
 
