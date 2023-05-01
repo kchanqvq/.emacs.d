@@ -3,8 +3,15 @@
 ;;; Code:
 
 ;;; Preamble
+
 ;; Turn off GC during startup
 (setq gc-cons-threshold (* 1024 1024 1024) gc-cons-percentage 1.0)
+
+;; Reset some variables, so that hot loading via eval-buffer/load-file
+;; has more faithful behavior.
+
+(setq-default emacs-startup-hook nil
+              default-frame-alist nil)
 
 ;; Misc libraries
 (require 'nadvice)
@@ -1241,8 +1248,19 @@ DARK-P specifies whether to generate a dark or light theme."
           (setq k-echo-area--top-separator-overlay (make-overlay (point-min) (point) nil t t))
           (overlay-put k-echo-area--top-separator-overlay 'face 'k-separator-overline)
           (overlay-put k-echo-area--top-separator-overlay 'after-string
-                       (propertize " "  'display '(space :align-to right)
-                                   'face 'k-separator-overline)))
+                       (propertize
+                        " "  'display
+                        ;; :align-to calculate width based on buffer
+                        ;; column number rather than visual column
+                        ;; number, therefore will NOT fill to right
+                        ;; edge when there are horizontal scroll.
+                        ;; '(space :align-to right)
+
+                        ;; The below solution specifies a sufficiently
+                        ;; wide width instead, which seem to yield the
+                        ;; desired behavior (always fill to the right)
+                        '(space :width text)
+                        'face 'k-separator-overline)))
         (setq-local mode-line-format (when k-echo-area--mode-line 'k-echo-area--mode-line)))
     (when k-echo-area--top-separator-overlay
       (delete-overlay k-echo-area--top-separator-overlay)
@@ -1773,9 +1791,16 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 ;;; EXWM
 
+(use-package exwm-randr
+  :straight exwm
+  :if k-exwm-enabled-p
+  :demand t
+  :config
+  (exwm-randr-enable))
+
 (use-package exwm
   :if k-exwm-enabled-p
-  :hook (emacs-startup . exwm-enable)
+  :demand t
   :config
   (setq exwm-randr-workspace-output-plist '(0 "eDP-1" 1 "HDMI-1"))
 
@@ -1783,14 +1808,8 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     (exwm-workspace-rename-buffer (concat exwm-class-name ": " exwm-title)))
   (add-hook 'exwm-update-title-hook 'k-exwm-update-title)
 
-  (start-process "picom" "*picom*" "picom"))
-
-(use-package exwm-randr
-  :straight exwm
-  :if k-exwm-enabled-p
-  :demand t
-  :config
-  (exwm-randr-enable))
+  (start-process "picom" "*picom*" "picom")
+  (exwm-enable))
 
 ;;; Misc key bindings
 
@@ -1883,7 +1902,12 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
           ("C-c C-k" . emacs-lisp-byte-compile-and-load)
           :map lisp-interaction-mode-map
           ("C-j"))
+  :hook (Info-selection . k-info-rename-buffer)
   :config
+  (defun k-info-rename-buffer ()
+    "Rename info buffer according to current node."
+    (rename-buffer (format "info: %s" list-buffers-directory)))
+
   (setq-default eval-expression-print-level nil
                 eval-expression-print-length nil))
 
@@ -2218,7 +2242,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (put 'avy 'priority 10))
 
 (use-package ace-link
-  :hook (emacs-startup . (lambda () (ace-link-setup-default "o")))
+  :demand t
   :config
   (defun ace-link--widget-action (pt)
     (when (number-or-marker-p pt)
@@ -2250,7 +2274,8 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                  (avy--style-fn avy-style)))))
       (ace-link--widget-action pt)))
   (add-to-list 'avy-styles-alist
-               '(ace-link-widget . pre)))
+               '(ace-link-widget . pre))
+  (ace-link-setup-default "o"))
 
 (use-package goto-last-change
   :bind ("s-e" . goto-last-change))
@@ -2298,6 +2323,8 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 ;;; ⭐ Multi media
 
+(defvar-local k-emms-playlist-file nil)
+
 (use-package emms
   :commands k-emms
   :bind
@@ -2307,8 +2334,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     ("M-p" . emms-previous)
     ("M-n" . emms-next)
     ("s-f" . emms-playlist-mode-previous)
-    ("s-b" . emms-playlist-mode-next)
-    ([remap save-buffer] . emms-playlist-save))
+    ("s-b" . emms-playlist-mode-next))
   :config
   (require 'emms-setup)
   (emms-all)
@@ -2317,37 +2343,24 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (add-hook 'emms-playlist-mode-hook 'hl-line-mode)
 
   (setq emms-source-file-default-directory "~/.emacs.d/")
-  (defun k-emms ()
+  (defvar k-emms-default-playlist "~/.emacs.d/rhythm-game.emms.el")
+  (defun k-emms (file)
     "Switch to the current emms-playlist buffer, use
 emms-playlist-mode and query for a playlist to open."
-    (interactive)
+    (interactive (list k-emms-default-playlist))
     (if (or (null emms-playlist-buffer)
 	    (not (buffer-live-p emms-playlist-buffer)))
-        (call-interactively 'emms-play-playlist))
+        (emms-play-playlist file))
+    (with-current-emms-playlist
+      (setq-local k-emms-playlist-file file
+                  write-contents-functions '(k-emms-save)))
     (emms-playlist-mode-go))
-
-  ;; Patch `emms-playlist-mode-overlay-selected' so that overlay extend to full line
-  ;; Also set a `priority'
-  (defun emms-playlist-mode-overlay-selected ()
-    "Place an overlay over the currently selected track."
-    (when emms-playlist-selected-marker
-      (save-excursion
-        (goto-char emms-playlist-selected-marker)
-        (let ((reg (emms-property-region (point) 'emms-track)))
-          (if emms-playlist-mode-selected-overlay
-              (move-overlay emms-playlist-mode-selected-overlay
-                            (car reg)
-                            (1+ (cdr reg)))
-            (setq emms-playlist-mode-selected-overlay
-                  (make-overlay (car reg)
-                                (1+ (cdr reg))
-                                nil t nil))
-            (overlay-put emms-playlist-mode-selected-overlay
-                         'face 'emms-playlist-selected-face)
-            (overlay-put emms-playlist-mode-selected-overlay
-                         'evaporate t)
-            (overlay-put emms-playlist-mode-selected-overlay
-                         'priority 1))))))
+  (defun k-emms-save ()
+    "Save emms playlist buffer."
+    (interactive)
+    (let ((emms-source-playlist-ask-before-overwrite nil))
+      (emms-playlist-save 'native k-emms-playlist-file))
+    t)
 
   ;; Eye candies
   (require 'emms-player-mpv)
@@ -2459,16 +2472,45 @@ emms-playlist-mode and query for a playlist to open."
   (add-hook 'emms-player-started-hook 'k-emms-generate-theme)
   (add-hook 'emms-player-started-hook 'k-emms-bpm-cursor)
   (add-hook 'emms-player-paused-hook 'k-emms-bpm-cursor-stop-hook)
-  (add-hook 'emms-player-stopped-hook 'k-emms-bpm-cursor-stop-hook)
+  (add-hook 'emms-player-stopped-hook 'k-emms-bpm-cursor-stop-hook))
 
-  (when k-exwm-enabled-p
-    (defun k-exwm-update-class ()
-      (pcase exwm-class-name
-        ("mpv"
-         (setq exwm-window-type (list xcb:Atom:_NET_WM_WINDOW_TYPE_DESKTOP))
-         (with-slots (x y width height) (exwm-workspace--get-geometry exwm--frame)
-           (exwm--set-geometry exwm--id x y width height)))))
-    (add-hook 'exwm-update-class-hook 'k-exwm-update-class)))
+(use-package emms-playlist-mode
+  :straight emms
+  :config
+  ;; Patch `emms-playlist-mode-overlay-selected' so that overlay extend to full line
+  ;; Also set a `priority'
+  (defun emms-playlist-mode-overlay-selected ()
+    "Place an overlay over the currently selected track."
+    (when emms-playlist-selected-marker
+      (save-excursion
+        (goto-char emms-playlist-selected-marker)
+        (let ((reg (emms-property-region (point) 'emms-track)))
+          (if emms-playlist-mode-selected-overlay
+              (move-overlay emms-playlist-mode-selected-overlay
+                            (car reg)
+                            (1+ (cdr reg)))
+            (setq emms-playlist-mode-selected-overlay
+                  (make-overlay (car reg)
+                                (1+ (cdr reg))
+                                nil t nil))
+            (overlay-put emms-playlist-mode-selected-overlay
+                         'face 'emms-playlist-selected-face)
+            (overlay-put emms-playlist-mode-selected-overlay
+                         'evaporate t)
+            (overlay-put emms-playlist-mode-selected-overlay
+                         'priority 1)))))))
+
+(use-package exwm
+  :if k-exwm-enabled-p
+  :config
+  (defun k-exwm-update-class ()
+    "Put mpv windows in the background as dynamic wallpapers."
+    (pcase exwm-class-name
+      ("mpv"
+       (setq exwm-window-type (list xcb:Atom:_NET_WM_WINDOW_TYPE_DESKTOP))
+       (with-slots (x y width height) (exwm-workspace--get-geometry exwm--frame)
+         (exwm--set-geometry exwm--id x y width height)))))
+  (add-hook 'exwm-update-class-hook 'k-exwm-update-class))
 
 (use-package ytel
   :bind ( :map ytel-mode-map
@@ -2479,19 +2521,21 @@ emms-playlist-mode and query for a playlist to open."
   (setq-default ytel-invidious-api-url "https://vid.puffyan.us"
                 ytel-title-video-reserved-space 40
                 ytel-author-name-reserved-space 20)
+  ;; Custom video entry formatting
   (defun ytel--insert-video (video)
     "Insert `VIDEO' in the current buffer."
-    (condition-case nil
-        (insert (ytel--format-video-published (ytel-video-published video))
-	        " "
-	        (ytel--format-author (ytel-video-author video))
-	        " "
-	        (ytel--format-video-length (ytel-video-length video))
-	        " "
-	        (ytel--format-title (ytel-video-title video))
-	        " "
-	        (ytel--format-video-views (ytel-video-views video)))
-      (error (insert "[ERROR]"))))
+    (with-slots (published author length title views) video
+      (if length
+          (insert (ytel--format-video-published published)
+	          " "
+	          (truncate-string-to-width author 20 nil ?\  (truncate-string-ellipsis))
+	          " "
+	          (ytel--format-video-length length)
+	          "  "
+	          (truncate-string-to-width title 40 nil ?\  (truncate-string-ellipsis))
+	          " "
+	          (k-fill-right (format "%s views" views)))
+        (insert "--"))))
   (byte-compile 'ytel--insert-video)
   (defun ytel-play (&optional no-video)
     "Play video at point with EMMS."
@@ -2632,7 +2676,9 @@ emms-playlist-mode and query for a playlist to open."
 
 (setq-default browse-url-browser-function 'eww-browse-url)
 
-(when k-exwm-enabled-p
+(use-package exwm
+  :if k-exwm-enabled-p
+  :config
   (setq-default browse-url-secondary-browser-function 'k-browse-url-chromium)
   (defun k-browse-url-chromium (url &rest args)
     (start-process "chromium" " *chromium*" "chromium"
@@ -2698,13 +2744,15 @@ default input."
       (:before (url &rest _args) k-reddit)
     "Redirect to old.reddit.com"
     (when (string-equal (url-host url) "www.reddit.com")
-      (setf (url-host url) "old.reddit.com")))
+      (setf (url-host url) "old.reddit.com"))))
 
-  (when k-exwm-enabled-p
-    (defun k-eww-reload-in-chromium ()
-      (interactive)
-      (k-browse-url-chromium (plist-get eww-data :url)))
-    (define-key eww-mode-map (kbd "f") 'k-eww-reload-in-chromium)))
+(use-package exwm
+  :if k-exwm-enabled-p
+  :config
+  (defun k-eww-reload-in-chromium ()
+    (interactive)
+    (k-browse-url-chromium (plist-get eww-data :url)))
+  (define-key eww-mode-map (kbd "f") 'k-eww-reload-in-chromium))
 
 (k-use-guix-maybe pdf-tools)
 
@@ -3463,7 +3511,8 @@ normally have their errors suppressed."
                 undo-tree-visualizer-timestamps t))
 
 (use-package vundo
-  :bind ( ("s-z" . vundo))
+  :bind ( ("s-z" . undo)
+          ([remap undo] . vundo))
   :config
   (setq-default vundo-glyph-alist vundo-unicode-symbols
                 vundo-window-max-height 10)
@@ -3479,7 +3528,7 @@ normally have their errors suppressed."
     (let ((vundo-buf (vundo-1 (current-buffer))))
       (select-window
        (k-echo-area-display (selected-window) vundo-buf))
-      (let ((window-min-height 3))
+      (let ((window-min-height 4))
         (fit-window-to-buffer nil vundo-window-max-height))
       (goto-char
        (vundo-m-point
