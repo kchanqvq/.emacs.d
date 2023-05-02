@@ -1178,6 +1178,7 @@ DARK-P specifies whether to generate a dark or light theme."
     ('dark (k-generate-theme 0.578 1.0 0.446 1.0 0.578 1.0 0.105 t))))
 
 ;;;; GUI tweeks
+(scroll-bar-mode -1)
 (let ((gap (string-pixel-width "o")))
   ;; make space between windows
   (set-alist 'default-frame-alist 'right-fringe gap)
@@ -2748,6 +2749,7 @@ default input."
 
 (use-package exwm
   :if k-exwm-enabled-p
+  :after eww
   :config
   (defun k-eww-reload-in-chromium ()
     (interactive)
@@ -3516,7 +3518,7 @@ normally have their errors suppressed."
   :config
   (setq-default vundo-glyph-alist vundo-unicode-symbols
                 vundo-window-max-height 10)
-  ;; Let vundo split a window on top instead
+  ;; Let vundo use k-echo-area
   (defun vundo ()
     "Display visual undo for the current buffer."
     (interactive)
@@ -3535,6 +3537,18 @@ normally have their errors suppressed."
         (vundo--current-node vundo--prev-mod-list)))
       (setq vundo--roll-back-to-this
             (vundo--current-node vundo--prev-mod-list))))
+
+  (defun k-vundo-kill-buffer-advice (orig-func &rest args)
+    "Let vundo use `k-echo-area-clear-1' instead of `kill-buffer-and-window'.
+The latter would also delete the main window because it is atomic
+with k-echo-area."
+    (with-advice
+     (kill-buffer-and-window
+      :override ()
+      (k-echo-area-clear-1 (get-buffer-window)))
+     (apply orig-func args)))
+  (advice-add 'vundo-quit :around 'k-vundo-kill-buffer-advice)
+  (advice-add 'vundo-confirm :around 'k-vundo-kill-buffer-advice)
 
   ;; `jit-lock-mode' need to be passed nil to turn off
   (define-derived-mode vundo-mode special-mode
