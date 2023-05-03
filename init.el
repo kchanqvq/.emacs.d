@@ -89,6 +89,7 @@ If SILENT is non-nil, do not display the NAME buffer."
                '(nil (inhibit-same-window . t)))))
         (save-selected-window
           (shell name)))
+    (add-hook 'comint-output-filter-functions 'comint-truncate-buffer)
     (set-process-sentinel (get-buffer-process (current-buffer))
 			  (lambda (_proc _status)
                             (when continuation
@@ -2395,6 +2396,8 @@ emms-playlist-mode and query for a playlist to open."
     (add-to-list 'emms-player-mpv-parameters "--fullscreen")
     (add-to-list 'emms-player-mpv-parameters "--no-native-fs")
     (add-to-list 'emms-player-mpv-parameters "--no-focus-on-open"))
+  (when k-exwm-enabled-p
+    (add-to-list 'emms-player-mpv-parameters "--x11-name=mpv-background"))
   (defun k-emms-toggle-video (&rest args)
     "TELL MPV player to switch to video/no-video mode."
     (interactive)
@@ -2505,12 +2508,16 @@ emms-playlist-mode and query for a playlist to open."
   :if k-exwm-enabled-p
   :config
   (defun k-exwm-update-class ()
-    "Put mpv windows in the background as dynamic wallpapers."
+    "Custom window management.
+Put mpv windows in the background as dynamic wallpapers.
+Hide davmail windows on startup."
     (pcase exwm-class-name
-      ("mpv"
+      ("mpv-background"
        (setq exwm-window-type (list xcb:Atom:_NET_WM_WINDOW_TYPE_DESKTOP))
        (with-slots (x y width height) (exwm-workspace--get-geometry exwm--frame)
-         (exwm--set-geometry exwm--id x y width height)))))
+         (exwm--set-geometry exwm--id x y width height)))
+      ("davmail"
+       (bury-buffer))))
   (add-hook 'exwm-update-class-hook 'k-exwm-update-class))
 
 (use-package ytel
@@ -3162,13 +3169,37 @@ default input."
                     (list-system-processes))
       (start-process "davmail" "*davmail*" "davmail")))
 
+  (defvar k-update-notmuch-timer nil)
+  (defvar k-update-notmuch-timer-interval 120)
+  (defvar k-notmuch-unread-count 0)
+  (defun k-update-notmuch-unread-count ()
+    (setq k-notmuch-unread-count (string-to-number (notmuch-saved-search-count "tag:unread"))))
   (defun k-update-notmuch (&optional silent)
     "Update email database asynchronously."
     (interactive)
     (if (process-live-p (get-buffer-process (get-buffer "*notmuch-update*")))
-        (unless silent (display-buffer "*notmuch-update*" '(nil (inhibit-same-window . t))))
+        (unless silent
+          (display-buffer "*notmuch-update*" '(nil (inhibit-same-window . t))))
       (k-run-helper-command "mbsync -a; notmuch new; exit" "*notmuch-update*"
-                            #'notmuch-refresh-all-buffers silent))))
+                            #'notmuch-refresh-all-buffers silent)
+      (timer-set-time k-update-notmuch-timer
+                      (timer-relative-time nil k-update-notmuch-timer-interval)
+                      k-update-notmuch-timer-interval)
+      (k-update-notmuch-unread-count)))
+  (add-hook 'notmuch-after-tag-hook 'k-update-notmuch-unread-count)
+  (when k-update-notmuch-timer
+    (cancel-timer k-update-notmuch-timer))
+  (setq k-update-notmuch-timer
+        (run-at-time k-update-notmuch-timer-interval
+                     k-update-notmuch-timer-interval
+                     'k-update-notmuch t))
+
+  (defun k-notmuch-unread-status ()
+    (if (> k-notmuch-unread-count 0)
+        (concat (number-to-string k-notmuch-unread-count) " "
+                (all-the-icons-octicon "mail" :v-adjust 0.0 :height 0.8))
+      ""))
+  (add-to-list 'k-status-functions 'k-notmuch-unread-status))
 
 (use-package smtpmail
   :init
@@ -3316,8 +3347,8 @@ normally have their errors suppressed."
     ;;   (posframe-show buffer :poshandler 'posframe-poshandler-frame-center
     ;;                  :border-width 1))
     ))
-(add-hook 'post-command-hook 'k-status-update)
 
+(add-hook 'post-command-hook 'k-status-update)
 (defvar k-status-timer (run-at-time t 1 'k-status-update))
 
 ;;; Vampire timezone
