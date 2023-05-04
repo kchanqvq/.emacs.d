@@ -1778,6 +1778,10 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (setq embark-indicators
         '( embark--vertico-indicator embark-mixed-indicator
            embark-highlight-indicator embark-isearch-highlight-indicator))
+  (defun k-grep-in-1 ()
+    "Grep in current embark target."
+    (interactive)
+    (embark--act 'k-grep-in (car (embark--targets)) embark-quit-after-action))
   (defun k-grep-in (filename)
     "Grep in FILENAME."
     (if (file-directory-p filename)
@@ -2508,12 +2512,12 @@ emms-playlist-mode and query for a playlist to open."
     "Custom window management.
 Put mpv windows in the background as dynamic wallpapers.
 Hide davmail windows on startup."
-    (pcase exwm-class-name
+    (pcase exwm-instance-name
       ("mpv-background"
        (setq exwm-window-type (list xcb:Atom:_NET_WM_WINDOW_TYPE_DESKTOP))
        (with-slots (x y width height) (exwm-workspace--get-geometry exwm--frame)
          (exwm--set-geometry exwm--id x y width height)))
-      ("davmail"
+      ("davmail-DavGateway"
        (bury-buffer))))
   (add-hook 'exwm-update-class-hook 'k-exwm-update-class))
 
