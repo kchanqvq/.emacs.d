@@ -1445,7 +1445,8 @@ Format FORMAT-STRING with ARGS."
   (defun k-flycheck-display-error-messages (errors)
     (k-message (flycheck-help-echo-all-error-messages errors)))
   (setq flycheck-display-errors-function #'k-flycheck-display-error-messages)
-  (setq-default flycheck-indication-mode nil)
+  (setq-default flycheck-indication-mode nil
+                flycheck-global-modes '(not slime-repl-mode slime-mrepl-mode))
   (advice-add 'flycheck-jump-to-error :before
               (lambda (_error)
                 (unless (get-char-property (point) 'flycheck-error)
@@ -1897,19 +1898,27 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 ;;; Lisp development
 
 (use-package emacs
+  ;; Disable C-c C-r binding to eval region, because we advice C-x C-e
+  ;; to do that when region is active.
   :bind ( :map lisp-mode-shared-map
           ("C-c C-p" . eval-print-last-sexp)
-          ("C-c C-r" . eval-region)
           ("C-c C-l" . load-file)
+          ("C-c C-r")
           :map emacs-lisp-mode-map
           ("C-c C-k" . emacs-lisp-byte-compile-and-load)
+          ("C-c C-r")
           :map lisp-interaction-mode-map
-          ("C-j"))
+          ("C-j")
+          ("C-c C-r"))
   :hook (Info-selection . k-info-rename-buffer)
   :config
   (defun k-info-rename-buffer ()
     "Rename info buffer according to current node."
     (rename-buffer (format "info: %s" list-buffers-directory)))
+
+  (define-advice eval-last-sexp (:around (orig-func &rest args) k)
+    (if mark-active (call-interactively #'eval-region)
+      (apply orig-func args)))
 
   (setq-default eval-expression-print-level nil
                 eval-expression-print-length nil))
