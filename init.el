@@ -1769,10 +1769,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
    :map embark-file-map
    ("g" . k-grep-in)
    :map vertico-map
-   ("C-s" .
-    (lambda ()
-      (interactive)
-      (embark--act 'k-grep-in (car (embark--targets)) embark-quit-after-action))))
+   ("C-s" . k-grep-in-1))
   :init
   (setq-default prefix-help-command #'embark-prefix-help-command)
   :config
