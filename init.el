@@ -1446,7 +1446,7 @@ Format FORMAT-STRING with ARGS."
     (k-message (flycheck-help-echo-all-error-messages errors)))
   (setq flycheck-display-errors-function #'k-flycheck-display-error-messages)
   (setq-default flycheck-indication-mode nil
-                flycheck-global-modes '(not slime-repl-mode slime-mrepl-mode))
+                flycheck-global-modes '(not slime-repl-mode lisp-mode))
   (advice-add 'flycheck-jump-to-error :before
               (lambda (_error)
                 (unless (get-char-property (point) 'flycheck-error)
@@ -1826,7 +1826,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 (global-set-key (kbd "s-w") 'save-buffer)
 (global-set-key (kbd "s-u") 'revert-buffer)
-(k-global-set-key (kbd "C-c C-c C-SPC") 'consult-global-mark)
+;; (k-global-set-key (kbd "C-c C-c C-SPC") 'consult-global-mark)
 (k-global-set-key (kbd "s-0") 'delete-window)
 (k-global-set-key (kbd "s-1") 'delete-other-windows)
 (k-global-set-key (kbd "s-2") 'split-window-below)
@@ -2221,7 +2221,9 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
           ("M-n" . smerge-next)
           ("M-p" . smerge-prev)
           ("C-c")
-          ("C-c C-c" . smerge-keep-current)))
+          ("C-c C-c" . smerge-keep-current))
+  ;; ensure keymap precedence over flycheck
+  :after flycheck)
 
 ;;;; autosave and backup files
 (setq-default delete-old-versions t
