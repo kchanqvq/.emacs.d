@@ -2527,7 +2527,7 @@ Hide davmail windows on startup."
        (with-slots (x y width height) (exwm-workspace--get-geometry exwm--frame)
          (exwm--set-geometry exwm--id x y width height)))
       ("davmail-DavGateway"
-       (bury-buffer))))
+       (exwm-layout--hide exwm--id))))
   (add-hook 'exwm-update-class-hook 'k-exwm-update-class))
 
 (use-package ytel
