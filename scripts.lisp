@@ -1,4 +1,4 @@
-(ql:quickload '("opticl" "clusters" "drakma" "iterate" "metabang-bind" "dufy"))
+(mapc #'asdf:require-system '("opticl" "clusters" "drakma" "iterate" "metabang-bind" "dufy"))
 (in-package #:clusters.k-means)
 ;; fix weird bug
 (defmethod initialize-instance :after ((state algorithm-state)
