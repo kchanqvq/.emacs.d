@@ -1446,7 +1446,7 @@ Format FORMAT-STRING with ARGS."
     (k-message (flycheck-help-echo-all-error-messages errors)))
   (setq flycheck-display-errors-function #'k-flycheck-display-error-messages)
   (setq-default flycheck-indication-mode nil
-                flycheck-global-modes '(not slime-repl-mode slime-mrepl-mode))
+                flycheck-global-modes '(not slime-repl-mode lisp-mode))
   (advice-add 'flycheck-jump-to-error :before
               (lambda (_error)
                 (unless (get-char-property (point) 'flycheck-error)
@@ -1771,6 +1771,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
    ("g" . k-grep-in)
    :map vertico-map
    ("C-s" . k-grep-in-1))
+  :commands (k-grep-in-1)
   :init
   (setq-default prefix-help-command #'embark-prefix-help-command)
   :config
@@ -1825,7 +1826,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 (global-set-key (kbd "s-w") 'save-buffer)
 (global-set-key (kbd "s-u") 'revert-buffer)
-(k-global-set-key (kbd "C-c C-c C-SPC") 'consult-global-mark)
+;; (k-global-set-key (kbd "C-c C-c C-SPC") 'consult-global-mark)
 (k-global-set-key (kbd "s-0") 'delete-window)
 (k-global-set-key (kbd "s-1") 'delete-other-windows)
 (k-global-set-key (kbd "s-2") 'split-window-below)
@@ -2057,8 +2058,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
    slime-lisp-implementations
    `((sbcl ("sbcl" "--dynamic-space-size" "4096"))
      (mega-sbcl ("sbcl" "--dynamic-space-size" "16384" "--control-stack-size" "2"))
-     (ccl ("ccl64")))
-   slime-repl-banner-function #'ignore)
+     (ccl ("ccl64"))))
 
   ;; Handy slime commands and key bindings
   (defun ensure-slime ()
@@ -2178,11 +2178,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
         (sorted
          (eq slime-company-completion 'fuzzy))))))
 
-(use-package slime-mrepl :straight slime
-  :config
-  (add-to-list 'slime-company-major-modes 'slime-mrepl-mode)
-  (add-hook 'slime-mrepl-mode-hook #'slime-company-maybe-enable)
-  (add-hook 'slime-mrepl-mode-hook #'slime-autodoc-mode))
+(use-package slime-mrepl :straight slime)
 
 ;;; Version control
 
@@ -2225,7 +2221,9 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
           ("M-n" . smerge-next)
           ("M-p" . smerge-prev)
           ("C-c")
-          ("C-c C-c" . smerge-keep-current)))
+          ("C-c C-c" . smerge-keep-current))
+  ;; ensure keymap precedence over flycheck
+  :after flycheck)
 
 ;;;; autosave and backup files
 (setq-default delete-old-versions t
@@ -2676,19 +2674,34 @@ Hide davmail windows on startup."
 
   (setq vterm-max-scrollback 1000000))
 
-(use-package multi-vterm
-  :after vterm
+;; (use-package multi-vterm
+;;   :after vterm
+;;   :bind
+;;   ( ("s-x" . multi-vterm-next)
+;;     ("s-X" . multi-vterm)
+;;     :map vterm-mode-map
+;;     ("s-x" . multi-vterm)
+;;     ("s-f" . multi-vterm-next)
+;;     ("s-b" . multi-vterm-prev)
+;;     :map vterm-copy-mode-map
+;;     ("s-x" . multi-vterm)
+;;     ("s-f" . multi-vterm-next)
+;;     ("s-b" . multi-vterm-prev)))
+
+(use-package unix-in-slime
+  :straight (:local-repo "~/quicklisp/local-projects/unix-in-lisp")
   :bind
-  ( ("s-x" . multi-vterm-next)
-    ("s-X" . multi-vterm)
-    :map vterm-mode-map
-    ("s-x" . multi-vterm)
-    ("s-f" . multi-vterm-next)
-    ("s-b" . multi-vterm-prev)
-    :map vterm-copy-mode-map
-    ("s-x" . multi-vterm)
-    ("s-f" . multi-vterm-next)
-    ("s-b" . multi-vterm-prev)))
+  ( ("s-x" . unix-in-slime-next))
+  :init
+  (defun unix-in-slime-next ()
+    (interactive)
+    (let*
+        ((buf
+          (and t
+               (get-buffer "*slime-mrepl*"))))
+      (if buf
+          (switch-to-buffer buf)
+        (unix-in-slime)))))
 
 ;; Web browsing
 
@@ -2757,6 +2770,8 @@ default input."
             (eww url))
         (eww url))))
   (define-key eww-mode-map (kbd "G") 'eww-new-buffer)
+
+  (require 'gv)
 
   (define-advice url-http
       (:before (url &rest _args) k-reddit)
@@ -3187,6 +3202,7 @@ default input."
   (defun k-update-notmuch (&optional silent)
     "Update email database asynchronously."
     (interactive)
+    (k-ensure-davmail)
     (if (process-live-p (get-buffer-process (get-buffer "*notmuch-update*")))
         (unless silent
           (display-buffer "*notmuch-update*" '(nil (inhibit-same-window . t))))
@@ -3527,11 +3543,11 @@ normally have their errors suppressed."
   :config
   (setq-default proced-auto-update-interval 1
                 proced-format-alist
-                '((short comm tree pcpu vsize start time pid user)
-                  (medium comm tree pcpu vsize rss pmem state  ttname start time pid user args)
-                  (long comm tree pri nice pcpu vsize rss pmem ttname state
+                '((short pid comm tree pcpu vsize start time user)
+                  (medium pid comm tree pcpu vsize rss pmem state  ttname start time pid user args)
+                  (long pid comm tree pri nice pcpu vsize rss pmem ttname state
                         start time pid user euid group args)
-                  (verbose comm tree pgrp sess pri nice pcpu vsize rss pmem
+                  (verbose pid pgrp comm tree sess pri nice pcpu vsize rss pmem
                            state thcount  ttname tpgid minflt majflt cminflt cmajflt
                            start time utime stime ctime cutime cstime etime pid ppid user euid group egid args)))
   (add-hook 'proced-mode-hook (lambda () (proced-toggle-auto-update 1))))

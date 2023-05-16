@@ -1,5 +1,5 @@
 ;;; This is an EMMS playlist file Play it with M-x emms-play-playlist
-((*track* (type . url) (name . "https://www.youtube.com/watch?v=qAFBjj2R9oY") (info-title . "USAO - Wormhole") (info-playing-time . 226) (last-played 25679 7111 382988 0) (play-count . 13))
+((*track* (type . url) (name . "https://www.youtube.com/watch?v=qAFBjj2R9oY") (info-title . "USAO - Wormhole") (info-playing-time . 226) (last-played 25699 27093 824209 0) (play-count . 14))
  (*track* (type . url) (name . "https://www.youtube.com/watch?v=OW8pMvedAtM") (info-title . "USAO - Cyaegha") (info-playing-time . 143) (last-played 25664 57562 318897 0) (play-count . 6) (info-bpm . 200))
  (*track* (type . url) (name . "https://www.youtube.com/watch?v=_tX1lqcVnno") (info-title . "USAO - Cthugha [Muse Dash]") (info-playing-time . 156) (last-played 25664 57707 88241 0) (play-count . 6))
  (*track* (type . url) (name . "https://www.youtube.com/watch?v=7F1E1g0mM6g") (info-title . "USAO - INSANE") (info-playing-time . 220) (last-played 25664 57864 357916 0) (play-count . 4))
@@ -46,5 +46,5 @@
  (*track* (type . url) (name . "https://www.youtube.com/watch?v=pFQX4KQVLqA") (info-title . "Kobaryo feat. Srezcat - Darkmoon Dissolve") (info-playing-time . 195) (last-played 25679 33664 642682 0) (play-count . 3) (info-bpm . 105))
  (*track* (type . url) (name . "https://www.youtube.com/watch?v=tC6jLQ-MRFo") (info-title . "Kobaryo feat. Srezcat - kawAIi") (info-playing-time . 180) (last-played 25682 669 825281 0) (play-count . 4) (info-bpm . 123))
  (*track* (type . url) (name . "https://www.youtube.com/watch?v=PgePf_vIhxQ") (info-title . "Srezcat - Plazmawave 64 [feat. blaxervant & Shinonome I/F]") (info-playing-time . 216) (last-played 25680 55873 173831 0) (play-count . 5) (info-bpm . 150))
- (*track* (type . url) (name . "https://www.youtube.com/watch?v=-GPwQ1GUVsM") (info-title . "Kobaryo - Demise [feat. blaxervant]") (info-playing-time . 324) (last-played 25681 53074 831453 0) (play-count . 12) (info-bpm . 175))
- (*track* (type . url) (name . "https://www.youtube.com/watch?v=8ShnbOXaYGo") (info-title . "DJ NECOJITA - PLAZMAWAVE [feat. Kobaryo] [Official Video]") (info-playing-time . 187) (last-played 25681 51079 441245 0) (play-count . 18) (info-bpm . 174)))
+ (*track* (type . url) (name . "https://www.youtube.com/watch?v=-GPwQ1GUVsM") (info-title . "Kobaryo - Demise [feat. blaxervant]") (info-playing-time . 324) (last-played 25699 27096 783023 0) (play-count . 13) (info-bpm . 175))
+ (*track* (type . url) (name . "https://www.youtube.com/watch?v=8ShnbOXaYGo") (info-title . "DJ NECOJITA - PLAZMAWAVE [feat. Kobaryo] [Official Video]") (info-playing-time . 187) (last-played 25699 27422 809285 0) (play-count . 19) (info-bpm . 174)))
