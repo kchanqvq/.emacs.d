@@ -532,24 +532,24 @@ fun!
 
 ** Package [[file:init.el#L3572][vundo]]
  Let vundo use k-echo-area
-  - Function [[file:init.el#L3579][vundo]]: Display visual undo for the current buffer.
-  - Function [[file:init.el#L3598][k-vundo-kill-buffer-advice]]: Let vundo use `k-echo-area-clear-1' instead of `kill-buffer-and-window'.
+  - Function [[file:init.el#L3582][vundo]]: Display visual undo for the current buffer.
+  - Function [[file:init.el#L3601][k-vundo-kill-buffer-advice]]: Let vundo use `k-echo-area-clear-1' instead of `kill-buffer-and-window'.
     The latter would also delete the main window because it is atomic
     with k-echo-area.
 
  `jit-lock-mode' need to be passed nil to turn off
-  - Package [[file:init.el#L3628][undo-fu-session]]
+  - Package [[file:init.el#L3631][undo-fu-session]]
 
-* [[file:init.el#L3631][⭐ Org index generation]]
-  - Package [[file:init.el#L3633][toc-org]]
-  - Function [[file:init.el#L3635][k-generate-org-index]]: Read Emacs Lisp from current buffer and write org index to OUTPUT-BUFFER.
+* [[file:init.el#L3634][⭐ Org index generation]]
+  - Package [[file:init.el#L3636][toc-org]]
+  - Function [[file:init.el#L3638][k-generate-org-index]]: Read Emacs Lisp from current buffer and write org index to OUTPUT-BUFFER.
     SOURCE-FILENAME is used for generate relative link with line numbers.
     Processing starts from the point in current buffer and write to the point
     in OUTPUT-BUFFER. Both points are advanced during processing.
-  - Function [[file:init.el#L3789][k-generate-org-index-init]]: Generate README.org from init.el.
-  - Function [[file:init.el#L3815][k-generate-org-index--magit-post-stage-hook]]
+  - Function [[file:init.el#L3792][k-generate-org-index-init]]: Generate README.org from init.el.
+  - Function [[file:init.el#L3818][k-generate-org-index--magit-post-stage-hook]]
 
-* [[file:init.el#L3823][Finale]]
+* [[file:init.el#L3826][Finale]]
 
  load up the theme
 

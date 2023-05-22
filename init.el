@@ -2698,7 +2698,7 @@ Hide davmail windows on startup."
     (let*
         ((buf
           (and t
-               (get-buffer "*slime-mrepl*"))))
+               (get-buffer "*unix-in-slime*"))))
       (if buf
           (switch-to-buffer buf)
         (unix-in-slime)))))
@@ -3575,6 +3575,9 @@ normally have their errors suppressed."
   :config
   (setq-default vundo-glyph-alist vundo-unicode-symbols
                 vundo-window-max-height 10)
+  (setq-default undo-limit 1000000
+                undo-strong-limit 10000000
+                undo-outer-limit 100000000)
   ;; Let vundo use k-echo-area
   (defun vundo ()
     "Display visual undo for the current buffer."
