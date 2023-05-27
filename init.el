@@ -2217,6 +2217,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 (use-package smerge
   :straight (:type built-in)
+  :demand t
   :bind ( :map smerge-mode-map
           ("M-n" . smerge-next)
           ("M-p" . smerge-prev)
