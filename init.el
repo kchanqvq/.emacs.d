@@ -1765,6 +1765,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                 '("zgrep" (consult--grep-exclude-args) "--null --line-buffered --color=never --ignore-case --line-number -I -r .")))
 
 (use-package embark
+  :demand t
   :bind
   (("C-z" . embark-act)
    :map embark-file-map
@@ -2457,7 +2458,7 @@ emms-playlist-mode and query for a playlist to open."
             (if colors
                 (let ((inhibit-message t))
                   (message "Generate theme: %s" colors)
-                  (set-frame-parameter nil 'alpha 85)
+                  (set-frame-parameter nil 'alpha 75)
                   (apply #'k-generate-theme
                          (append colors '(0.0 t))))
               (k-theme-switch 'dark)
