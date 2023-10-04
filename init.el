@@ -780,8 +780,7 @@ DARK-P specifies whether to generate a dark or light theme."
    '(font-lock-variable-name-face ((default :inherit k-proper-name)))
    '(font-lock-keyword-face ((default :inherit k-keyword)))
    ;; `(font-lock-negation-char-face ((,class (:foreground "#afafaf"))))
-   `(font-lock-reference-face ((default :inherit k-proper-name)))
-   `(font-lock-constant-face ((default :inherit k-proper-name)))
+   `(font-lock-constant-face ((default :inherit k-string)))
    ;; `(font-lock-preprocessor-face ((,class (:foreground ,success))))
    `(font-lock-regexp-grouping-backslash ((default :inherit bold)))
    `(font-lock-regexp-grouping-construct ((default :inherit bold)))
@@ -1750,6 +1749,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (define-key vertico-map (kbd "s-b") 'vertico-previous-group))
 
 (use-package consult
+  :demand t
   :init
   (setq-default consult-preview-key "<f2>")
   :bind
@@ -2025,6 +2025,15 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                                      ("(\\(setq\\)" 1 font-lock-keyword-face)
                                      ("(\\(psetf\\)" 1 font-lock-keyword-face)
                                      ("(\\(psetq\\)" 1 font-lock-keyword-face)))
+(font-lock-remove-keywords 'lisp-mode '(("#:\\(?:\\sw\\|\\s_\\|\\\\.\\)+" 0 font-lock-builtin-face)
+                                        ("[`‘]\\(\\(?:\\sw\\|\\s_\\|\\\\.\\)+\\)['’]" (1 font-lock-constant-face prepend))))
+(font-lock-add-keywords 'lisp-mode '(("#:\\(?:\\sw\\|\\s_\\|\\\\.\\)+" 0 font-lock-constant-face)
+                                     ("[`‘]\\(\\(?:\\sw\\|\\s_\\|\\\\.\\)+\\)['’]" 1 font-lock-function-name-face prepend)))
+(set-alist 'lisp-el-font-lock-keywords-2 "\\\\\\\\\\(?:\\[\\(?1:\\(?:\\sw\\|\\s_\\|\\\\.\\)+\\)]\\|`\\(?1:\\(?:\\sw\\|\\s_\\|\\\\.\\)+\\(?: \\(?:\\sw\\|\\s_\\|\\\\.\\)+\\)*\\)'\\)"
+           '((1 font-lock-function-name-face prepend)))
+(set-alist 'lisp-el-font-lock-keywords-2 "[`‘']\\(\\(?:\\sw\\|\\s_\\|\\\\.\\)+\\)['’]"
+           '((1 font-lock-function-name-face prepend)))
+
 (add-to-list 'lisp-imenu-generic-expression
              (list "Section" "^;;;\\([^#].*\\)$" 1) t)
 (define-advice eval-last-sexp (:around (orig-func &rest args) k)
@@ -2483,10 +2492,28 @@ emms-playlist-mode and query for a playlist to open."
               k-blink-cursor-interval 0.5)
       (k-emms-bpm-cursor)))
 
-  (add-hook 'emms-player-started-hook 'k-emms-generate-theme)
-  (add-hook 'emms-player-started-hook 'k-emms-bpm-cursor)
-  (add-hook 'emms-player-paused-hook 'k-emms-bpm-cursor-stop-hook)
-  (add-hook 'emms-player-stopped-hook 'k-emms-bpm-cursor-stop-hook))
+  ;; (add-hook 'emms-player-started-hook 'k-emms-generate-theme)
+  ;; (add-hook 'emms-player-started-hook 'k-emms-bpm-cursor)
+  ;; (add-hook 'emms-player-paused-hook 'k-emms-bpm-cursor-stop-hook)
+  ;; (add-hook 'emms-player-stopped-hook 'k-emms-bpm-cursor-stop-hook)
+
+  (defvar k-emms-player-mpv-volume 100)
+
+  (defun k-emms-player-mpv-volume-change (amount)
+    (let* ((amount (or amount 10))
+           (new-volume (+ k-emms-player-mpv-volume amount)))
+      (if (> new-volume 100)
+          (emms-player-mpv-cmd '(set_property volume 100))
+        (emms-player-mpv-cmd `(add volume ,amount))))
+    (emms-player-mpv-cmd '(get_property volume)
+                         #'(lambda (vol err)
+                             (unless err
+                               (let ((vol (truncate vol)))
+                                 (setq k-emms-player-mpv-volume vol)
+                                 (message "Music volume: %s%%"
+                                          vol))))))
+
+  (setq-default emms-volume-change-function 'k-emms-player-mpv-volume-change))
 
 (use-package emms-playlist-mode
   :straight emms
