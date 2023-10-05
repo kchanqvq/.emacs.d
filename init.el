@@ -640,11 +640,11 @@ below window at the bottom (above echo area)."
 (defvar k-theme-dark-p nil)
 
 (defvar k--hsl-sat 1.0)
-
 (defsubst k-hsl-to-hex (h s l)
   (apply #'color-rgb-to-hex (color-hsl-to-rgb h (* s k--hsl-sat) l)))
 
-(defun k-generate-theme (hue-1 sat-1 hue-2 sat-2 hue-3 sat-3 contrast dark-p)
+(defun k-generate-theme (hue-1 sat-1 hue-2 sat-2 hue-3 sat-3 contrast dark-p
+                               &optional bg grey-sat lum)
   "Algorithmically generate and load theme.
 HUE-1 and SAT-1 is used for `k-*-blue',
 HUE-2 and SAT-2 is used for `k-*-purple',
@@ -654,16 +654,16 @@ DARK-P specifies whether to generate a dark or light theme."
   (setq k-theme-dark-p dark-p)
   (let ((k--hsl-sat sat-1))
     (if dark-p
-        (setq k-bg-blue (k-hsl-to-hex hue-1 0.4 0.3)
-              k-fg-blue (k-hsl-to-hex hue-1 1.0 0.75)
-              k-dk-blue (k-hsl-to-hex hue-1 1.0 0.8))
+        (setq k-bg-blue (k-hsl-to-hex hue-1 0.4 0.2)
+              k-fg-blue (k-hsl-to-hex hue-1 1.0 0.7)
+              k-dk-blue (k-hsl-to-hex hue-1 1.0 0.77))
       (setq k-bg-blue (k-hsl-to-hex hue-1 1.0 0.87)
             k-fg-blue (k-hsl-to-hex hue-1 1.0 0.75)
             k-dk-blue (k-hsl-to-hex hue-1 1.0 0.5))))
 
   (let ((k--hsl-sat sat-2))
     (if dark-p
-        (setq k-bg-pink (k-hsl-to-hex hue-2 0.4 0.3)
+        (setq k-bg-pink (k-hsl-to-hex hue-2 0.4 0.15)
               k-fg-pink (k-hsl-to-hex hue-2 1.0 0.75)
               k-dk-pink (k-hsl-to-hex hue-2 1.0 0.8))
       (setq k-bg-pink (k-hsl-to-hex hue-2 0.9 0.92)
@@ -672,7 +672,7 @@ DARK-P specifies whether to generate a dark or light theme."
 
   (let ((k--hsl-sat sat-3))
     (if dark-p
-        (setq k-bg-purple (k-hsl-to-hex hue-3 0.4 0.3)
+        (setq k-bg-purple (k-hsl-to-hex hue-3 0.4 0.15)
               k-fg-purple (k-hsl-to-hex hue-3 1.0 0.75)
               k-dk-purple (k-hsl-to-hex hue-3 1.0 0.8))
       (setq k-bg-purple (k-hsl-to-hex hue-3 0.9 0.92)
@@ -680,9 +680,9 @@ DARK-P specifies whether to generate a dark or light theme."
             k-dk-purple (k-hsl-to-hex hue-3 1.0 0.5))))
 
   (if dark-p
-      (setq k-bg-grey-1 (k-hsl-to-hex 0.0 0.0 0.10)
-            k-bg-grey-2 (k-hsl-to-hex 0.0 0.0 0.20)
-            k-bg-grey-3 (k-hsl-to-hex 0.0 0.0 0.30))
+      (setq k-bg-grey-1 (k-hsl-to-hex hue-1 grey-sat 0.10)
+            k-bg-grey-2 (k-hsl-to-hex hue-1 grey-sat 0.15)
+            k-bg-grey-3 (k-hsl-to-hex hue-1 grey-sat 0.20))
     (setq k-bg-grey-1 (k-hsl-to-hex 0.0 0.0 0.95)
           k-bg-grey-2 (k-hsl-to-hex 0.0 0.0 0.90)
           k-bg-grey-3 (k-hsl-to-hex 0.0 0.0 0.80)))
@@ -690,10 +690,10 @@ DARK-P specifies whether to generate a dark or light theme."
 
   (let ((k--hsl-sat sat-1))
     (if dark-p
-        (setq k-bg "#000000"
-              k-fg (k-hsl-to-hex 0.0 0.0 1.0)
-              k-fg-1 (k-hsl-to-hex hue-1 1.0 0.8))
-      (setq k-bg "#ffffff"
+        (setq k-bg (or bg "#000000")
+              k-fg-1 (k-hsl-to-hex hue-1 0.3 0.5)
+              k-fg (k-hsl-to-hex hue-1 0.25 0.6))
+      (setq k-bg (or bg "#ffffff")
             k-fg (k-hsl-to-hex 0.0 0.0 0.0)
             k-fg-1 (k-hsl-to-hex
                     (if (< (mod (- hue-2 hue-1) 1.0) 0.5)
@@ -745,7 +745,8 @@ DARK-P specifies whether to generate a dark or light theme."
 
   (custom-theme-set-faces
    'k
-   `(default ((default :font ,k-light-monospace :background ,k-bg :foreground ,k-fg :distant-foreground ,k-bg
+   `(default ((default :font ,k-light-monospace :background ,k-bg :foreground ,k-fg
+                       :distant-foreground ,(if k-theme-dark-p "#000000" k-bg)
                        :weight light)))
    `(fixed-pitch ((default :family ,k-monospace :weight light)))
    `(fixed-pitch-serif ((default :family "Courier" :weight light)))
@@ -755,7 +756,8 @@ DARK-P specifies whether to generate a dark or light theme."
    '(underline ((default :underline t)))
    '(italic ((default :slant italic)))
    `(k-quote ((default :inherit (fixed-pitch-serif bold))))
-   `(k-keyword ((default :foreground ,k-fg-1 :inherit bold)))
+   `(k-keyword ((default :foreground ,(if k-theme-dark-p k-dk-blue k-fg-1)
+                         :inherit ,(if k-theme-dark-p nil 'bold))))
    `(k-proper-name ((default :inherit k-quote :foreground ,k-fg)))
    `(k-string ((default :foreground ,k-dk-pink)))
    `(k-doc ((default :font ,k-serif-monospace :inherit (k-string bold))))
@@ -817,9 +819,9 @@ DARK-P specifies whether to generate a dark or light theme."
    `(cursor ((default (:background ,k-fg-pink))))
    `(fringe ((default :foreground ,k-fg-1 :background ,k-bg)))
    `(vertical-border ((default :foreground ,k-bg)))
-   `(window-divider ((default :foreground ,k-bg)))
-   `(window-divider-first-pixel ((default :foreground ,k-bg)))
-   `(window-divider-last-pixel ((default :foreground ,k-bg)))
+   `(window-divider ((default :foreground ,k-bg :distant-foreground ,k-bg)))
+   `(window-divider-first-pixel ((default :foreground ,k-bg :distant-foreground ,k-bg)))
+   `(window-divider-last-pixel ((default :foreground ,k-bg :distant-foreground ,k-bg)))
    `(border ((default :inherit fringe)))
    `(highlight ((default :inherit region)))
    ;; `(gui-element ((,class (:background ,contrast-bg))))
@@ -919,8 +921,10 @@ DARK-P specifies whether to generate a dark or light theme."
    ;; Magit
 
    `(magit-diff-added ((default :background ,k-bg-blue :foreground ,k-fg-1)))
+   `(magit-diffstat-added ((default :foreground ,k-dk-blue)))
    `(magit-diff-added-highlight ((default :background ,k-bg-blue)))
    `(magit-diff-removed ((default :background ,k-bg-pink :foreground ,k-fg-1)))
+   `(magit-diffstat-removed ((default :foreground ,k-dk-pink)))
    `(magit-diff-removed-highlight ((default :background ,k-bg-pink)))
    `(magit-diff-context ((default :background ,k-bg :foreground ,k-fg-1)))
    `(magit-diff-context-highlight ((default :background ,k-bg-grey-1 :foreground ,k-fg)))
@@ -1039,7 +1043,7 @@ DARK-P specifies whether to generate a dark or light theme."
    ;; `(org-scheduled-today ((,class (:foreground ,string))))
    ;; `(org-special-keyword ((,class (:foreground ,warning))))
    ;; `(org-table ((,class (:foreground ,success))))
-   ;; `(org-todo ((,class (:foreground ,error))))
+   `(org-todo ((default (:foreground ,k-fg-red))))
    ;; `(org-upcoming-deadline ((,class (:foreground ,warning))))
    ;; `(org-warning ((,class (:weight bold :foreground ,error))))
 
@@ -1049,9 +1053,11 @@ DARK-P specifies whether to generate a dark or light theme."
    `(hl-line ((default :inherit region)))
    `(stripes ((default :background ,k-bg-grey-1)))
    `(highlight-indent-guides-character-face
-     ((default :foreground ,k-bg-grey-2 :distant-foreground ,k-bg-grey-2)))
+     ((default :foreground ,k-bg-grey-2
+               :distant-foreground ,k-bg-grey-2)))
 
    ;; Message-mode
+   `(message-cited-text ((default :foreground ,k-dk-pink)))
    ;; `(message-header-other ((,class (:foreground nil :background nil :weight normal))))
    ;; `(message-header-subject ((,class (:inherit message-header-other :weight bold :foreground ,highlight))))
    ;; `(message-header-to ((,class (:inherit message-header-other :weight bold :foreground ,warning))))
@@ -1175,7 +1181,9 @@ DARK-P specifies whether to generate a dark or light theme."
    (list (intern (completing-read "Style: " '(bright dark) nil t))))
   (pcase style
     ('bright (k-generate-theme 0.578 1.0 0.920 1.0 0.724 1.0 0.000 nil))
-    ('dark (k-generate-theme 0.578 1.0 0.446 1.0 0.578 1.0 0.105 t))))
+    ('dark (k-generate-theme 0.578 0.9 0.52 1.0 0.578 0.5 0.06 t
+                             (k-hsl-to-hex 0.578 0.4 0.06)
+                             0.4))))
 
 ;;;; GUI tweeks
 (scroll-bar-mode -1)
@@ -1392,7 +1400,8 @@ Format FORMAT-STRING with ARGS."
 (use-package highlight-indent-guides
   :hook (emacs-lisp-mode lisp-mode scheme-mode clojure-mode)
   :config
-  (setq highlight-indent-guides-method 'character)
+  (setq highlight-indent-guides-method 'bitmap
+        highlight-indent-guides-bitmap-function 'highlight-indent-guides--bitmap-line)
   (setq highlight-indent-guides-responsive nil)
   (setq highlight-indent-guides-auto-enabled nil))
 
@@ -1507,6 +1516,9 @@ Format FORMAT-STRING with ARGS."
 
 (use-package vertico
   :hook emacs-startup
+  :bind
+  ( :map vertico-map
+    ("C-s" . k-grep-in-1))
   :config
   (setq-default vertico-count 20)
 
@@ -1749,7 +1761,6 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (define-key vertico-map (kbd "s-b") 'vertico-previous-group))
 
 (use-package consult
-  :demand t
   :init
   (setq-default consult-preview-key "<f2>")
   :bind
@@ -1769,9 +1780,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   :bind
   (("C-z" . embark-act)
    :map embark-file-map
-   ("g" . k-grep-in)
-   :map vertico-map
-   ("C-s" . k-grep-in-1))
+   ("g" . k-grep-in))
   :commands (k-grep-in-1)
   :init
   (setq-default prefix-help-command #'embark-prefix-help-command)
