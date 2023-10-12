@@ -3864,7 +3864,7 @@ fun!
 ;;; Finale
 
 ;; load up the theme
-(k-theme-switch 'dark)
+(add-hook 'after-init-hook '(lambda () (k-theme-switch 'dark)))
 
 ;; perform GC
 (setq gc-cons-threshold 8000000 gc-cons-percentage 0.25)
