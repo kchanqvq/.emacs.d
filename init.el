@@ -2820,6 +2820,7 @@ default input."
 (k-use-guix-maybe pdf-tools)
 
 (use-package pdf-tools
+  :demand t
   :straight nil
   :hook (after-init . pdf-loader-install)
   :config
@@ -3855,7 +3856,7 @@ fun!
 ;;; Finale
 
 ;; load up the theme
-(add-hook 'after-init-hook '(lambda () (k-theme-switch 'dark)))
+(k-theme-switch 'dark)
 
 ;; perform GC
 (setq gc-cons-threshold 8000000 gc-cons-percentage 0.25)
