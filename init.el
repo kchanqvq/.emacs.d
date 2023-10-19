@@ -2729,17 +2729,8 @@ Hide davmail windows on startup."
 (use-package unix-in-slime
   :straight (:local-repo "~/quicklisp/local-projects/unix-in-lisp")
   :bind
-  ( ("s-x" . unix-in-slime-next))
-  :init
-  (defun unix-in-slime-next ()
-    (interactive)
-    (let*
-        ((buf
-          (and t
-               (get-buffer "*unix-in-slime*"))))
-      (if buf
-          (switch-to-buffer buf)
-        (unix-in-slime)))))
+  ( ("s-x" . unix-in-slime-next)
+    ("s-X" . unix-in-slime)))
 
 ;; Web browsing
 
@@ -2829,6 +2820,7 @@ default input."
 (k-use-guix-maybe pdf-tools)
 
 (use-package pdf-tools
+  :demand t
   :straight nil
   :hook (after-init . pdf-loader-install)
   :config
@@ -3864,7 +3856,7 @@ fun!
 ;;; Finale
 
 ;; load up the theme
-(add-hook 'after-init-hook '(lambda () (k-theme-switch 'dark)))
+(k-theme-switch 'dark)
 
 ;; perform GC
 (setq gc-cons-threshold 8000000 gc-cons-percentage 0.25)
