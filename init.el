@@ -1473,7 +1473,7 @@ Format FORMAT-STRING with ARGS."
   :config
   (setq lsp-ltex-version "15.2.0"
         lsp-ltex-latex-environments '(("mathpar" . "ignore"))
-        lsp-ltex-latex-commands '(("\\lstset{}" . "ignore"))))
+        lsp-ltex-latex-commands nil))
 
 (use-package tex
   :straight auctex
@@ -2076,7 +2076,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
    inferior-lisp-program "sbcl"
    slime-lisp-implementations
    `((sbcl ("sbcl" "--dynamic-space-size" "4096"))
-     (mega-sbcl ("sbcl" "--dynamic-space-size" "16384" "--control-stack-size" "2"))
+     (mega-sbcl ("sbcl" "--dynamic-space-size" "24000" "--control-stack-size" "2"))
      (ccl ("ccl64"))))
 
   ;; Handy slime commands and key bindings
@@ -2682,6 +2682,8 @@ Hide davmail windows on startup."
       (geiser-mode)))
   (add-hook 'scheme-mode-hook 'geiser-mode-maybe)
   (setq geiser-mode-start-repl-p t))
+
+(use-package geiser-racket)
 
 (use-package racket-mode
   :bind ( :map racket-mode-map
