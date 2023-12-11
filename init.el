@@ -701,9 +701,9 @@ DARK-P specifies whether to generate a dark or light theme."
                       (- hue-1 0.1))
                     0.20 0.53))))
   (k-load-faces)
+  (defconst blink-cursor-colors (list k-fg-blue k-fg-pink k-fg-purple))
   (if dark-p
       (progn
-        (defconst blink-cursor-colors (list k-fg k-fg-blue k-fg-pink k-fg-purple))
         ;; (defconst blink-background-colors (list k-bg k-bg-blue k-bg-pink k-bg-purple))
         (setq-default face-near-same-color-threshold 50000)
         (setq-default pdf-view-midnight-colors (cons k-fg k-bg))
@@ -713,7 +713,6 @@ DARK-P specifies whether to generate a dark or light theme."
             (when (derived-mode-p 'pdf-view-mode)
               (pdf-view-midnight-minor-mode)))))
     (progn
-      (defconst blink-cursor-colors (list k-fg-blue k-fg-pink k-fg-purple))
       (setq-default face-near-same-color-threshold 30000)
       (delete-from-list 'pdf-tools-enabled-hook 'pdf-view-midnight-minor-mode)
       (dolist (buffer (buffer-list))
@@ -2125,7 +2124,8 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (defun k-slime-command-p (symbol)
     (let ((name (symbol-name symbol)))
       (or (string-prefix-p "sldb" name)
-          (string-prefix-p "slime" name))))
+          (and (string-prefix-p "slime" name)
+               (not (eq symbol 'slime-repl-quicklisp-quickload))))))
   (byte-compile 'k-slime-command-p)
   (defun sexp-minibuffer-hook ()
     (when (and (symbolp this-command)

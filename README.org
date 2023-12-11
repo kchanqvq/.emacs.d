@@ -188,158 +188,158 @@ fun!
     CONTRAST is the hue used for `k-fg-red'.
     DARK-P specifies whether to generate a dark or light theme.
 
-** [[file:init.el#L724][Face inventory]]
+** [[file:init.el#L723][Face inventory]]
 
-** [[file:init.el#L737][Misc settings]]
+** [[file:init.el#L736][Misc settings]]
 
-** [[file:init.el#L741][Generate faces]]
-  - Function [[file:init.el#L742][k-load-faces]]: Generate and set faces.
-  - Function [[file:init.el#L1178][k-theme-switch]]: Elegantly switch to k-theme with STYLE.
+** [[file:init.el#L740][Generate faces]]
+  - Function [[file:init.el#L741][k-load-faces]]: Generate and set faces.
+  - Function [[file:init.el#L1177][k-theme-switch]]: Elegantly switch to k-theme with STYLE.
 
-** [[file:init.el#L1188][GUI tweeks]]
+** [[file:init.el#L1187][GUI tweeks]]
 
  Try not to let underline touch the text.  We use underline to draw a horizontal separator below header line, and this make it look better.
 
-* [[file:init.el#L1215][⭐ Per window echo area]]
+* [[file:init.el#L1214][⭐ Per window echo area]]
  This displays "pseudo" echo areas under each window.  I find it more comfy to look at than the global echo area.  I also hacked `vertico-buffer' to display vertico menu in this area, which appears *above* the main window's mode line.
 
  The implementation is a mega-hack: we split a echo area window under the main window, set the main window's `mode-line-format' window parameter to `none', and copy its actual mode line to the echo area window, so that the echo area window appears to be above main window's mode line.
-  - Function [[file:init.el#L1231][k-echo-area-window]]: Return the k-echo-area window for WINDOW.
-  - Function [[file:init.el#L1239][k-echo-area-main-window]]: Return the window whose k-echo-area is WINDOW.
-  - Function [[file:init.el#L1278][k-echo-area-display]]: Display BUF in a k-echo-area window created for MAIN-WINDOW.
-  - Function [[file:init.el#L1306][k-echo-area-clear]]: Remove the k-echo-area window for MAIN-WINDOW.
-  - Function [[file:init.el#L1314][k-echo-area-clear-1]]: Remove the k-echo-area window.
-  - Function [[file:init.el#L1325][k-echo-area-clear-all]]: Remove all k-echo-area window, for debug purpose only.
+  - Function [[file:init.el#L1230][k-echo-area-window]]: Return the k-echo-area window for WINDOW.
+  - Function [[file:init.el#L1238][k-echo-area-main-window]]: Return the window whose k-echo-area is WINDOW.
+  - Function [[file:init.el#L1277][k-echo-area-display]]: Display BUF in a k-echo-area window created for MAIN-WINDOW.
+  - Function [[file:init.el#L1305][k-echo-area-clear]]: Remove the k-echo-area window for MAIN-WINDOW.
+  - Function [[file:init.el#L1313][k-echo-area-clear-1]]: Remove the k-echo-area window.
+  - Function [[file:init.el#L1324][k-echo-area-clear-all]]: Remove all k-echo-area window, for debug purpose only.
 
-* [[file:init.el#L1333][⭐ Message to per window echo area]]
-  - Function [[file:init.el#L1339][k-message]]: Like `message' but in k-echo-area.
+* [[file:init.el#L1332][⭐ Message to per window echo area]]
+  - Function [[file:init.el#L1338][k-message]]: Like `message' but in k-echo-area.
     Format FORMAT-STRING with ARGS.
-  - Function [[file:init.el#L1348][k-message-display]]: Refresh display of `k-message' for current buffer.
+  - Function [[file:init.el#L1347][k-message-display]]: Refresh display of `k-message' for current buffer.
 
  Use `k-message' for `eldoc'. Pretty comfy!
 
-* [[file:init.el#L1379][Time]]
-  - Package [[file:init.el#L1381][time]]
+* [[file:init.el#L1378][Time]]
+  - Package [[file:init.el#L1380][time]]
 
-* [[file:init.el#L1386][Appearances]]
-  - Package [[file:init.el#L1388][all-the-icons]], [[file:init.el#L1396][volatile-highlights]], [[file:init.el#L1400][highlight-indent-guides]], [[file:init.el#L1408][highlight-parentheses]], [[file:init.el#L1415][topsy]], [[file:init.el#L1423][outline]]
+* [[file:init.el#L1385][Appearances]]
+  - Package [[file:init.el#L1387][all-the-icons]], [[file:init.el#L1395][volatile-highlights]], [[file:init.el#L1399][highlight-indent-guides]], [[file:init.el#L1407][highlight-parentheses]], [[file:init.el#L1414][topsy]], [[file:init.el#L1422][outline]]
 
-* [[file:init.el#L1429][Indent and whitespace]]
-  - Package [[file:init.el#L1431][dtrt-indent]], [[file:init.el#L1436][ws-butler]], [[file:init.el#L1439][snap-indent]]
+* [[file:init.el#L1428][Indent and whitespace]]
+  - Package [[file:init.el#L1430][dtrt-indent]], [[file:init.el#L1435][ws-butler]], [[file:init.el#L1438][snap-indent]]
 
-* [[file:init.el#L1445][General Programming Utilities]]
+* [[file:init.el#L1444][General Programming Utilities]]
 
-** Package [[file:init.el#L1447][flycheck]]
-  - Function [[file:init.el#L1453][k-flycheck-display-error-messages]]
-  - Package [[file:init.el#L1463][lsp-mode]]
+** Package [[file:init.el#L1446][flycheck]]
+  - Function [[file:init.el#L1452][k-flycheck-display-error-messages]]
+  - Package [[file:init.el#L1462][lsp-mode]]
 
-* [[file:init.el#L1470][TeX]]
-  - Package [[file:init.el#L1472][lsp-ltex]]
+* [[file:init.el#L1469][TeX]]
+  - Package [[file:init.el#L1471][lsp-ltex]]
 
-** Package [[file:init.el#L1478][tex]]
+** Package [[file:init.el#L1477][tex]]
  to use pdfview with auctex
 
  to have the buffer refresh after compilation
-  - Function [[file:init.el#L1497][init-latex]]
-  - Package [[file:init.el#L1509][cdlatex]]
+  - Function [[file:init.el#L1496][init-latex]]
+  - Package [[file:init.el#L1508][cdlatex]]
 
-* [[file:init.el#L1513][⭐ Completion system]]
+* [[file:init.el#L1512][⭐ Completion system]]
 
-** Package [[file:init.el#L1517][vertico]]
+** Package [[file:init.el#L1516][vertico]]
 
  Multiline candidates
 
  Don't collapse multiline into single line. I find this reads much better for, say, `yank-pop'
 
  Patch `read-from-kill-ring' so that it doesn't collapse entries to single line
-  - Function [[file:init.el#L1535][read-from-kill-ring]]: Read a `kill-ring' entry using completion and minibuffer history.
+  - Function [[file:init.el#L1534][read-from-kill-ring]]: Read a `kill-ring' entry using completion and minibuffer history.
     PROMPT is a string to prompt with.
 
  Patch `vertico--truncate-multiline'
-  - Function [[file:init.el#L1585][vertico--truncate-multiline]]: Truncate multiline CAND.
+  - Function [[file:init.el#L1584][vertico--truncate-multiline]]: Truncate multiline CAND.
     Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead.
-  - Function [[file:init.el#L1597][k-string-pixel-height]]: Return the width of STRING in pixels.
+  - Function [[file:init.el#L1596][k-string-pixel-height]]: Return the width of STRING in pixels.
 
  Patch `vertico--compute-scroll'
-  - Function [[file:init.el#L1614][vertico--compute-scroll]]: Update scroll position.
+  - Function [[file:init.el#L1613][vertico--compute-scroll]]: Update scroll position.
 
  Zebra strips, for better visualization of multiline candidates
 
  Patch `vertico--display-candidates'
-  - Function [[file:init.el#L1629][vertico--display-candidates]]: Update candidates overlay `vertico--candidates-ov' with LINES.
-** Package [[file:init.el#L1642][vertico-buffer]]
+  - Function [[file:init.el#L1628][vertico--display-candidates]]: Update candidates overlay `vertico--candidates-ov' with LINES.
+** Package [[file:init.el#L1641][vertico-buffer]]
 
  we use `fit-window-to-buffer' instead and ignore HEIGHT
-  - Function [[file:init.el#L1650][vertico--resize-window]]
+  - Function [[file:init.el#L1649][vertico--resize-window]]
 
  Customize vertico prompt
-  - Function [[file:init.el#L1662][vertico--format-count]]: Format the count string.
+  - Function [[file:init.el#L1661][vertico--format-count]]: Format the count string.
 
  Vertico insert echo messages into its input line.  Without any patch, such echo message masks `k-echo-area--top-separator-overlay', breaking our horizontal rule drawn by overline.  The following resolves this.
-  - Function [[file:init.el#L1678][k-minibuffer-message-advice]]
+  - Function [[file:init.el#L1677][k-minibuffer-message-advice]]
 
  Make `vertico-buffer' use k-echo-area
-  - Function [[file:init.el#L1686][vertico--setup]]
-** Package [[file:init.el#L1723][marginalia]]
+  - Function [[file:init.el#L1685][vertico--setup]]
+** Package [[file:init.el#L1722][marginalia]]
  Automatically give more generous field width
-  - Function [[file:init.el#L1728][marginalia--affixate]]: Affixate CANDS given METADATA and Marginalia ANNOTATOR.
-  - Package [[file:init.el#L1750][orderless]], [[file:init.el#L1763][consult]]
+  - Function [[file:init.el#L1727][marginalia--affixate]]: Affixate CANDS given METADATA and Marginalia ANNOTATOR.
+  - Package [[file:init.el#L1749][orderless]], [[file:init.el#L1762][consult]]
 
-** Package [[file:init.el#L1778][embark]]
-  - Function [[file:init.el#L1793][k-grep-in-1]]: Grep in current embark target.
-  - Function [[file:init.el#L1797][k-grep-in]]: Grep in FILENAME.
-  - Package [[file:init.el#L1805][embark-consult]]
+** Package [[file:init.el#L1777][embark]]
+  - Function [[file:init.el#L1792][k-grep-in-1]]: Grep in current embark target.
+  - Function [[file:init.el#L1796][k-grep-in]]: Grep in FILENAME.
+  - Package [[file:init.el#L1804][embark-consult]]
 
-* [[file:init.el#L1807][EXWM]]
-  - Package [[file:init.el#L1809][exwm-randr]]
+* [[file:init.el#L1806][EXWM]]
+  - Package [[file:init.el#L1808][exwm-randr]]
 
-** Package [[file:init.el#L1816][exwm]]
-  - Function [[file:init.el#L1822][k-exwm-update-title]]
+** Package [[file:init.el#L1815][exwm]]
+  - Function [[file:init.el#L1821][k-exwm-update-title]]
 
-* [[file:init.el#L1829][Misc key bindings]]
+* [[file:init.el#L1828][Misc key bindings]]
 
-** [[file:init.el#L1879][More efficient bindings for keyboard macro]]
-  - Package [[file:init.el#L1880][kmacro]], [[file:init.el#L1885][comment-dwim-2]], [[file:init.el#L1888][crux]]
+** [[file:init.el#L1878][More efficient bindings for keyboard macro]]
+  - Package [[file:init.el#L1879][kmacro]], [[file:init.el#L1884][comment-dwim-2]], [[file:init.el#L1887][crux]]
 
-** [[file:init.el#L1895][Disable input method (option+space) hot key on macOS]]
-  - Function [[file:init.el#L1897][k-ns-toggle-input-method-shortcut]], [[file:init.el#L1904][k-ns-focus-change-function]]
+** [[file:init.el#L1894][Disable input method (option+space) hot key on macOS]]
+  - Function [[file:init.el#L1896][k-ns-toggle-input-method-shortcut]], [[file:init.el#L1903][k-ns-focus-change-function]]
 
-* [[file:init.el#L1909][Lisp development]]
+* [[file:init.el#L1908][Lisp development]]
 
-** Package [[file:init.el#L1911][emacs]]
-  - Function [[file:init.el#L1926][k-info-rename-buffer]]: Rename info buffer according to current node.
-  - Advice [[file:init.el#L1930][eval-last-sexp]]
+** Package [[file:init.el#L1910][emacs]]
+  - Function [[file:init.el#L1925][k-info-rename-buffer]]: Rename info buffer according to current node.
+  - Advice [[file:init.el#L1929][eval-last-sexp]]
 
-** Package [[file:init.el#L1937][macrostep]]
+** Package [[file:init.el#L1936][macrostep]]
  To fix the outdated naming in (define-minor-mode macrostep-mode ...) TODO: Remove once upstream fix this.
-** Package [[file:init.el#L1945][comment-or-uncomment-sexp]]
+** Package [[file:init.el#L1944][comment-or-uncomment-sexp]]
  #+nil structural comment for Common Lisp
-  - Macro [[file:init.el#L1952][advance-save-excursion]], [[file:init.el#L1958][structured-comment-maybe]]
-  - Function [[file:init.el#L1978][structured-comment-advice]]
-  - Function [[file:init.el#L1983][structured-comment-defun]]: Use #+nil to comment a top-level form for Common Lisp.
-  - Package [[file:init.el#L1996][paredit]]
+  - Macro [[file:init.el#L1951][advance-save-excursion]], [[file:init.el#L1957][structured-comment-maybe]]
+  - Function [[file:init.el#L1977][structured-comment-advice]]
+  - Function [[file:init.el#L1982][structured-comment-defun]]: Use #+nil to comment a top-level form for Common Lisp.
+  - Package [[file:init.el#L1995][paredit]]
 
-** Package [[file:init.el#L2005][paxedit]]
-  - Function [[file:init.el#L2013][paxedit-copy-1]], [[file:init.el#L2023][paxedit-kill-1]]
-  - Advice [[file:init.el#L2048][eval-last-sexp]]
+** Package [[file:init.el#L2004][paxedit]]
+  - Function [[file:init.el#L2012][paxedit-copy-1]], [[file:init.el#L2022][paxedit-kill-1]]
+  - Advice [[file:init.el#L2047][eval-last-sexp]]
 
-** Package [[file:init.el#L2052][slime]]
-  - Advice [[file:init.el#L2069][slime-load-contribs]], [[file:init.el#L2072][slime-eval-last-expression]]
+** Package [[file:init.el#L2051][slime]]
+  - Advice [[file:init.el#L2068][slime-load-contribs]], [[file:init.el#L2071][slime-eval-last-expression]]
 
  Handy slime commands and key bindings
-  - Function [[file:init.el#L2083][ensure-slime]]
-  - Function [[file:init.el#L2089][slime-undefine]]: Undefine toplevel definition at point.
+  - Function [[file:init.el#L2082][ensure-slime]]
+  - Function [[file:init.el#L2088][slime-undefine]]: Undefine toplevel definition at point.
 
  *slime-scratch*
-  - Function [[file:init.el#L2108][switch-to-scratch]]: Switch to scratch buffer.
+  - Function [[file:init.el#L2107][switch-to-scratch]]: Switch to scratch buffer.
 
  Slime mode line
-  - Function [[file:init.el#L2116][slime-mode-line]]
+  - Function [[file:init.el#L2115][slime-mode-line]]
 
  Hacks to make slime-autodoc works better
 
  Enable Paredit and Company in Lisp related minibuffers
-  - Function [[file:init.el#L2125][k-slime-command-p]], [[file:init.el#L2130][sexp-minibuffer-hook]]
+  - Function [[file:init.el#L2124][k-slime-command-p]], [[file:init.el#L2130][sexp-minibuffer-hook]]
 
  Slime debug window non-prolifiration
 ** Package [[file:init.el#L2141][slime-repl]]
