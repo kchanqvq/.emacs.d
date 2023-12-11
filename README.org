@@ -509,45 +509,46 @@ fun!
  A status area at the right bottom corner (using the right side of global echo area).  It is used for displaying battery, time, and vampire time zone.
   - Function [[file:init.el#L3362][k-time-status]]: Status function for current time.
   - Function [[file:init.el#L3366][k-battery-status]]: Status function for battery status.
-  - Function [[file:init.el#L3389][k-status-update]]: Update status area.
+  - Function [[file:init.el#L3389][k-telega-status]]
+  - Function [[file:init.el#L3398][k-status-update]]: Update status area.
 
-* [[file:init.el#L3412][Vampire timezone]]
+* [[file:init.el#L3422][Vampire timezone]]
  How much sun-protection-free time left?
-  - Function [[file:init.el#L3420][time-to-vampire-time]]
-  - Function [[file:init.el#L3432][vampire-time-status]]: Status function for vampire time zone.
+  - Function [[file:init.el#L3430][time-to-vampire-time]]
+  - Function [[file:init.el#L3442][vampire-time-status]]: Status function for vampire time zone.
 
-* [[file:init.el#L3451][telega.el]]
+* [[file:init.el#L3461][telega.el]]
  A heavily modified telega.el to tweak its appearance to my liking.
 
-** Package [[file:init.el#L3458][telega]]
-  - Function [[file:init.el#L3466][k-telega-chatbuf-attach-sticker]]
-  - Advice [[file:init.el#L3497][telega-chars-xheight]], [[file:init.el#L3502][telega-sticker--create-image]], [[file:init.el#L3511][telega--fmt-text-faces]], [[file:init.el#L3517][telega-ins--special]], [[file:init.el#L3524][telega-ins--message0]], [[file:init.el#L3531][telega-ins--date]]
-  - Function [[file:init.el#L3534][k-telega-load-all-history]]: Load all history in current chat.
-  - Package [[file:init.el#L3569][enwc]], [[file:init.el#L3574][proced]]
+** Package [[file:init.el#L3468][telega]]
+  - Function [[file:init.el#L3476][k-telega-chatbuf-attach-sticker]]
+  - Advice [[file:init.el#L3507][telega-chars-xheight]], [[file:init.el#L3512][telega-sticker--create-image]], [[file:init.el#L3521][telega--fmt-text-faces]], [[file:init.el#L3527][telega-ins--special]], [[file:init.el#L3534][telega-ins--message0]], [[file:init.el#L3541][telega-ins--date]]
+  - Function [[file:init.el#L3544][k-telega-load-all-history]]: Load all history in current chat.
+  - Package [[file:init.el#L3579][enwc]], [[file:init.el#L3584][proced]]
 
-* [[file:init.el#L3587][Undo Tree]]
-  - Package [[file:init.el#L3589][undo-tree]]
+* [[file:init.el#L3597][Undo Tree]]
+  - Package [[file:init.el#L3599][undo-tree]]
 
-** Package [[file:init.el#L3604][vundo]]
+** Package [[file:init.el#L3614][vundo]]
  Let vundo use k-echo-area
-  - Function [[file:init.el#L3614][vundo]]: Display visual undo for the current buffer.
-  - Function [[file:init.el#L3633][k-vundo-kill-buffer-advice]]: Let vundo use `k-echo-area-clear-1' instead of `kill-buffer-and-window'.
+  - Function [[file:init.el#L3624][vundo]]: Display visual undo for the current buffer.
+  - Function [[file:init.el#L3643][k-vundo-kill-buffer-advice]]: Let vundo use `k-echo-area-clear-1' instead of `kill-buffer-and-window'.
     The latter would also delete the main window because it is atomic
     with k-echo-area.
 
  `jit-lock-mode' need to be passed nil to turn off
-  - Package [[file:init.el#L3663][undo-fu-session]]
+  - Package [[file:init.el#L3673][undo-fu-session]]
 
-* [[file:init.el#L3666][⭐ Org index generation]]
-  - Package [[file:init.el#L3668][toc-org]]
-  - Function [[file:init.el#L3670][k-generate-org-index]]: Read Emacs Lisp from current buffer and write org index to OUTPUT-BUFFER.
+* [[file:init.el#L3676][⭐ Org index generation]]
+  - Package [[file:init.el#L3678][toc-org]]
+  - Function [[file:init.el#L3680][k-generate-org-index]]: Read Emacs Lisp from current buffer and write org index to OUTPUT-BUFFER.
     SOURCE-FILENAME is used for generate relative link with line numbers.
     Processing starts from the point in current buffer and write to the point
     in OUTPUT-BUFFER. Both points are advanced during processing.
-  - Function [[file:init.el#L3824][k-generate-org-index-init]]: Generate README.org from init.el.
-  - Function [[file:init.el#L3850][k-generate-org-index--magit-post-stage-hook]]
+  - Function [[file:init.el#L3834][k-generate-org-index-init]]: Generate README.org from init.el.
+  - Function [[file:init.el#L3860][k-generate-org-index--magit-post-stage-hook]]
 
-* [[file:init.el#L3858][Finale]]
+* [[file:init.el#L3868][Finale]]
 
  load up the theme
 

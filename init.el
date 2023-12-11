@@ -3386,9 +3386,19 @@ normally have their errors suppressed."
 (when (executable-find "acpi")
   (add-to-list 'k-status-functions 'k-battery-status))
 
+(defun k-telega-status ()
+  (let* ((c (telega-chat-get 373230619))
+        (n (+ (plist-get c :unread_count)
+              (plist-get c :unread_mention_count)
+              (plist-get c :unread_reaction_count))))
+    (if (> n 0) (format "%s ♡" n) nil)))
+
+(add-to-list 'k-status-functions 'k-telega-status)
+
 (defun k-status-update ()
   "Update status area."
-  (let* ((msg (mapconcat #'funcall k-status-functions "  "))
+  (let* ((msg (mapcar #'funcall k-status-functions))
+         (msg (mapconcat #'identity (cl-remove nil msg) "  "))
          (width (string-width msg))
          (msg (k-fill-right msg)))
     (with-current-buffer " *Echo Area 0*"
