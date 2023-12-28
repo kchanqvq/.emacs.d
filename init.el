@@ -1835,6 +1835,9 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 (global-set-key (kbd "s-w") 'save-buffer)
 (global-set-key (kbd "s-u") 'revert-buffer)
+(global-set-key (kbd "s-=") 'text-scale-adjust)
+(global-set-key (kbd "s-+") 'text-scale-adjust)
+(global-set-key (kbd "s--") 'text-scale-decrease)
 ;; (k-global-set-key (kbd "C-c C-c C-SPC") 'consult-global-mark)
 (k-global-set-key (kbd "s-0") 'delete-window)
 (k-global-set-key (kbd "s-1") 'delete-other-windows)
@@ -3546,7 +3549,7 @@ normally have their errors suppressed."
           (sit-for 0 t)
           (if (telega-chatbuf--need-older-history-p)
               (k-telega-load-all-history)
-            (telega-chatbuf--history-state-set :older-loaded nil)))))))
+            ( telega-chatbuf--history-state-set :older-loaded nil)))))))
   ;; (define-advice telega-chatbuf--load-initial-history
   ;;     (:around (orig) k)
   ;;   (with-advice
