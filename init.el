@@ -2128,6 +2128,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
                (not (eq symbol 'slime-repl-quicklisp-quickload))
                (not (string-suffix-p "system" name))))))
   (byte-compile 'k-slime-command-p)
+
   (defun sexp-minibuffer-hook ()
     (when (and (symbolp this-command)
                (or (eq this-command 'eval-expression)
@@ -2144,6 +2145,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
           ("s-x" . slime-repl-sync)
           :map slime-repl-mode-map
           ("M-r")
+          ("M-s")
           ("DEL")
           ("C-c C-s" . consult-history)
           ("C-c C-r" . consult-history))
@@ -2953,6 +2955,7 @@ default input."
   (org-babel-do-load-languages 'org-babel-load-languages '((latex . t)))
   (org-babel-do-load-languages 'org-babel-load-languages '((lisp . t)))
   (setq org-babel-lisp-eval-fn 'slime-eval)
+  (setq org-imenu-depth 4)
 
   (require 'org-inlinetask)
 
@@ -3388,11 +3391,12 @@ normally have their errors suppressed."
   (add-to-list 'k-status-functions 'k-battery-status))
 
 (defun k-telega-status ()
-  (let* ((c (telega-chat-get 373230619))
-        (n (+ (plist-get c :unread_count)
-              (plist-get c :unread_mention_count)
-              (plist-get c :unread_reaction_count))))
-    (if (> n 0) (format "%s ♡" n) nil)))
+  (when (featurep 'telega)
+    (let* ((c (telega-chat-get 373230619))
+           (n (+ (plist-get c :unread_count)
+                 (plist-get c :unread_mention_count)
+                 (plist-get c :unread_reaction_count))))
+      (if (> n 0) (format "%s ♡" n) nil))))
 
 (add-to-list 'k-status-functions 'k-telega-status)
 
