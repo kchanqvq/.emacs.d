@@ -2131,8 +2131,10 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
     (let ((name (symbol-name symbol)))
       (or (string-prefix-p "sldb" name)
           (and (string-prefix-p "slime" name)
-               (not (eq symbol 'slime-repl-quicklisp-quickload))))))
+               (not (eq symbol 'slime-repl-quicklisp-quickload))
+               (not (string-suffix-p "system" name))))))
   (byte-compile 'k-slime-command-p)
+
   (defun sexp-minibuffer-hook ()
     (when (and (symbolp this-command)
                (or (eq this-command 'eval-expression)
@@ -2149,6 +2151,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
           ("s-x" . slime-repl-sync)
           :map slime-repl-mode-map
           ("M-r")
+          ("M-s")
           ("DEL")
           ("C-c C-s" . consult-history)
           ("C-c C-r" . consult-history))
@@ -2240,7 +2243,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (defun transient--delete-window ()
     (k-echo-area-clear-1 transient--window)))
 
-(use-package smerge
+(use-package smerge-mode
   :straight (:type built-in)
   :demand t
   :bind ( :map smerge-mode-map
@@ -2967,6 +2970,7 @@ default input."
   (org-babel-do-load-languages 'org-babel-load-languages '((latex . t)))
   (org-babel-do-load-languages 'org-babel-load-languages '((lisp . t)))
   (setq org-babel-lisp-eval-fn 'slime-eval)
+  (setq org-imenu-depth 4)
 
   (require 'org-inlinetask)
 
@@ -3401,9 +3405,20 @@ normally have their errors suppressed."
 (when (executable-find "acpi")
   (add-to-list 'k-status-functions 'k-battery-status))
 
+(defun k-telega-status ()
+  (when (featurep 'telega)
+    (let* ((c (telega-chat-get 373230619))
+           (n (+ (plist-get c :unread_count)
+                 (plist-get c :unread_mention_count)
+                 (plist-get c :unread_reaction_count))))
+      (if (> n 0) (format "%s ♡" n) nil))))
+
+(add-to-list 'k-status-functions 'k-telega-status)
+
 (defun k-status-update ()
   "Update status area."
-  (let* ((msg (mapconcat #'funcall k-status-functions "  "))
+  (let* ((msg (mapcar #'funcall k-status-functions))
+         (msg (mapconcat #'identity (cl-remove nil msg) "  "))
          (width (string-width msg))
          (msg (k-fill-right msg)))
     (with-current-buffer " *Echo Area 0*"
