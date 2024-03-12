@@ -1,5 +1,5 @@
 ;;; This is an EMMS playlist file Play it with M-x emms-play-playlist
-((*track* (type . url) (name . "https://www.youtube.com/watch?v=qAFBjj2R9oY") (info-title . "USAO - Wormhole") (info-playing-time . 226) (last-played 25956 59868 443959 0) (play-count . 27))
+((*track* (type . url) (name . "https://www.youtube.com/watch?v=qAFBjj2R9oY") (info-title . "USAO - Wormhole") (info-playing-time . 226) (last-played 26094 51478 431104 0) (play-count . 28))
  (*track* (type . url) (name . "https://www.youtube.com/watch?v=vqjJEZMmyt0") (info-title . "Rampage/USAO") (info-playing-time . 137) (last-played 25868 56407 524458 0) (play-count . 6))
  (*track* (type . url) (name . "https://www.youtube.com/watch?v=OW8pMvedAtM") (info-title . "USAO - Cyaegha") (info-playing-time . 143) (last-played 25868 56547 533611 0) (play-count . 10) (info-bpm . 200))
  (*track* (type . url) (name . "https://www.youtube.com/watch?v=_tX1lqcVnno") (info-title . "USAO - Cthugha [Muse Dash]") (info-playing-time . 156) (last-played 25868 56692 654822 0) (play-count . 11))
@@ -101,4 +101,6 @@
  (*track* (type . url) (name . "https://www.youtube.com/watch?v=AZXjFOXgvFU") (info-title . "pomme'tto - 偉大なる鍋 of GOD (Idainaru Nabe of GOD)") (info-playing-time . 231) (last-played 25965 28939 36712 0) (play-count . 28))
  (*track* (type . url) (name . "https://www.youtube.com/watch?v=pY3Vst8ZZ9w") (info-title . "Neko Hacker - だーいすきだよ feat. をとは") (info-playing-time . 201) (last-played 25965 29171 671799 0) (play-count . 39))
  (*track* (type . url) (name . "https://www.youtube.com/watch?v=AX4WF75NKOk") (info-title . "闇鍋《ダークネス・インフェルノ》降臨 ──煮よ、我が魂──") (info-playing-time . 288) (last-played 25965 29375 236230 0) (play-count . 17))
- (*track* (type . url) (name . "https://www.youtube.com/watch?v=ekC_mWxuCJ8") (info-title . "ばーさす！") (info-playing-time . 296) (last-played 25965 29665 170056 0) (play-count . 16)))
+ (*track* (type . url) (name . "https://www.youtube.com/watch?v=ekC_mWxuCJ8") (info-title . "ばーさす！") (info-playing-time . 296) (last-played 25965 29665 170056 0) (play-count . 16))
+ (*track* (type . url) (name . "https://www.youtube.com/watch?v=98gsBS2YsUw") (info-title . "How To Make 音ゲ～曲！") (info-playing-time . 150) (last-played 26094 51500 319920 0) (play-count . 1))
+ (*track* (type . url) (name . "https://www.youtube.com/watch?v=0AX12dYNjKQ") (info-title . "F Rabbeat feat.マスタード - すとり～ま～FIRE!?!? 【#perolist2022】") (info-playing-time . 136) (last-played 26094 51654 810694 0) (play-count . 1)))

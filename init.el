@@ -2237,7 +2237,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (defun transient--delete-window ()
     (k-echo-area-clear-1 transient--window)))
 
-(use-package smerge
+(use-package smerge-mode
   :straight (:type built-in)
   :demand t
   :bind ( :map smerge-mode-map

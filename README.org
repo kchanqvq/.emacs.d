@@ -55,7 +55,7 @@ fun!
   - [[#package-diff-mode][Package diff-mode]]
   - [[#package-magit][Package magit]]
   - [[#package-transient][Package transient]]
-  - [[#package-smerge][Package smerge]]
+  - [[#package-smerge-mode][Package smerge-mode]]
   - [[#autosave-and-backup-files][autosave and backup files]]
 - [[#fast-cursor-movement][Fast cursor movement]]
   - [[#package-avy][Package avy]]
@@ -358,7 +358,7 @@ fun!
 ** Package [[file:init.el#L2231][transient]]
  Make `transient' and thus `magit' use k-echo-area
   - Function [[file:init.el#L2237][transient--delete-window]]
-** Package [[file:init.el#L2240][smerge]]
+** Package [[file:init.el#L2240][smerge-mode]]
  ensure keymap precedence over flycheck
 ** [[file:init.el#L2251][autosave and backup files]]
 
