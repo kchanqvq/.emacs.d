@@ -1835,6 +1835,9 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 (global-set-key (kbd "s-w") 'save-buffer)
 (global-set-key (kbd "s-u") 'revert-buffer)
+(global-set-key (kbd "s-=") 'text-scale-adjust)
+(global-set-key (kbd "s-+") 'text-scale-adjust)
+(global-set-key (kbd "s--") 'text-scale-decrease)
 ;; (k-global-set-key (kbd "C-c C-c C-SPC") 'consult-global-mark)
 (k-global-set-key (kbd "s-0") 'delete-window)
 (k-global-set-key (kbd "s-1") 'delete-other-windows)
@@ -1868,7 +1871,10 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
           ([?\M-w] . [?\C-c])
           ([?\C-y] . [?\C-v])))
   (define-key exwm-mode-map (kbd "C-q") 'exwm-input-send-next-key)
-  (define-key exwm-mode-map (kbd "C-c C-q") nil))
+  (define-key exwm-mode-map (kbd "C-c C-q") nil)
+  (global-set-key (kbd "<XF86AudioRaiseVolume>") #'k-set-volume-increase)
+  (global-set-key (kbd "<XF86AudioLowerVolume>") #'k-set-volume-decrease))
+
 
 (define-key indent-rigidly-map (kbd "C-b") 'indent-rigidly-left)
 (define-key indent-rigidly-map (kbd "C-f") 'indent-rigidly-right)
@@ -2074,7 +2080,7 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   (setq-default
    inferior-lisp-program "sbcl"
    slime-lisp-implementations
-   `((sbcl ("sbcl" "--dynamic-space-size" "4096"))
+   `((sbcl ("/home/qh/sbcl/bin/sbcl" "--dynamic-space-size" "4096"))
      (mega-sbcl ("sbcl" "--dynamic-space-size" "24000" "--control-stack-size" "2"))
      (ccl ("ccl64"))))
 
@@ -2892,12 +2898,21 @@ default input."
                               (k-get-volume))
                       nil nil t)))
   (cl-check-type volume number)
-  (unless (= 0 (call-process-shell-command
+  (if (= 0 (call-process-shell-command
                 (cond ((executable-find "amixer")
                        (format "amixer set Master %s%%" volume))
                       ((executable-find "osascript")
                        (format "osascript -e 'set volume output volume %s'" volume)))))
+      (message "Master Volume: %s%%" volume)
     (error "Failed to set volume")))
+
+(defun k-set-volume-decrease ()
+  (interactive)
+  (k-set-volume (max 0 (- (k-get-volume) 2))))
+
+(defun k-set-volume-increase ()
+  (interactive)
+  (k-set-volume (min 100 (+ (k-get-volume) 2))))
 
 (use-package sudo-edit
   :init
@@ -3561,7 +3576,7 @@ normally have their errors suppressed."
           (sit-for 0 t)
           (if (telega-chatbuf--need-older-history-p)
               (k-telega-load-all-history)
-            (telega-chatbuf--history-state-set :older-loaded nil)))))))
+            ( telega-chatbuf--history-state-set :older-loaded nil)))))))
   ;; (define-advice telega-chatbuf--load-initial-history
   ;;     (:around (orig) k)
   ;;   (with-advice
