@@ -1855,7 +1855,9 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
 (when k-exwm-enabled-p
   (setq exwm-input-global-keys
-        `((,(kbd "s-<escape>") . exwm-reset)))
+        `((,(kbd "s-<escape>") . exwm-reset)
+          (,(kbd "s-r") . windmove-right)
+          (,(kbd "s-l") . windmove-left)))
   (setq exwm-input-simulation-keys
         '(([?\C-b] . [left])
           ([?\C-f] . [right])
@@ -2073,14 +2075,15 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
 
   (define-advice slime-load-contribs
       (:after (&rest args) k)
-    (slime-load-file "~/.emacs.d/scripts.lisp"))
+    ;; (slime-load-file "~/.emacs.d/scripts.lisp")
+    )
   (define-advice slime-eval-last-expression (:around (orig-func &rest args) k)
     (if mark-active (call-interactively #'slime-eval-region)
       (apply orig-func args)))
   (setq-default
    inferior-lisp-program "sbcl"
    slime-lisp-implementations
-   `((sbcl ("/home/qh/sbcl/bin/sbcl" "--dynamic-space-size" "4096"))
+   `((sbcl ("sbcl" "--dynamic-space-size" "4096"))
      (mega-sbcl ("sbcl" "--dynamic-space-size" "24000" "--control-stack-size" "2"))
      (ccl ("ccl64"))))
 
@@ -2336,8 +2339,8 @@ Ignore MAX-WIDTH, use `k-vertico-multiline-max-lines' instead."
   :init
   (k-global-set-key (kbd "s-p") 'windmove-up)
   (k-global-set-key (kbd "s-n") 'windmove-down)
-  (k-global-set-key (kbd "s-r") 'windmove-right)
-  (k-global-set-key (kbd "s-l") 'windmove-left)
+  (global-set-key (kbd "s-r") 'windmove-right)
+  (global-set-key (kbd "s-l") 'windmove-left)
   :config
   ;; Moving between window/buffer/frame/workspaces in 4 directions
   (defun next-workspace (direction)
@@ -2426,7 +2429,7 @@ emms-playlist-mode and query for a playlist to open."
                         (if total (format-seconds "%.2h:%z%.2m:%.2s" total) "unknown"))
                       'face 'bold))
        "")))
-  (add-to-list 'emms-player-mpv-parameters "--ytdl-format=best")
+  (add-to-list 'emms-player-mpv-parameters "--ytdl-format=bestaudio")
   (when (eq window-system 'ns)
     (add-to-list 'emms-player-mpv-parameters "--ontop-level=desktop")
     (add-to-list 'emms-player-mpv-parameters "--ontop")
@@ -2737,11 +2740,11 @@ Hide davmail windows on startup."
 ;;     ("s-f" . multi-vterm-next)
 ;;     ("s-b" . multi-vterm-prev)))
 
-(use-package unix-in-slime
-  :straight (:local-repo "~/quicklisp/local-projects/unix-in-lisp")
-  :bind
-  ( ("s-x" . unix-in-slime-next)
-    ("s-X" . unix-in-slime)))
+;; (use-package unix-in-slime
+;;   :straight (:local-repo "~/quicklisp/local-projects/unix-in-lisp")
+;;   :bind
+;;   ( ("s-x" . unix-in-slime-next)
+;;     ("s-X" . unix-in-slime)))
 
 ;; Web browsing
 
@@ -3406,7 +3409,7 @@ normally have their errors suppressed."
   (add-to-list 'k-status-functions 'k-battery-status))
 
 (defun k-telega-status ()
-  (when (featurep 'telega)
+  (when (and (featurep 'telega) (telega-chat-buffers))
     (let* ((c (telega-chat-get 373230619))
            (n (+ (plist-get c :unread_count)
                  (plist-get c :unread_mention_count)
@@ -3443,7 +3446,7 @@ normally have their errors suppressed."
 ;; How much sun-protection-free time left?
 
 (require 'solar)
-
+;
 (setq-default calendar-longitude -122.1697
               calendar-latitude 37.4275)
 
